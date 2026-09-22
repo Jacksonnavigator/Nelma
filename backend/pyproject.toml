@@ -1,0 +1,36 @@
+[project]
+name = "nelma-backend"
+version = "1.0.0"
+description = "FastAPI backend for the NELMA Drinking Water customer application"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "httpx>=0.28",
+  "uvicorn[standard]>=0.34",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.14",
+  "pydantic-settings>=2.7",
+  "pyjwt>=2.10",
+  "argon2-cffi>=25.1",
+  "email-validator>=2.2",
+  "tzdata>=2025.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.16",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["alembic*", "tests*"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"

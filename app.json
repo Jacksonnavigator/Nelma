@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "NELMA Drinking Water",
+    "slug": "nelma-drinking-water",
+    "scheme": "nelma",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/nelma-icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F7FCFF",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nelma.drinkingwater",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "NELMA uses your location only when you choose to attach GPS coordinates to a delivery address."
+      }
+    },
+    "android": {
+      "package": "com.nelma.drinkingwater",
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/nelma-icon.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/nelma-icon.png"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/nelma-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications",
+      [
+        "expo-navigation-bar",
+        {
+          "style": "dark",
+          "enforceContrast": true,
+          "hidden": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "NELMA uses your location only when you choose to attach GPS coordinates to a delivery address."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/nelma-icon.png",
+          "backgroundColor": "#F7FCFF",
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-video"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

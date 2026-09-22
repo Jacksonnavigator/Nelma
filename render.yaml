@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: nelma-api
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install .
+    preDeployCommand: python -m app.scripts.prepare_database
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /api/v1/ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_POOL_SIZE
+        value: "3"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "2"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: INTERNAL_ADMIN_TOKEN
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PAYMENT_PROVIDER
+        value: cash
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: NOTIFICATION_PROVIDER
+        value: smtp_twilio
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURITY
+        value: starttls
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        sync: false
