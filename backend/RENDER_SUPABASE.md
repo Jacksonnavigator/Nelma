@@ -37,47 +37,70 @@ Because the mobile and admin apps talk to FastAPI, not directly to Supabase, dis
 
 The migration also enables row-level security on the app tables. FastAPI connects through PostgreSQL and enforces the application permissions itself.
 
-## 2. Create The Render Service
+## 2. Create The Render Service Without Blueprint
 
-The repository already has `render.yaml` at the project root. On Render, create a new Blueprint from this repository, or create a web service manually with these values:
+You do not need Render Blueprint to host this API.
+
+Create a normal Render Web Service manually:
+
+1. Open Render Dashboard.
+2. Click `New`.
+3. Choose `Web Service`.
+4. Connect your GitHub repository.
+5. Select the branch you want to deploy.
+6. Fill in these values.
+
+For the simplest no-subscription setup, use this start command so migrations run before the API starts:
 
 ```text
 Root directory: backend
 Runtime: Python
 Build command: pip install .
-Pre-deploy command: python -m app.scripts.prepare_database
-Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+Start command: python -m app.scripts.prepare_database && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
 Health check path: /api/v1/ready
 ```
 
-Use a paid Render instance if you want the pre-deploy migration command to run automatically. If you use a plan that does not support pre-deploy commands, run the same migration command from Render Shell before starting production traffic.
+That is acceptable for a single Render web service because Alembic migrations are idempotent once the database is already at the latest version.
+
+If you later move to a paid production instance, use this cleaner start command and put `python -m app.scripts.prepare_database` in Render's pre-deploy command instead:
+
+```text
+Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+Pre-deploy command: python -m app.scripts.prepare_database
+```
+
+Leave `Pre-deploy command` empty if your Render plan does not support it. Render says pre-deploy commands are available for paid web services, private services, and background workers. Without that feature, you will run migrations manually.
+
+The `render.yaml` file in the project is only a ready-made reference. You can ignore it when creating the service manually.
 
 ## 3. Set Render Environment Variables
 
 Set these in Render. Do not put production secrets in local files.
 
+Replace every example value with your real value. Do not paste angle-bracket placeholders like `<sender email>` into Render, because the backend validates production settings before it starts.
+
 ```env
 APP_ENV=production
 DEBUG=false
-DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.PROJECTREF:YOUR_PASSWORD@POOLER_HOST:5432/postgres?sslmode=require
 DATABASE_POOL_SIZE=3
 DATABASE_MAX_OVERFLOW=2
-JWT_SECRET_KEY=<generate at least 32 characters>
-INTERNAL_ADMIN_TOKEN=<generate at least 32 characters>
+JWT_SECRET_KEY=replace-with-a-random-secret-at-least-32-characters
+INTERNAL_ADMIN_TOKEN=replace-with-a-random-token-at-least-32-characters
 CORS_ORIGINS=https://your-admin-domain.example,https://your-web-domain.example
 PAYMENT_PROVIDER=cash
 RATE_LIMIT_ENABLED=true
 TRUST_PROXY_HEADERS=true
 NOTIFICATION_PROVIDER=smtp_twilio
-SMTP_HOST=<your smtp host>
+SMTP_HOST=smtp.your-provider.com
 SMTP_PORT=587
 SMTP_SECURITY=starttls
-SMTP_USERNAME=<optional smtp username>
-SMTP_PASSWORD=<optional smtp password>
-SMTP_FROM_EMAIL=<sender email>
-TWILIO_ACCOUNT_SID=<your Twilio account SID>
-TWILIO_AUTH_TOKEN=<your Twilio auth token>
-TWILIO_FROM_NUMBER=<E.164 sender number>
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=admin@your-domain.example
+TWILIO_ACCOUNT_SID=AC00000000000000000000000000000000
+TWILIO_AUTH_TOKEN=replace-with-your-real-twilio-token
+TWILIO_FROM_NUMBER=+255700000000
 ```
 
 If you use a Twilio Messaging Service instead of a sender number, set `TWILIO_MESSAGING_SERVICE_SID` and leave `TWILIO_FROM_NUMBER` empty.
@@ -89,9 +112,36 @@ For `CORS_ORIGINS`, include only browser origins such as the admin web app domai
 Trigger a Render deploy. The deploy should:
 
 1. Install the backend package.
-2. Run `python -m app.scripts.prepare_database`.
-3. Start Uvicorn on Render's `$PORT`.
-4. Pass `/api/v1/ready`.
+2. Start Uvicorn on Render's `$PORT`.
+3. Pass `/api/v1/ready` after the database is migrated.
+
+If you did not configure a pre-deploy command, run migrations from your local machine against Supabase:
+
+```powershell
+cd backend
+$env:APP_ENV="production"
+$env:DEBUG="false"
+$env:DATABASE_URL="postgresql://postgres.PROJECTREF:YOUR_PASSWORD@POOLER_HOST:5432/postgres?sslmode=require"
+$env:JWT_SECRET_KEY="temporary-local-migration-secret-with-32-chars"
+$env:INTERNAL_ADMIN_TOKEN="temporary-local-migration-token-with-32-chars"
+$env:CORS_ORIGINS="https://temporary.example"
+$env:PAYMENT_PROVIDER="cash"
+$env:NOTIFICATION_PROVIDER="smtp_twilio"
+$env:SMTP_HOST="smtp.example.com"
+$env:SMTP_FROM_EMAIL="admin@example.com"
+$env:TWILIO_ACCOUNT_SID="AC00000000000000000000000000000000"
+$env:TWILIO_AUTH_TOKEN="temporary-twilio-token"
+$env:TWILIO_FROM_NUMBER="+255700000000"
+python -m app.scripts.prepare_database
+```
+
+Use real Render environment values where possible. The command does not create demo accounts; it only applies migrations and seeds public catalog settings.
+
+If you do have access to Render Shell after the service is created, you can also run:
+
+```bash
+python -m app.scripts.prepare_database
+```
 
 Check these URLs after Render finishes:
 
@@ -99,12 +149,6 @@ Check these URLs after Render finishes:
 https://<your-render-service>.onrender.com/health
 https://<your-render-service>.onrender.com/api/v1/health
 https://<your-render-service>.onrender.com/api/v1/ready
-```
-
-If the migration did not run automatically, open Render Shell and run:
-
-```bash
-python -m app.scripts.prepare_database
 ```
 
 ## 5. Create The First System Admin
