@@ -53,6 +53,8 @@ class ProductionNotificationProvider:
 
     def _sms(self, destination: str, body: str) -> None:
         cfg = self.settings
+        if not cfg.twilio_account_sid or not cfg.twilio_auth_token or not (cfg.twilio_from_number or cfg.twilio_messaging_service_sid):
+            raise ValueError("SMS delivery is not configured")
         payload = {"To": destination, "Body": body}
         if cfg.twilio_messaging_service_sid:
             payload["MessagingServiceSid"] = cfg.twilio_messaging_service_sid
