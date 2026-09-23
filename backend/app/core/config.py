@@ -123,22 +123,9 @@ class Settings(BaseSettings):
                 raise ValueError("SMTP_HOST and SMTP_FROM_EMAIL are required")
             if bool(self.smtp_username) != bool(self.smtp_password):
                 raise ValueError("Configure both SMTP_USERNAME and SMTP_PASSWORD or neither for an authenticated relay")
-            import re
-
-            # Twilio (SMS) is optional: email-based password reset works via SMTP alone.
-            # If any Twilio field is set, validate the whole group so partial config fails fast.
-            twilio_configured = bool(
-                self.twilio_account_sid or self.twilio_auth_token or self.twilio_from_number or self.twilio_messaging_service_sid
-            )
-            if twilio_configured:
-                if not re.fullmatch(r"AC[0-9a-fA-F]{32}", self.twilio_account_sid) or not self.twilio_auth_token:
-                    raise ValueError("Valid TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required")
-                if not self.twilio_from_number and not self.twilio_messaging_service_sid:
-                    raise ValueError("Configure TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID")
-                if self.twilio_from_number and not re.fullmatch(r"\+[1-9]\d{7,14}", self.twilio_from_number):
-                    raise ValueError("TWILIO_FROM_NUMBER must be in E.164 format")
-                if self.twilio_messaging_service_sid and not re.fullmatch(r"MG[0-9a-fA-F]{32}", self.twilio_messaging_service_sid):
-                    raise ValueError("TWILIO_MESSAGING_SERVICE_SID must be a valid Messaging Service SID")
+            # Twilio (SMS) is intentionally not validated at startup: email-based password
+            # reset works via SMTP alone. SMS-based reset validates its own config and fails
+            # per-request (see ProductionNotificationProvider._sms) if Twilio isn't set up.
         if self.app_env == "production":
             if self.notification_provider == "development":
                 raise ValueError("Production password resets require NOTIFICATION_PROVIDER=smtp_twilio")
