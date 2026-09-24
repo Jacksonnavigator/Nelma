@@ -1,14 +1,25 @@
-import { router } from "expo-router";
-import { Bell, ChevronRight, CircleHelp, KeyRound, LogOut, Pencil, ShieldCheck, UserRound } from "lucide-react-native";
-import { type ComponentType } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { Bell, ChevronRight, CircleHelp, Droplets, KeyRound, LogOut, PackageCheck, Pencil, ShieldCheck, UserRound, Wallet } from "lucide-react-native";
+import { type ComponentType, useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AppTopBar, Screen } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { radius, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
+import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
 import { useAuth } from "../../../store/auth-context";
-import { initialsFromName } from "../../../utils/format";
+import type { DriverSummary } from "../../../types/driver";
+import { formatCurrency, initialsFromName } from "../../../utils/format";
+
+type SummaryPeriod = "today" | "week" | "month" | "allTime";
+
+const summaryPeriods: Array<{ value: SummaryPeriod; label: string }> = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "Last 7 days" },
+  { value: "month", label: "This month" },
+  { value: "allTime", label: "All time" }
+];
 
 type IconComponent = ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;
 
@@ -58,6 +69,15 @@ export default function DriverProfileScreen() {
   const { logout, user } = useAuth();
   const { t } = useTranslation();
   const initials = twoLetterInitials(user?.fullName);
+  const [summary, setSummary] = useState<DriverSummary | null>(null);
+  const [period, setPeriod] = useState<SummaryPeriod>("week");
+  const stats = summary?.[period];
+
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    repositories.driver.getSummary().then((result) => { if (!cancelled) setSummary(result); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []));
 
   const signOut = async () => {
     haptics.selection();
@@ -91,6 +111,39 @@ export default function DriverProfileScreen() {
             <Pencil color={colors.primary} size={18} strokeWidth={2.4} />
           </Pressable>
         </View>
+
+        {summary ? (
+          <View style={styles.performance}>
+            <Text style={styles.sectionEyebrow}>{t("PERFORMANCE")}</Text>
+            <View style={styles.periodRow}>
+              {summaryPeriods.map((item) => {
+                const active = period === item.value;
+                return (
+                  <Pressable key={item.value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { haptics.selection(); setPeriod(item.value); }} style={[styles.periodChip, active ? styles.periodChipActive : null]}>
+                    <Text style={[styles.periodText, active ? styles.periodTextActive : null]}>{t(item.label)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.statRow}>
+              <View style={styles.statCard}>
+                <PackageCheck color={colors.primary} size={18} />
+                <Text style={styles.statNumber}>{stats?.deliveries ?? 0}</Text>
+                <Text style={styles.statLabel}>{t("Deliveries")}</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Droplets color="#1F8A7C" size={18} />
+                <Text style={styles.statNumber}>{stats?.bottles ?? 0}</Text>
+                <Text style={styles.statLabel}>{t("Bottles delivered")}</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Wallet color="#9A6B00" size={18} />
+                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statNumber}>{formatCurrency(stats?.value ?? 0, "").trim()}</Text>
+                <Text style={styles.statLabel}>{t("TZS delivered")}</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionEyebrow}>{t("ACCOUNT")}</Text>
@@ -203,6 +256,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 38
   },
+  performance: { gap: spacing.sm, marginTop: spacing.xl },
+  periodRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  periodChip: { minHeight: 34, paddingHorizontal: spacing.sm, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  periodChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  periodText: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 12, lineHeight: 18 },
+  periodTextActive: { color: colors.white },
+  statRow: { flexDirection: "row", gap: spacing.xs },
+  statCard: { flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xxs },
+  statNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
+  statLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
   sectionHeader: {
     alignItems: "flex-start",
     gap: spacing.xs,

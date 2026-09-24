@@ -1,31 +1,49 @@
 import { router, useFocusEffect } from "expo-router";
-import { ChevronRight, Clock3, Droplets, MapPin, Phone, RefreshCw } from "lucide-react-native";
+import { Banknote, ChevronRight, Clock3, Droplets, MapPin, Navigation, Phone, RefreshCw, Truck } from "lucide-react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Linking, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { AppTopBar, Button, DriverDeliveryCard, EmptyState, ErrorState, Screen } from "../../../components";
 import { colors } from "../../../constants/colors";
-import { radius, spacing, typography } from "../../../constants/theme";
+import { radius, shadows, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
 import { useAuth } from "../../../store/auth-context";
-import type { Order } from "../../../types/order";
-import { canStartDelivery, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryTimeLabel, driverActionHint, driverDeliveryQueue, productSummary } from "../../../utils/driver-deliveries";
+import type { DriverDeliveryGroupFilter, Order } from "../../../types/order";
+import { buildExternalMapUrl, canStartDelivery, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryTimeLabel, driverActionHint, driverDayStats, driverDeliveryQueue, filterDriverDeliveries, hasDeliveryCoordinates, productSummary } from "../../../utils/driver-deliveries";
+import { formatCurrency } from "../../../utils/format";
 import { driverDeliveryStatusLabel } from "../../../utils/status";
+
+const groupFilters: Array<{ value: DriverDeliveryGroupFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "today", label: "Today" },
+  { value: "upcoming", label: "Upcoming" }
+];
+
+const greetingFor = (hour: number): string => {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
 
 export default function DriverDeliveriesScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [group, setGroup] = useState<DriverDeliveryGroupFilter>("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestVersion = useRef(0);
-  const queue = useMemo(() => driverDeliveryQueue(orders), [orders]);
+  const stats = useMemo(() => driverDayStats(orders), [orders]);
+  const queue = useMemo(() => driverDeliveryQueue(filterDriverDeliveries(orders, { group })), [orders, group]);
   const [nextDelivery, ...remaining] = queue;
-  const readyCount = queue.filter(canStartDelivery).length;
   const firstName = user?.fullName?.trim().split(/\s+/)[0];
   const continuing = nextDelivery?.status === "out_for_delivery" || nextDelivery?.status === "delivered";
+  const progress = stats.totalToday > 0 ? Math.min(1, stats.completedToday / stats.totalToday) : 0;
+  const nextPhone = nextDelivery ? customerContactPhone(nextDelivery) : null;
+  const nextCanNavigate = nextDelivery ? hasDeliveryCoordinates(nextDelivery) : false;
+  const todayLabel = useMemo(() => new Intl.DateTimeFormat("en-TZ", { weekday: "long", day: "numeric", month: "long" }).format(new Date()), []);
 
   const loadDeliveries = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -54,6 +72,21 @@ export default function DriverDeliveriesScreen() {
     router.push({ pathname: "/driver/delivery/[id]", params: { id: order.id } });
   };
 
+  const callNext = () => {
+    if (!nextPhone) return;
+    haptics.selection();
+    void Linking.openURL("tel:" + nextPhone.replace(/[^+\d]/g, "")).catch(() => undefined);
+  };
+
+  const navigateNext = () => {
+    if (!nextDelivery) return;
+    const platform = Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : "web";
+    const url = buildExternalMapUrl(nextDelivery.deliveryAddress.latitude, nextDelivery.deliveryAddress.longitude, platform, deliveryAreaLine(nextDelivery));
+    if (!url) return;
+    haptics.selection();
+    void Linking.openURL(url).catch(() => undefined);
+  };
+
   return (
     <Screen safeBottom={false} keyboard={false} padded={false} scroll={false} contentContainerStyle={styles.screen}>
       <AppTopBar />
@@ -66,30 +99,61 @@ export default function DriverDeliveriesScreen() {
           data={remaining}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadDeliveries} tintColor={colors.primary} colors={[colors.primary]} />}
           ListHeaderComponent={
             <View>
-              <View style={styles.heading}>
-                <View style={styles.headingCopy}>
-                  <Text style={styles.greeting}>{t("Hello")}{firstName ? ", " + firstName : ""}</Text>
-                  <Text style={styles.title}>{t("Your deliveries")}</Text>
+              <View style={styles.hero}>
+                <View style={styles.heroTop}>
+                  <View style={styles.headingCopy}>
+                    <Text style={styles.heroDate}>{todayLabel}</Text>
+                    <Text style={styles.heroTitle}>{t(greetingFor(new Date().getHours()))}{firstName ? ", " + firstName : ""}</Text>
+                  </View>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("Refresh Assignments")} disabled={refreshing} onPress={loadDeliveries} style={styles.refresh}>
+                    {refreshing ? <ActivityIndicator color={colors.white} /> : <RefreshCw color={colors.white} size={20} />}
+                  </Pressable>
                 </View>
-                <Pressable accessibilityRole="button" accessibilityLabel={t("Refresh Assignments")} disabled={refreshing} onPress={loadDeliveries} style={styles.refresh}>
-                  {refreshing ? <ActivityIndicator color={colors.primary} /> : <RefreshCw color={colors.primary} size={21} />}
-                </Pressable>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressLabel}>{t("Today's progress")}</Text>
+                  <Text style={styles.progressValue}>{stats.completedToday} / {stats.totalToday}</Text>
+                </View>
+                <View style={styles.track}><View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} /></View>
+                <Text style={styles.progressHint}>
+                  {stats.totalToday === 0 ? t("No deliveries yet today") : stats.remaining === 0 ? t("All deliveries done. Great work!") : stats.remaining + " " + t("left to deliver")}
+                </Text>
               </View>
+
               {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
-              <View style={styles.overview}>
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>{queue.length}</Text>
-                  <Text style={styles.statLabel}>{t("On your list")}</Text>
+
+              <View style={styles.tiles}>
+                <View style={styles.tile}>
+                  <View style={[styles.tileIcon, { backgroundColor: colors.surfaceBlue }]}><Truck color={colors.primary} size={18} /></View>
+                  <Text style={styles.tileNumber}>{stats.remaining}</Text>
+                  <Text style={styles.tileLabel}>{stats.inProgress > 0 ? stats.inProgress + " " + t("on the way") : t("On your list")}</Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>{readyCount}</Text>
-                  <Text style={styles.statLabel}>{t("Ready to start")}</Text>
+                <View style={styles.tile}>
+                  <View style={[styles.tileIcon, { backgroundColor: colors.surfaceMint }]}><Droplets color="#1F8A7C" size={18} /></View>
+                  <Text style={styles.tileNumber}>{stats.bottlesToDeliver}</Text>
+                  <Text style={styles.tileLabel}>{t("Bottles to deliver")}</Text>
+                </View>
+                <View style={styles.tile}>
+                  <View style={[styles.tileIcon, { backgroundColor: colors.warningBg }]}><Banknote color="#9A6B00" size={18} /></View>
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.tileNumber}>{stats.cashToCollect > 0 ? formatCurrency(stats.cashToCollect, "").trim() : "0"}</Text>
+                  <Text style={styles.tileLabel}>{t("TZS to collect")}</Text>
                 </View>
               </View>
+
+              <View style={styles.chipRow}>
+                {groupFilters.map((item) => {
+                  const active = group === item.value;
+                  return (
+                    <Pressable key={item.value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { haptics.selection(); setGroup(item.value); }} style={[styles.chip, active ? styles.chipActive : null]}>
+                      <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{t(item.label)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               {nextDelivery ? (
                 <View style={styles.next}>
                   <View style={styles.nextHeading}>
@@ -113,7 +177,11 @@ export default function DriverDeliveriesScreen() {
                   <View style={styles.instruction}>
                     <Text style={styles.instructionText}>{t(driverActionHint(nextDelivery))}</Text>
                   </View>
-                  <Button title={continuing ? "Continue delivery" : "View pickup"} onPress={() => openDelivery(nextDelivery)} />
+                  <View style={styles.quickRow}>
+                    <Button title="Call" icon={Phone} variant="secondary" disabled={!nextPhone} onPress={callNext} style={styles.quickButton} />
+                    <Button title="Navigate" icon={Navigation} variant="secondary" disabled={!nextCanNavigate} onPress={navigateNext} style={styles.quickButton} />
+                  </View>
+                  <Button title={continuing ? "Continue delivery" : canStartDelivery(nextDelivery) ? "View pickup" : "View delivery"} onPress={() => openDelivery(nextDelivery)} />
                 </View>
               ) : (
                 <EmptyState title="No assigned deliveries yet" message="Your next delivery will appear here when it is assigned." />
@@ -150,17 +218,29 @@ export default function DriverDeliveriesScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginBottom: spacing.lg },
+  hero: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.md, ...(shadows.raised ?? {}) },
+  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   headingCopy: { flex: 1, gap: spacing.xxs },
-  greeting: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 22 },
-  title: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 28, lineHeight: 36 },
-  refresh: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
-  overview: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surfaceAlt, borderRadius: radius.lg, paddingVertical: spacing.md, marginBottom: spacing.xl },
-  stat: { flex: 1, paddingHorizontal: spacing.md, gap: spacing.xxs },
-  statNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 26, lineHeight: 32 },
-  statLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
-  statDivider: { width: 1, height: 36, backgroundColor: colors.border },
-  next: { padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, gap: spacing.md, backgroundColor: colors.white },
+  heroDate: { color: "rgba(255,255,255,0.85)", fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
+  heroTitle: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 24, lineHeight: 32 },
+  refresh: { width: 42, height: 42, borderRadius: radius.sm, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  progressHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
+  progressLabel: { color: colors.white, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 },
+  progressValue: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 16, lineHeight: 22 },
+  track: { height: 10, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.28)", overflow: "hidden" },
+  fill: { height: 10, borderRadius: radius.pill, backgroundColor: colors.accent },
+  progressHint: { color: "rgba(255,255,255,0.92)", fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
+  tiles: { flexDirection: "row", gap: spacing.xs, marginBottom: spacing.md },
+  tile: { flex: 1, backgroundColor: colors.white, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xxs },
+  tileIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: spacing.xxs },
+  tileNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
+  tileLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
+  chipRow: { flexDirection: "row", gap: spacing.xs, marginBottom: spacing.md },
+  chip: { minHeight: 38, paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 13, lineHeight: 18 },
+  chipTextActive: { color: colors.white },
+  next: { padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, gap: spacing.md, backgroundColor: colors.white, ...(shadows.card ?? {}) },
   nextHeading: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: spacing.xs },
   eyebrow: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: 13, lineHeight: 20 },
   statusPill: { paddingHorizontal: spacing.xs, paddingVertical: spacing.xxs, backgroundColor: colors.surfaceBlue, borderRadius: radius.xs },
@@ -176,9 +256,12 @@ const styles = StyleSheet.create({
   schedule: { flex: 1, color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 20 },
   instruction: { backgroundColor: colors.surfaceBlue, borderRadius: radius.xs, padding: spacing.sm },
   instructionText: { color: colors.text, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 20 },
-  listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xl },
+  quickRow: { flexDirection: "row", gap: spacing.sm },
+  quickButton: { flex: 1, minHeight: 48, paddingHorizontal: spacing.xs },
+  listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xl, marginBottom: spacing.sm },
   listTitle: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 18, lineHeight: 26 },
   listCount: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
+  separator: { height: spacing.sm },
   footer: { marginTop: spacing.xl, gap: spacing.lg },
   refreshHint: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 12, lineHeight: 18, textAlign: "center" },
   support: { flexDirection: "row", alignItems: "center", gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line, paddingVertical: spacing.md, minHeight: 60 },

@@ -1,10 +1,17 @@
 ﻿from fastapi import APIRouter
 
 from app.api.dependencies import CurrentUser, DbSession
+from app.schemas.driver import DriverSummary
 from app.schemas.order import OrderRead, OrderStatusUpdateRequest
+from app.services.driver_service import driver_service
 from app.services.order_service import order_service
 
 router = APIRouter(prefix="/driver", tags=["Driver Deliveries"])
+
+
+@router.get("/summary", response_model=DriverSummary, summary="Delivery totals for the current DRIVER")
+def delivery_summary(user: CurrentUser, db: DbSession) -> DriverSummary:
+    return driver_service.summary(db, user)
 
 
 @router.get("/deliveries", response_model=list[OrderRead], summary="List deliveries assigned to the current DRIVER")

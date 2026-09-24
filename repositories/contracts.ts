@@ -2,6 +2,7 @@ import type { SavedAddress, UpsertSavedAddressInput } from "../types/address";
 import type { AuthSession, ChangePasswordInput, ForgotPasswordInput, ForgotPasswordResult, LoginInput, RegisterInput, ResetPasswordInput } from "../types/auth";
 import type { BusinessDashboard } from "../types/business";
 import type { Notification } from "../types/notification";
+import type { DriverSummary } from "../types/driver";
 import type { CreateOrderInput, CreateOrderMessageInput, DriverDeliveryActionStatus, Order } from "../types/order";
 import type { InitializePaymentInput, Payment, PaymentMethod } from "../types/payment";
 import type { PublicSettings } from "../types/settings";
@@ -43,6 +44,7 @@ export type DriverRepository = {
   listDeliveries(): Promise<Order[]>;
   getDelivery(id: string): Promise<Order>;
   updateStatus(id: string, status: DriverDeliveryActionStatus): Promise<Order>;
+  getSummary(): Promise<DriverSummary>;
 };
 
 export type PaymentRepository = {

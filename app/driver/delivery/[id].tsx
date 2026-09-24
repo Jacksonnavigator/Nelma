@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, ChevronDown, ChevronUp, Navigation, Phone, RefreshCw } from "lucide-react-native";
+import { ArrowLeft, Banknote, Check, ChevronDown, ChevronUp, Navigation, Phone, RefreshCw } from "lucide-react-native";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomActionBar, Button, ConfirmDialog, ErrorState, OrderTimeline, Screen, StatusBadge } from "../../../components";
@@ -9,7 +9,7 @@ import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
 import type { DriverDeliveryActionStatus, Order } from "../../../types/order";
-import { buildExternalMapUrl, canMarkDelivered, canStartDelivery, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryTimeLabel, driverActionHint, hasDeliveryCoordinates, isAssignmentLostError, productSummary } from "../../../utils/driver-deliveries";
+import { DELIVERY_STEPS, cashDueAmount, deliveryStepIndex, buildExternalMapUrl, canMarkDelivered, canStartDelivery, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryTimeLabel, driverActionHint, hasDeliveryCoordinates, isAssignmentLostError, productSummary } from "../../../utils/driver-deliveries";
 import { formatCurrency, formatDate } from "../../../utils/format";
 import { driverDeliveryStatusLabel } from "../../../utils/status";
 
@@ -177,6 +177,8 @@ export default function DriverDeliveryDetailScreen() {
     : canMarkDelivered(order) ? "delivered" : null;
   const closed = receiptConfirmed || order.status === "delivered" || order.status === "cancelled";
   const busy = Boolean(submittingAction) || refreshing;
+  const stepIndex = deliveryStepIndex(order);
+  const cashDue = cashDueAmount(order);
 
   return (
     <Screen safeBottom={false} contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false}>
@@ -196,6 +198,35 @@ export default function DriverDeliveryDetailScreen() {
           <StatusBadge type="order" status={order.status} labelOverride={driverDeliveryStatusLabel(order.status)} />
           <Text style={styles.muted}>{order.orderNumber}</Text>
         </View>
+        {order.status !== "cancelled" ? (
+          <View style={styles.stepper} accessibilityLabel={t(DELIVERY_STEPS[stepIndex])}>
+            {DELIVERY_STEPS.map((label, index) => {
+              const done = index < stepIndex || stepIndex === DELIVERY_STEPS.length - 1;
+              const current = index === stepIndex && !done;
+              return (
+                <View key={label} style={styles.step}>
+                  <View style={styles.stepTrack}>
+                    <View style={[styles.stepLine, index === 0 ? styles.stepLineHidden : null, index <= stepIndex ? styles.stepLineActive : null]} />
+                    <View style={[styles.stepDot, done ? styles.stepDotDone : null, current ? styles.stepDotCurrent : null]}>
+                      {done ? <Check color={colors.white} size={12} strokeWidth={3} /> : null}
+                    </View>
+                    <View style={[styles.stepLine, index === DELIVERY_STEPS.length - 1 ? styles.stepLineHidden : null, index < stepIndex ? styles.stepLineActive : null]} />
+                  </View>
+                  <Text numberOfLines={1} style={[styles.stepLabel, index <= stepIndex ? styles.stepLabelActive : null]}>{t(label)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+        {cashDue > 0 && !closed ? (
+          <View style={styles.cashBanner}>
+            <Banknote color="#9A6B00" size={22} />
+            <View style={styles.cashCopy}>
+              <Text style={styles.cashTitle}>{t("Collect payment on delivery")}</Text>
+              <Text style={styles.cashAmount}>{formatCurrency(cashDue, order.currency)}</Text>
+            </View>
+          </View>
+        ) : null}
         <View style={styles.destination}>
           <Text style={styles.eyebrow}>{t("Deliver to")}</Text>
           <Text style={styles.address}>{deliveryAddressLine(order)}</Text>
@@ -288,6 +319,21 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
   statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, flexWrap: "wrap" },
+  stepper: { flexDirection: "row", paddingVertical: spacing.xs },
+  step: { flex: 1, alignItems: "center", gap: spacing.xxs },
+  stepTrack: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
+  stepLine: { flex: 1, height: 3, backgroundColor: colors.line },
+  stepLineHidden: { backgroundColor: "transparent" },
+  stepLineActive: { backgroundColor: colors.primary },
+  stepDot: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.white, borderColor: colors.border, borderWidth: 2 },
+  stepDotDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+  stepDotCurrent: { borderColor: colors.primary, borderWidth: 6 },
+  stepLabel: { color: colors.subtleText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
+  stepLabelActive: { color: colors.text, fontFamily: typography.fonts.bold },
+  cashBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.warningBg, borderRadius: radius.sm, padding: spacing.md },
+  cashCopy: { flex: 1, gap: 2 },
+  cashTitle: { color: "#9A6B00", fontFamily: typography.fonts.semibold, fontSize: 13, lineHeight: 20 },
+  cashAmount: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
   destination: { gap: spacing.xs, paddingVertical: spacing.sm },
   eyebrow: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
   address: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 27, lineHeight: 35 },

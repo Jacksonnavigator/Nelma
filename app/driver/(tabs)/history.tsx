@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { CalendarDays, Clock3, PackageCheck, Search } from "lucide-react-native";
+import { CalendarDays, CheckCircle2, Clock3, Droplets, PackageCheck, Search } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { AppTopBar, Button, DriverDeliveryCard, EmptyState, ErrorState, Input, Screen } from "../../../components";
@@ -9,7 +9,7 @@ import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
 import type { Order } from "../../../types/order";
-import { closedTimeLabel, currentDateKey, filterDriverHistory, type DriverHistoryDateFilter } from "../../../utils/driver-deliveries";
+import { closedTimeLabel, currentDateKey, driverHistoryStats, filterDriverHistory, type DriverHistoryDateFilter } from "../../../utils/driver-deliveries";
 
 const pageSize = 12;
 
@@ -43,6 +43,7 @@ export default function DriverHistoryScreen() {
     return filterDriverHistory(orders, search, dateFilter, todayKey).sort((first, second) => closedTimeLabel(second).localeCompare(closedTimeLabel(first)));
   }, [dateFilter, orders, search, todayKey]);
   const visibleOrders = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const stats = useMemo(() => driverHistoryStats(orders, todayKey), [orders, todayKey]);
 
   useEffect(() => {
     setVisibleCount(pageSize);
@@ -85,6 +86,24 @@ export default function DriverHistoryScreen() {
         <View style={styles.headerCopy}>
           <Text style={styles.title}>{t("Delivery History")}</Text>
           <Text style={styles.subtitle}>{t("Completed driver deliveries assigned to this account.")}</Text>
+        </View>
+      </View>
+
+      <View style={styles.tiles}>
+        <View style={styles.tile}>
+          <CheckCircle2 color={colors.primary} size={18} />
+          <Text style={styles.tileNumber}>{stats.deliveries}</Text>
+          <Text style={styles.tileLabel}>{t("Completed")}</Text>
+        </View>
+        <View style={styles.tile}>
+          <Droplets color="#1F8A7C" size={18} />
+          <Text style={styles.tileNumber}>{stats.bottles}</Text>
+          <Text style={styles.tileLabel}>{t("Bottles delivered")}</Text>
+        </View>
+        <View style={styles.tile}>
+          <CalendarDays color="#9A6B00" size={18} />
+          <Text style={styles.tileNumber}>{stats.thisWeek}</Text>
+          <Text style={styles.tileLabel}>{t("Last 7 days")}</Text>
         </View>
       </View>
 
@@ -187,6 +206,10 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     lineHeight: typography.lineHeight.body
   },
+  tiles: { flexDirection: "row", gap: spacing.xs },
+  tile: { flex: 1, backgroundColor: colors.white, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xxs },
+  tileNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
+  tileLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
   searchPanel: {
     gap: spacing.md,
     paddingTop: spacing.xs

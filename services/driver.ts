@@ -1,5 +1,6 @@
 import { apiClient } from "./api";
 import type { PaginatedResult } from "../types/api";
+import type { DriverSummary } from "../types/driver";
 import type { DriverDeliveryActionStatus, Order } from "../types/order";
 
 type DriverDeliveriesResponse = Order[] | PaginatedResult<Order>;
@@ -36,5 +37,9 @@ export const driverService = {
 
   updateStatus(id: string, status: DriverDeliveryActionStatus): Promise<Order> {
     return apiClient.patch<Order>("/driver/deliveries/" + encodeURIComponent(id) + "/status", { status });
+  },
+
+  getSummary(): Promise<DriverSummary> {
+    return apiClient.get<DriverSummary>("/driver/summary");
   }
 };

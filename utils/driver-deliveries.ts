@@ -1,4 +1,5 @@
 import type { ApiError } from "../types/api";
+import type { DriverPeriodStats, DriverSummary } from "../types/driver";
 import type { DriverDeliveryGroupFilter, DriverDeliveryStatusFilter, Order, OrderStatus } from "../types/order";
 import { driverDeliveryStatusLabel } from "./status";
 
@@ -192,6 +193,78 @@ export const sortDriverDeliveries = (orders: Order[]): Order[] => {
     const secondSchedule = deliveryDateKey(second) + " " + (second.deliverySchedule?.window ?? "");
     return firstSchedule.localeCompare(secondSchedule) || second.updatedAt.localeCompare(first.updatedAt);
   });
+};
+
+export const bottleCount = (order: Order): number => order.quantity || primaryOrderItem(order)?.quantity || 1;
+
+export const cashDueAmount = (order: Order): number => {
+  if (order.status === "cancelled" || order.paymentStatus === "paid" || order.paymentStatus === "refunded") return 0;
+  return order.total;
+};
+
+export type DriverDayStats = {
+  remaining: number;
+  inProgress: number;
+  completedToday: number;
+  totalToday: number;
+  bottlesToDeliver: number;
+  cashToCollect: number;
+};
+
+export const driverDayStats = (orders: Order[], todayKey = currentDateKey()): DriverDayStats => {
+  const active = orders.filter(isDriverActiveDelivery);
+  const completedToday = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled" && closedTimeLabel(order).slice(0, 10) === todayKey).length;
+  return {
+    remaining: active.length,
+    inProgress: active.filter((order) => order.status === "out_for_delivery").length,
+    completedToday,
+    totalToday: completedToday + active.length,
+    bottlesToDeliver: active.reduce((sum, order) => sum + bottleCount(order), 0),
+    cashToCollect: active.reduce((sum, order) => sum + cashDueAmount(order), 0)
+  };
+};
+
+export type DriverHistoryStats = { deliveries: number; bottles: number; thisWeek: number };
+
+export const driverHistoryStats = (orders: Order[], todayKey = currentDateKey()): DriverHistoryStats => {
+  const done = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled");
+  const weekStart = new Date(todayKey + "T00:00:00");
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekKey = currentDateKey(weekStart);
+  return {
+    deliveries: done.length,
+    bottles: done.reduce((sum, order) => sum + bottleCount(order), 0),
+    thisWeek: done.filter((order) => closedTimeLabel(order).slice(0, 10) >= weekKey).length
+  };
+};
+
+// Offline/mock equivalent of GET /driver/summary.
+export const driverSummaryFromOrders = (orders: Order[], todayKey = currentDateKey()): DriverSummary => {
+  const weekStart = new Date(todayKey + "T00:00:00");
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekKey = currentDateKey(weekStart);
+  const monthKey = todayKey.slice(0, 8) + "01";
+  const totals = (keep: (day: string) => boolean): DriverPeriodStats => {
+    const done = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled" && keep(closedTimeLabel(order).slice(0, 10)));
+    return { deliveries: done.length, bottles: done.reduce((sum, order) => sum + bottleCount(order), 0), value: done.reduce((sum, order) => sum + order.total, 0) };
+  };
+  return {
+    activeDeliveries: orders.filter(isDriverActiveDelivery).length,
+    today: totals((day) => day === todayKey),
+    week: totals((day) => day >= weekKey && day <= todayKey),
+    month: totals((day) => day >= monthKey && day <= todayKey),
+    allTime: totals(() => true)
+  };
+};
+
+export const DELIVERY_STEPS =["Assigned", "On the way", "Delivered", "Received"] as const;
+
+// 0 = assigned, 1 = on the way, 2 = delivered (awaiting customer), 3 = received.
+export const deliveryStepIndex = (order: Order): number => {
+  if (order.status === "received" || order.customerReceivedAt) return 3;
+  if (order.status === "delivered") return 2;
+  if (order.status === "out_for_delivery") return 1;
+  return 0;
 };
 
 // Keep work already in progress first. Do not hide overdue or future assignments.

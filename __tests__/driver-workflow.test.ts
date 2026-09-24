@@ -15,7 +15,7 @@ vi.mock("expo-router", async () => {
 vi.mock("../hooks/use-translation", () => ({ useTranslation: () => ({ t: (value: string) => value }) }));
 vi.mock("../store/auth-context", () => ({ useAuth: () => ({ user: { fullName: "Musa Driver" } }) }));
 vi.mock("../services/haptics", () => ({ haptics: { selection: vi.fn(), success: vi.fn(), light: vi.fn() } }));
-vi.mock("lucide-react-native", () => ({ ArrowLeft: () => null, ChevronDown: () => null, ChevronUp: () => null, ChevronRight: () => null, Clock3: () => null, Droplets: () => null, MapPin: () => null, RefreshCw: () => null, Navigation: () => null, Phone: () => null }));
+vi.mock("lucide-react-native", () => ({ Banknote: () => null, Check: () => null, Truck: () => null, ArrowLeft: () => null, ChevronDown: () => null, ChevronUp: () => null, ChevronRight: () => null, Clock3: () => null, Droplets: () => null, MapPin: () => null, RefreshCw: () => null, Navigation: () => null, Phone: () => null }));
 vi.mock("react-native", () => ({
   View: "view", Text: "text", Pressable: "pressable", ScrollView: "scroll", ActivityIndicator: "loading", RefreshControl: "refresh",
   Platform: { OS: "android", select: (values: Record<string, unknown>) => values.android ?? values.default },

@@ -4,7 +4,7 @@ import { buildOrderTimeline, calculateOrderPricing } from "../../utils/order";
 import type { AppRepositories } from "../contracts";
 import { normalizeDeliveryAddress } from "../../utils/address";
 import { calculateDeliveryQuote, chargesForDeliveryQuote, getDefaultDeliverySchedule } from "../../utils/delivery";
-import { canStartDelivery } from "../../utils/driver-deliveries";
+import { canStartDelivery, driverSummaryFromOrders } from "../../utils/driver-deliveries";
 import type { AuthSession, ForgotPasswordResult } from "../../types/auth";
 import type { BusinessDashboard, BusinessOrderQueueItem, CustomerRecord, SalesReport, SalesReportMetrics, SalesReportPeriod } from "../../types/business";
 import type { Notification } from "../../types/notification";
@@ -495,6 +495,13 @@ export const mockRepositories: AppRepositories = {
         throw new Error("Drivers can only update active delivery progress.");
       }
       return updateDriverDelivery(id, user, status);
+    },
+
+    async getSummary() {
+      await latency();
+      const user = await assertMockDriver();
+      const orders = (await mockStorage.getOrders()).filter((order) => order.assignedDriverId === user.id);
+      return driverSummaryFromOrders(orders);
     }
   },
   payments: {
