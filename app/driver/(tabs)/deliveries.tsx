@@ -1,59 +1,77 @@
 import { router, useFocusEffect } from "expo-router";
-import { Banknote, ChevronRight, Clock3, Droplets, MapPin, Navigation, Phone, RefreshCw, Truck } from "lucide-react-native";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Linking, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { AppTopBar, Button, DriverDeliveryCard, EmptyState, ErrorState, Screen } from "../../../components";
+import { Clock3, Droplet, Navigation, Phone, RefreshCw } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, FlatList, Linking, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { BrandGradient, Button, DriverTitle, DropletArt, ErrorState, LiveDot, RouteStop, Ripples, Screen, Sheet, SkyBackdrop, WaterProgress } from "../../../components";
 import { colors } from "../../../constants/colors";
-import { radius, shadows, spacing, typography } from "../../../constants/theme";
+import { driverTheme, sheetShadow } from "../../../constants/driver-theme";
+import { radius, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
-import { useAuth } from "../../../store/auth-context";
-import type { DriverDeliveryGroupFilter, Order } from "../../../types/order";
-import { buildExternalMapUrl, canStartDelivery, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryTimeLabel, driverActionHint, driverDayStats, driverDeliveryQueue, filterDriverDeliveries, hasDeliveryCoordinates, productSummary } from "../../../utils/driver-deliveries";
+import { useLivePolling } from "../../../hooks/use-live-polling";
+import type { DriverSummary } from "../../../types/driver";
+import type { Order } from "../../../types/order";
+import { bottleCount, buildExternalMapUrl, canStartDelivery, cashDueAmount, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryWindowLabel, driverActionHint, driverDayStats, driverDeliveryQueue, hasDeliveryCoordinates } from "../../../utils/driver-deliveries";
 import { formatCurrency } from "../../../utils/format";
 import { driverDeliveryStatusLabel } from "../../../utils/status";
 
-const groupFilters: Array<{ value: DriverDeliveryGroupFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "today", label: "Today" },
-  { value: "upcoming", label: "Upcoming" }
-];
-
-const greetingFor = (hour: number): string => {
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
-
 export default function DriverDeliveriesScreen() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [group, setGroup] = useState<DriverDeliveryGroupFilter>("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverTotals, setServerTotals] = useState<DriverSummary | null>(null);
+  const [newStops, setNewStops] = useState(0);
   const requestVersion = useRef(0);
-  const stats = useMemo(() => driverDayStats(orders), [orders]);
-  const queue = useMemo(() => driverDeliveryQueue(filterDriverDeliveries(orders, { group })), [orders, group]);
-  const [nextDelivery, ...remaining] = queue;
-  const firstName = user?.fullName?.trim().split(/\s+/)[0];
-  const continuing = nextDelivery?.status === "out_for_delivery" || nextDelivery?.status === "delivered";
-  const progress = stats.totalToday > 0 ? Math.min(1, stats.completedToday / stats.totalToday) : 0;
-  const nextPhone = nextDelivery ? customerContactPhone(nextDelivery) : null;
-  const nextCanNavigate = nextDelivery ? hasDeliveryCoordinates(nextDelivery) : false;
-  const todayLabel = useMemo(() => new Intl.DateTimeFormat("en-TZ", { weekday: "long", day: "numeric", month: "long" }).format(new Date()), []);
+  const knownIds = useRef<Set<string> | null>(null);
+  const entrance = useRef(new Animated.Value(0)).current;
+  const stats = useMemo(() => {
+    const base = driverDayStats(orders);
+    const completedToday = serverTotals?.today.deliveries ?? 0;
+    return { ...base, completedToday, totalToday: completedToday + base.remaining };
+  }, [orders, serverTotals]);
+  const queue = useMemo(() => driverDeliveryQueue(orders), [orders]);
+  const [current, ...remaining] = queue;
+  const live = current?.status === "out_for_delivery";
+  const continuing = live || current?.status === "delivered";
+  const phone = current ? customerContactPhone(current) : null;
+  const canNavigate = current ? hasDeliveryCoordinates(current) : false;
+  const due = current ? cashDueAmount(current) : 0;
+  const bottles = current ? bottleCount(current) : 0;
+  const today = useMemo(() => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date()), []);
+  const progress = stats.totalToday > 0 ? stats.completedToday / stats.totalToday : 0;
 
-  const loadDeliveries = useCallback(async () => {
+  const summary = [
+    stats.bottlesToDeliver > 0 ? stats.bottlesToDeliver + " " + t("bottles to go") : null,
+    stats.cashToCollect > 0 ? formatCurrency(stats.cashToCollect) + " " + t("to collect") : null
+  ].filter(Boolean).join("  ·  ");
+
+  // Silent loads (background polling) never show spinners or errors; they only update what is on screen.
+  const loadDeliveries = useCallback(async (silent = false) => {
     const version = ++requestVersion.current;
-    setRefreshing(true);
-    setError(null);
+    if (!silent) {
+      setRefreshing(true);
+      setError(null);
+    }
     try {
-      const result = await repositories.driver.listDeliveries();
-      if (version === requestVersion.current) setOrders(result);
+      const [result, totals] = await Promise.all([
+        repositories.driver.listActive(),
+        Promise.resolve().then(() => repositories.driver.getSummary()).catch(() => null)
+      ]);
+      if (version !== requestVersion.current) return;
+      const known = knownIds.current;
+      const fresh = known ? result.filter((order) => !known.has(order.id)).length : 0;
+      knownIds.current = new Set(result.map((order) => order.id));
+      if (fresh > 0) {
+        haptics.success();
+        setNewStops((count) => count + fresh);
+      }
+      setOrders(result);
+      if (totals) setServerTotals(totals);
     } catch {
-      if (version === requestVersion.current) setError("Unable to load assigned deliveries right now.");
+      if (version === requestVersion.current && !silent) setError("Unable to load assigned deliveries right now.");
     } finally {
       if (version === requestVersion.current) {
         setLoading(false);
@@ -67,147 +85,131 @@ export default function DriverDeliveriesScreen() {
     return () => { requestVersion.current += 1; };
   }, [loadDeliveries]));
 
-  const openDelivery = (order: Order) => {
+  useLivePolling(() => void loadDeliveries(true), 30000);
+
+  useEffect(() => {
+    if (loading) return;
+    entrance.setValue(0);
+    Animated.timing(entrance, { toValue: 1, duration: 420, useNativeDriver: true }).start();
+  }, [entrance, loading, current?.id]);
+
+  const open = (order: Order) => {
     haptics.selection();
     router.push({ pathname: "/driver/delivery/[id]", params: { id: order.id } });
   };
 
-  const callNext = () => {
-    if (!nextPhone) return;
+  const call = () => {
+    if (!phone) return;
     haptics.selection();
-    void Linking.openURL("tel:" + nextPhone.replace(/[^+\d]/g, "")).catch(() => undefined);
+    void Linking.openURL("tel:" + phone.replace(/[^+\d]/g, "")).catch(() => undefined);
   };
 
-  const navigateNext = () => {
-    if (!nextDelivery) return;
+  const navigate = () => {
+    if (!current) return;
     const platform = Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : "web";
-    const url = buildExternalMapUrl(nextDelivery.deliveryAddress.latitude, nextDelivery.deliveryAddress.longitude, platform, deliveryAreaLine(nextDelivery));
+    const url = buildExternalMapUrl(current.deliveryAddress.latitude, current.deliveryAddress.longitude, platform, deliveryAreaLine(current));
     if (!url) return;
     haptics.selection();
     void Linking.openURL(url).catch(() => undefined);
   };
 
   return (
-    <Screen safeBottom={false} keyboard={false} padded={false} scroll={false} contentContainerStyle={styles.screen}>
-      <AppTopBar />
+    <Screen safeBottom={false} keyboard={false} padded={false} scroll={false} contentContainerStyle={styles.screen} style={styles.safe}>
+      <SkyBackdrop />
       {loading ? (
-        <View style={styles.state}><ActivityIndicator color={colors.primary} /><Text style={styles.muted}>{t("Loading assigned deliveries")}</Text></View>
+        <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
       ) : error && !orders.length ? (
-        <View style={styles.state}><ErrorState message={error} onAction={loadDeliveries} /></View>
+        <View style={styles.center}><ErrorState message={error} onAction={() => void loadDeliveries()} /></View>
       ) : (
         <FlatList
           data={remaining}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadDeliveries} tintColor={colors.primary} colors={[colors.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadDeliveries()} tintColor={colors.primary} colors={[colors.primary]} />}
           ListHeaderComponent={
             <View>
-              <View style={styles.hero}>
-                <View style={styles.heroTop}>
-                  <View style={styles.headingCopy}>
-                    <Text style={styles.heroDate}>{todayLabel}</Text>
-                    <Text style={styles.heroTitle}>{t(greetingFor(new Date().getHours()))}{firstName ? ", " + firstName : ""}</Text>
-                  </View>
-                  <Pressable accessibilityRole="button" accessibilityLabel={t("Refresh Assignments")} disabled={refreshing} onPress={loadDeliveries} style={styles.refresh}>
-                    {refreshing ? <ActivityIndicator color={colors.white} /> : <RefreshCw color={colors.white} size={20} />}
+              <DriverTitle
+                eyebrow={today}
+                title={stats.remaining === 0 ? t("All caught up") : stats.remaining + " " + t(stats.remaining === 1 ? "stop left" : "stops left")}
+                right={
+                  <Pressable accessibilityRole="button" accessibilityLabel={t("Refresh Assignments")} disabled={refreshing} hitSlop={8} onPress={() => void loadDeliveries()} style={[styles.refresh, sheetShadow]}>
+                    {refreshing ? <ActivityIndicator color={colors.primary} size="small" /> : <RefreshCw color={colors.primary} size={18} />}
                   </Pressable>
-                </View>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>{t("Today's progress")}</Text>
-                  <Text style={styles.progressValue}>{stats.completedToday} / {stats.totalToday}</Text>
-                </View>
-                <View style={styles.track}><View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} /></View>
-                <Text style={styles.progressHint}>
-                  {stats.totalToday === 0 ? t("No deliveries yet today") : stats.remaining === 0 ? t("All deliveries done. Great work!") : stats.remaining + " " + t("left to deliver")}
-                </Text>
-              </View>
-
+                }
+              />
               {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
+              {newStops > 0 ? (
+                <Pressable accessibilityRole="button" onPress={() => setNewStops(0)} style={styles.newStops}>
+                  <Text style={styles.newStopsText}>{newStops === 1 ? t("1 new stop assigned to you") : newStops + " " + t("new stops assigned to you")}</Text>
+                  <Text style={styles.newStopsDismiss}>{t("Dismiss")}</Text>
+                </Pressable>
+              ) : null}
 
-              <View style={styles.tiles}>
-                <View style={styles.tile}>
-                  <View style={[styles.tileIcon, { backgroundColor: colors.surfaceBlue }]}><Truck color={colors.primary} size={18} /></View>
-                  <Text style={styles.tileNumber}>{stats.remaining}</Text>
-                  <Text style={styles.tileLabel}>{stats.inProgress > 0 ? stats.inProgress + " " + t("on the way") : t("On your list")}</Text>
+              {stats.totalToday > 0 ? (
+                <View style={styles.progress}>
+                  <View style={styles.progressTop}>
+                    <Text style={styles.progressLabel}>{t("Today's progress")}</Text>
+                    <Text style={styles.progressValue}>{stats.completedToday} / {stats.totalToday}</Text>
+                  </View>
+                  <WaterProgress value={progress} />
+                  {summary ? <Text style={styles.summary}>{summary}</Text> : null}
                 </View>
-                <View style={styles.tile}>
-                  <View style={[styles.tileIcon, { backgroundColor: colors.surfaceMint }]}><Droplets color="#1F8A7C" size={18} /></View>
-                  <Text style={styles.tileNumber}>{stats.bottlesToDeliver}</Text>
-                  <Text style={styles.tileLabel}>{t("Bottles to deliver")}</Text>
-                </View>
-                <View style={styles.tile}>
-                  <View style={[styles.tileIcon, { backgroundColor: colors.warningBg }]}><Banknote color="#9A6B00" size={18} /></View>
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.tileNumber}>{stats.cashToCollect > 0 ? formatCurrency(stats.cashToCollect, "").trim() : "0"}</Text>
-                  <Text style={styles.tileLabel}>{t("TZS to collect")}</Text>
-                </View>
-              </View>
+              ) : null}
 
-              <View style={styles.chipRow}>
-                {groupFilters.map((item) => {
-                  const active = group === item.value;
-                  return (
-                    <Pressable key={item.value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { haptics.selection(); setGroup(item.value); }} style={[styles.chip, active ? styles.chipActive : null]}>
-                      <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{t(item.label)}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {nextDelivery ? (
-                <View style={styles.next}>
-                  <View style={styles.nextHeading}>
-                    <Text style={styles.eyebrow}>{t(continuing ? "Current delivery" : "Next delivery")}</Text>
-                    <View style={styles.statusPill}>
-                      <Text style={styles.status}>{t(driverDeliveryStatusLabel(nextDelivery.status))}</Text>
+              {current ? (
+                <Animated.View style={{ opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+                  <BrandGradient style={styles.job}>
+                    <Ripples size={300} style={styles.ripples} />
+                    <View style={styles.jobTop}>
+                      <View style={styles.jobBadge}>
+                        {live ? <LiveDot /> : null}
+                        <Text style={styles.jobBadgeText}>{t(continuing ? "Current delivery" : "Next delivery")}</Text>
+                      </View>
+                      <Text style={styles.jobStatus}>{t(driverDeliveryStatusLabel(current.status))}</Text>
                     </View>
-                  </View>
-                  <View style={styles.destination}>
-                    <MapPin color={colors.primary} size={23} />
-                    <View style={styles.destinationCopy}>
-                      <Text style={styles.address}>{deliveryAddressLine(nextDelivery)}</Text>
-                      <Text style={styles.muted}>{deliveryAreaLine(nextDelivery)}</Text>
+                    <Text style={styles.jobAddress}>{deliveryAddressLine(current)}</Text>
+                    <Text style={styles.jobArea}>{deliveryAreaLine(current)}  {"·"}  {customerDisplayName(current)}</Text>
+                    <View style={styles.jobChips}>
+                      <View style={styles.glass}><Droplet color={colors.white} size={14} /><Text style={styles.glassText}>{bottles} x 20L</Text></View>
+                      <View style={styles.glass}><Clock3 color={colors.white} size={14} /><Text style={styles.glassText}>{t(deliveryWindowLabel(current))}</Text></View>
                     </View>
-                  </View>
-                  <Text style={styles.customer}>{customerDisplayName(nextDelivery)}</Text>
-                  <View style={styles.summary}>
-                    <View style={styles.summaryRow}><Droplets color={colors.mutedText} size={18} /><Text style={styles.product}>{productSummary(nextDelivery)}</Text></View>
-                    <View style={styles.summaryRow}><Clock3 color={colors.mutedText} size={18} /><Text style={styles.schedule}>{t(deliveryTimeLabel(nextDelivery))}</Text></View>
-                  </View>
-                  <View style={styles.instruction}>
-                    <Text style={styles.instructionText}>{t(driverActionHint(nextDelivery))}</Text>
-                  </View>
-                  <View style={styles.quickRow}>
-                    <Button title="Call" icon={Phone} variant="secondary" disabled={!nextPhone} onPress={callNext} style={styles.quickButton} />
-                    <Button title="Navigate" icon={Navigation} variant="secondary" disabled={!nextCanNavigate} onPress={navigateNext} style={styles.quickButton} />
-                  </View>
-                  <Button title={continuing ? "Continue delivery" : canStartDelivery(nextDelivery) ? "View pickup" : "View delivery"} onPress={() => openDelivery(nextDelivery)} />
-                </View>
+                    {due > 0 ? (
+                      <View style={styles.due}><Text style={styles.dueText}>{t("Collect")} {formatCurrency(due, current.currency)}</Text></View>
+                    ) : null}
+                    <Text style={styles.jobHint}>{t(driverActionHint(current))}</Text>
+                    <View style={styles.jobActions}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("Call")} disabled={!phone} onPress={call} style={[styles.jobIcon, !phone ? styles.jobIconOff : null]}>
+                        <Phone color={colors.white} size={20} />
+                      </Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel={t("Navigate")} disabled={!canNavigate} onPress={navigate} style={[styles.jobIcon, !canNavigate ? styles.jobIconOff : null]}>
+                        <Navigation color={colors.white} size={20} />
+                      </Pressable>
+                      <Button title={continuing ? "Continue delivery" : canStartDelivery(current) ? "View pickup" : "View delivery"} variant="light" onPress={() => open(current)} style={styles.jobButton} />
+                    </View>
+                  </BrandGradient>
+                </Animated.View>
               ) : (
-                <EmptyState title="No assigned deliveries yet" message="Your next delivery will appear here when it is assigned." />
+                <View style={styles.empty}>
+                  <DropletArt />
+                  <Text style={styles.emptyTitle}>{t("No stops right now")}</Text>
+                  <Text style={styles.emptyBody}>{t("New assignments show up here as soon as dispatch sends them. Pull down to check.")}</Text>
+                </View>
               )}
+
               {remaining.length ? (
-                <View style={styles.listHeading}>
-                  <Text style={styles.listTitle}>{t("Up next")}</Text>
-                  <Text style={styles.listCount}>{remaining.length}</Text>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionLabel}>{t("Up next")}</Text>
+                  <Text style={styles.sectionCount}>{remaining.length}</Text>
                 </View>
               ) : null}
             </View>
           }
-          renderItem={({ item }) => <DriverDeliveryCard order={item} onPress={() => openDelivery(item)} />}
-          ListFooterComponent={
-            <View style={styles.footer}>
-              <Text style={styles.refreshHint}>{t("Pull down to check for updates.")}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={t("Contact NELMA")} onPress={() => router.push("/support/contact")} style={({ pressed }) => [styles.support, { opacity: pressed ? 0.7 : 1 }]}>
-                <Phone color={colors.primary} size={20} />
-                <View style={styles.supportCopy}>
-                  <Text style={styles.supportTitle}>{t("Need a hand?")}</Text>
-                  <Text style={styles.muted}>{t("Contact NELMA")}</Text>
-                </View>
-                <ChevronRight color={colors.mutedText} size={20} />
-              </Pressable>
-            </View>
-          }
+          renderItem={({ item, index }) => (
+            <Sheet style={styles.stopSheet}>
+              <RouteStop order={item} position={index + 2} last onPress={() => open(item)} />
+            </Sheet>
+          )}
+          ItemSeparatorComponent={() => <View style={styles.gap} />}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -216,57 +218,44 @@ export default function DriverDeliveriesScreen() {
 }
 
 const styles = StyleSheet.create({
+  safe: { backgroundColor: driverTheme.pageBg },
   screen: { flex: 1 },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  hero: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.md, ...(shadows.raised ?? {}) },
-  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  headingCopy: { flex: 1, gap: spacing.xxs },
-  heroDate: { color: "rgba(255,255,255,0.85)", fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
-  heroTitle: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 24, lineHeight: 32 },
-  refresh: { width: 42, height: 42, borderRadius: radius.sm, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-  progressHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
-  progressLabel: { color: colors.white, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 },
-  progressValue: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 16, lineHeight: 22 },
-  track: { height: 10, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.28)", overflow: "hidden" },
-  fill: { height: 10, borderRadius: radius.pill, backgroundColor: colors.accent },
-  progressHint: { color: "rgba(255,255,255,0.92)", fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
-  tiles: { flexDirection: "row", gap: spacing.xs, marginBottom: spacing.md },
-  tile: { flex: 1, backgroundColor: colors.white, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xxs },
-  tileIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: spacing.xxs },
-  tileNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
-  tileLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
-  chipRow: { flexDirection: "row", gap: spacing.xs, marginBottom: spacing.md },
-  chip: { minHeight: 38, paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 13, lineHeight: 18 },
-  chipTextActive: { color: colors.white },
-  next: { padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, gap: spacing.md, backgroundColor: colors.white, ...(shadows.card ?? {}) },
-  nextHeading: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: spacing.xs },
-  eyebrow: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: 13, lineHeight: 20 },
-  statusPill: { paddingHorizontal: spacing.xs, paddingVertical: spacing.xxs, backgroundColor: colors.surfaceBlue, borderRadius: radius.xs },
-  status: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: 11, lineHeight: 18 },
-  destination: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
-  destinationCopy: { flex: 1, gap: spacing.xxs },
-  address: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 23, lineHeight: 31 },
-  customer: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: 16, lineHeight: 24 },
-  muted: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 20 },
-  summary: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: spacing.md },
-  summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  product: { flex: 1, color: colors.text, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 22 },
-  schedule: { flex: 1, color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 20 },
-  instruction: { backgroundColor: colors.surfaceBlue, borderRadius: radius.xs, padding: spacing.sm },
-  instructionText: { color: colors.text, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 20 },
-  quickRow: { flexDirection: "row", gap: spacing.sm },
-  quickButton: { flex: 1, minHeight: 48, paddingHorizontal: spacing.xs },
-  listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xl, marginBottom: spacing.sm },
-  listTitle: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 18, lineHeight: 26 },
-  listCount: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
-  separator: { height: spacing.sm },
-  footer: { marginTop: spacing.xl, gap: spacing.lg },
-  refreshHint: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 12, lineHeight: 18, textAlign: "center" },
-  support: { flexDirection: "row", alignItems: "center", gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line, paddingVertical: spacing.md, minHeight: 60 },
-  supportCopy: { flex: 1, gap: spacing.xxs },
-  supportTitle: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 22 },
-  error: { color: colors.danger, backgroundColor: colors.dangerBg, padding: spacing.sm, borderRadius: radius.sm, marginBottom: spacing.sm },
-  state: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg, gap: spacing.sm }
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  refresh: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.white },
+  error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19, marginBottom: spacing.sm },
+  newStops: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  newStopsText: { flex: 1, color: colors.white, fontFamily: typography.fonts.bold, fontSize: 14, lineHeight: 20 },
+  newStopsDismiss: { color: "rgba(255,255,255,0.85)", fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
+  progress: { gap: spacing.xs, marginBottom: spacing.lg },
+  progressTop: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  progressLabel: { color: colors.ink, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 },
+  progressValue: { color: colors.primary, fontFamily: typography.fonts.bold, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
+  summary: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  job: { padding: spacing.lg, gap: spacing.xs },
+  ripples: { position: "absolute", right: -90, bottom: -110 },
+  jobTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  jobBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  jobBadgeText: { color: colors.white, fontFamily: typography.fonts.semibold, fontSize: 12, lineHeight: 17 },
+  jobStatus: { color: "rgba(255,255,255,0.78)", fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
+  jobAddress: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 28, letterSpacing: -0.5, lineHeight: 34, marginTop: spacing.sm },
+  jobArea: { color: "rgba(255,255,255,0.82)", fontFamily: typography.fonts.medium, fontSize: 15, lineHeight: 22 },
+  jobChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
+  glass: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  glassText: { color: colors.white, fontFamily: typography.fonts.semibold, fontSize: 13, lineHeight: 18 },
+  due: { alignSelf: "flex-start", backgroundColor: driverTheme.amberBg, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginTop: spacing.xs },
+  dueText: { color: driverTheme.amberText, fontFamily: typography.fonts.bold, fontSize: 14, lineHeight: 20 },
+  jobHint: { color: "rgba(255,255,255,0.75)", fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 19, marginTop: spacing.md },
+  jobActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
+  jobIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
+  jobIconOff: { opacity: 0.4 },
+  jobButton: { flex: 1 },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xl, marginBottom: spacing.sm },
+  sectionLabel: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 18, lineHeight: 24 },
+  sectionCount: { minWidth: 24, paddingHorizontal: 8, borderRadius: 12, overflow: "hidden", textAlign: "center", color: colors.primary, backgroundColor: driverTheme.aqua, fontFamily: typography.fonts.bold, fontSize: 12, lineHeight: 24 },
+  stopSheet: { borderRadius: radius.xl },
+  gap: { height: spacing.sm },
+  empty: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.xxl },
+  emptyTitle: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 20, lineHeight: 26, marginTop: spacing.sm },
+  emptyBody: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 15, lineHeight: 22, textAlign: "center", maxWidth: 300 }
 });

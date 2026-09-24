@@ -35,6 +35,13 @@ class PaymentService:
     def collect_cash(self, db: Session, actor: User, order_id: str, amount: int) -> None:
         authorize(actor, Permission.CASH_COLLECTION_RECORD)
         order = order_service.get_any_model(db, order_id)
+        self.record_cash(db, order, amount, actor)
+        db.commit()
+        db.expire_all()
+
+    def record_cash(self, db: Session, order: Order, amount: int, actor: User) -> None:
+        """Record a full cash payment for a delivered order inside the caller's transaction."""
+        order_id = order.id
         if order.payment_method != "cash" or order.status not in {"delivered", "received"}:
             raise AppException("CASH_NOT_COLLECTIBLE", "Cash can only be recorded for a delivered cash order.", 409)
         if amount != order.total:
@@ -81,8 +88,7 @@ class PaymentService:
             metadata={"paymentId": payment.id, "amount": amount, "currency": order.currency},
         )
         notification_service.create_for_event(db, user_id=order.user_id, event_type="payment_successful", order_id=order_id)
-        db.commit()
-        db.expire_all()
+        db.refresh(order)
 
     def methods(self) -> list[PaymentMethodRead]:
         return [PaymentMethodRead.model_validate(get_payment_method(method["id"])) for method in PAYMENT_METHODS]

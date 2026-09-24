@@ -233,12 +233,12 @@ export class ApiClient {
     return this.request<T>(path, { method: "GET", authenticated });
   }
 
-  post<T>(path: string, body?: unknown, authenticated = true, idempotencyKey?: string): Promise<T> {
-    return this.request<T>(path, { method: "POST", body, authenticated, idempotencyKey });
+  post<T>(path: string, body?: unknown, authenticated = true, idempotencyKey?: string, timeoutMs?: number): Promise<T> {
+    return this.request<T>(path, { method: "POST", body, authenticated, idempotencyKey, timeoutMs });
   }
 
-  patch<T>(path: string, body?: unknown, authenticated = true): Promise<T> {
-    return this.request<T>(path, { method: "PATCH", body, authenticated });
+  patch<T>(path: string, body?: unknown, authenticated = true, timeoutMs?: number): Promise<T> {
+    return this.request<T>(path, { method: "PATCH", body, authenticated, timeoutMs });
   }
 
   delete<T>(path: string, authenticated = true): Promise<T> {

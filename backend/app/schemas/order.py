@@ -82,6 +82,7 @@ class OrderRead(CamelModel):
     currency: Literal["TZS"]
     status: OrderStatus
     payment_status: PaymentStatus = Field(validation_alias=AliasChoices("paymentStatus", "payment_status"))
+    payment_method: str = Field("", validation_alias=AliasChoices("paymentMethod", "payment_method"))
     payment: PaymentRead | None = None
     timeline: list[OrderTimelineEventRead]
     available_actions: list[OrderAction] = Field(validation_alias=AliasChoices("availableActions", "available_actions"))
@@ -143,3 +144,34 @@ class CreateOrderMessageRequest(CamelModel):
 
 class OrderStatusUpdateRequest(CamelModel):
     status: OrderStatus
+
+
+ProofSkipReason = Literal["customer_has_no_phone", "code_not_working"]
+DeliveryIssueReason = Literal["customer_unreachable", "wrong_address", "customer_refused", "started_by_mistake", "other"]
+
+
+class DriverStatusUpdateRequest(CamelModel):
+    """Driver progress update. Handover details are only read when status is `delivered`."""
+
+    status: OrderStatus
+    cash_collected: int | None = Field(None, ge=0, le=100_000_000)
+    delivery_code: str | None = Field(None, pattern=r"^\d{4}$")
+    proof_skip_reason: ProofSkipReason | None = None
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
+
+
+class DeliveryIssueRequest(CamelModel):
+    reason: DeliveryIssueReason
+    note: str | None = Field(None, max_length=500)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def blank_note_to_none(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class DeliveryCodeRead(CamelModel):
+    code: str

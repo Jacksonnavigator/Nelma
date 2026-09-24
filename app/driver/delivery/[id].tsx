@@ -1,50 +1,41 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Banknote, Check, ChevronDown, ChevronUp, Navigation, Phone, RefreshCw } from "lucide-react-native";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Banknote, Clock3, Droplet, MapPin, Navigation, Phone, RefreshCw } from "lucide-react-native";
+import { type ComponentType, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { BottomActionBar, Button, ConfirmDialog, ErrorState, OrderTimeline, Screen, StatusBadge } from "../../../components";
+import { BottomActionBar, Button, ConfirmDialog, ErrorState, HandoverSheet, IssueSheet, OrderTimeline, Screen, Sheet, SkyBackdrop } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { driverTheme } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
-import type { DriverDeliveryActionStatus, Order } from "../../../types/order";
-import { DELIVERY_STEPS, cashDueAmount, deliveryStepIndex, buildExternalMapUrl, canMarkDelivered, canStartDelivery, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryTimeLabel, driverActionHint, hasDeliveryCoordinates, isAssignmentLostError, productSummary } from "../../../utils/driver-deliveries";
+import type { DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../../../types/order";
+import { DELIVERY_STEPS, buildExternalMapUrl, canMarkDelivered, canStartDelivery, cashDueAmount, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryStepIndex, driverActionHint, hasDeliveryCoordinates, isAssignmentLostError, isConnectionError, productSummary } from "../../../utils/driver-deliveries";
 import { formatCurrency, formatDate } from "../../../utils/format";
-import { driverDeliveryStatusLabel } from "../../../utils/status";
+import { paymentStatusLabel } from "../../../utils/status";
 
 type PendingAction = "start" | "delivered";
 
-const InfoRow = ({ label, value, children }: { label: string; value?: string | null; children?: ReactNode }) => {
+const Fact = ({ icon: Icon, label, last, tint = "aqua", children }: { icon: ComponentType<{ color?: string; size?: number }>; label: string; last: boolean; tint?: "aqua" | "amber"; children: ReactNode }) => {
   const { t } = useTranslation();
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{t(label)}</Text>
-      {children ?? <Text selectable style={styles.infoValue}>{t(value || "Not available")}</Text>}
+    <View style={[styles.fact, last ? null : styles.factDivider]}>
+      <View style={[styles.factIcon, tint === "amber" ? styles.factIconAmber : null]}>
+        <Icon color={tint === "amber" ? driverTheme.amberText : colors.primary} size={17} />
+      </View>
+      <View style={styles.factValue}>
+        <Text style={styles.factLabel}>{t(label)}</Text>
+        {children}
+      </View>
     </View>
   );
 };
 
-const actionStatusFor = (pending: PendingAction): DriverDeliveryActionStatus => {
-  if (pending === "start") {
-    return "out_for_delivery";
-  }
-  return "delivered";
-};
+const actionStatusFor = (pending: PendingAction): DriverDeliveryActionStatus => (pending === "start" ? "out_for_delivery" : "delivered");
 
-const dialogTitleFor = (pending: PendingAction): string => {
-  if (pending === "start") {
-    return "Start delivery?";
-  }
-  return "Mark delivered?";
-};
+const dialogTitleFor = (pending: PendingAction): string => (pending === "start" ? "Start delivery?" : "Mark delivered?");
 
-const dialogConfirmFor = (pending: PendingAction): string => {
-  if (pending === "start") {
-    return "Start Delivery";
-  }
-  return "Mark Delivered";
-};
+const dialogConfirmFor = (pending: PendingAction): string => (pending === "start" ? "Start Delivery" : "Mark Delivered");
 
 const dialogMessageFor = (pending: PendingAction, order: Order): string => {
   const customer = customerDisplayName(order);
@@ -63,9 +54,13 @@ export default function DriverDeliveryDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assignmentLost, setAssignmentLost] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [submittingAction, setSubmittingAction] = useState<PendingAction | null>(null);
+  const [handoverError, setHandoverError] = useState<string | null>(null);
+  const [issueOpen, setIssueOpen] = useState(false);
+  const [submittingIssue, setSubmittingIssue] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
 
   const loadDelivery = useCallback(async (initial = false) => {
     if (!deliveryId) {
@@ -125,40 +120,82 @@ export default function DriverDeliveryDetailScreen() {
     await Linking.openURL(url).catch(() => setError("Unable to open maps. Please use the address shown."));
   };
 
-  const submitAction = async () => {
+  const messageOf = (caught: unknown, fallback: string): string => {
+    return typeof (caught as { message?: unknown }).message === "string" ? String((caught as { message: string }).message) : fallback;
+  };
+
+  const submitAction = async (handover?: DriverDeliveryHandover) => {
     if (!order || !pendingAction || submittingAction) {
       return;
     }
     const action = pendingAction;
     setSubmittingAction(action);
+    setHandoverError(null);
     try {
-      const nextOrder = await repositories.driver.updateStatus(order.id, actionStatusFor(action));
+      const nextOrder = handover
+        ? await repositories.driver.updateStatus(order.id, actionStatusFor(action), handover)
+        : await repositories.driver.updateStatus(order.id, actionStatusFor(action));
       setOrder(nextOrder);
       setError(null);
       setAssignmentLost(false);
       setPendingAction(null);
       haptics.success();
     } catch (caught) {
-      setPendingAction(null);
       haptics.light();
       if (isAssignmentLostError(caught)) {
+        setPendingAction(null);
         setAssignmentLost(true);
         setError("This delivery is no longer assigned to you.");
+      } else if (isConnectionError(caught)) {
+        // The change may have gone through even though the reply never arrived, so show the real state.
+        setPendingAction(null);
+        await loadDelivery(false);
+        setError("The connection was slow. This is the latest status from NELMA.");
+      } else if (action === "delivered") {
+        // Wrong code or cash amount: keep the sheet open so the driver can correct it.
+        setHandoverError(messageOf(caught, "Unable to complete this delivery right now."));
       } else {
-        setError(typeof (caught as { message?: unknown }).message === "string" ? String((caught as { message: string }).message) : "Unable to update this delivery right now.");
+        setPendingAction(null);
+        setError(messageOf(caught, "Unable to update this delivery right now."));
       }
     } finally {
       setSubmittingAction(null);
     }
   };
 
+  const submitIssue = async (input: DeliveryIssueInput) => {
+    if (!order || submittingIssue) {
+      return;
+    }
+    setSubmittingIssue(true);
+    setIssueError(null);
+    try {
+      setOrder(await repositories.driver.reportIssue(order.id, input));
+      setError(null);
+      setIssueOpen(false);
+      haptics.success();
+    } catch (caught) {
+      haptics.light();
+      if (isAssignmentLostError(caught)) {
+        setIssueOpen(false);
+        setAssignmentLost(true);
+        setError("This delivery is no longer assigned to you.");
+      } else if (isConnectionError(caught)) {
+        setIssueOpen(false);
+        await loadDelivery(false);
+        setError("The connection was slow. This is the latest status from NELMA.");
+      } else {
+        setIssueError(messageOf(caught, "Unable to send this report right now."));
+      }
+    } finally {
+      setSubmittingIssue(false);
+    }
+  };
+
   if (loading && !order) {
     return (
       <Screen contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>{t("Loading delivery")}</Text>
-        </View>
+        <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
       </Screen>
     );
   }
@@ -166,7 +203,7 @@ export default function DriverDeliveryDetailScreen() {
   if (assignmentLost || !order) {
     return (
       <Screen contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
-        <View style={styles.stateWrap}>
+        <View style={styles.center}>
           <ErrorState title="Delivery unavailable" message={error ?? "This delivery is no longer assigned to you."} actionLabel="Back to Deliveries" onAction={() => router.replace("/driver/(tabs)/deliveries")} />
         </View>
       </Screen>
@@ -177,111 +214,106 @@ export default function DriverDeliveryDetailScreen() {
     : canMarkDelivered(order) ? "delivered" : null;
   const closed = receiptConfirmed || order.status === "delivered" || order.status === "cancelled";
   const busy = Boolean(submittingAction) || refreshing;
-  const stepIndex = deliveryStepIndex(order);
-  const cashDue = cashDueAmount(order);
+  const step = deliveryStepIndex(order);
+  const due = cashDueAmount(order);
+  const notes = [order.deliveryAddress.deliveryInstructions, order.customerRemarks].filter(Boolean) as string[];
+  const open = order.status === "processing" || order.status === "out_for_delivery";
 
   return (
-    <Screen safeBottom={false} contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false}>
-      <View style={styles.localHeader}>
-        <Pressable accessibilityLabel={t("Back to Deliveries")} accessibilityRole="button" onPress={() => router.back()} style={styles.headerIconButton}>
-          <ArrowLeft size={22} color={colors.text} />
+    <Screen safeBottom={false} contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
+      <SkyBackdrop />
+      <View style={styles.header}>
+        <Pressable accessibilityLabel={t("Back to Deliveries")} accessibilityRole="button" onPress={() => router.back()} style={styles.headerButton}>
+          <ArrowLeft size={22} color={colors.ink} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t(closed ? "Delivery record" : "Your delivery")}</Text>
-        <Pressable accessibilityLabel={t("Refresh delivery")} accessibilityRole="button" disabled={busy || Boolean(pendingAction)} onPress={() => void loadDelivery(false)} style={styles.headerIconButton}>
-          {refreshing ? <ActivityIndicator color={colors.primary} /> : <RefreshCw size={21} color={busy ? colors.disabled : colors.primary} />}
+        <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+        <Pressable accessibilityLabel={t("Refresh delivery")} accessibilityRole="button" disabled={busy || Boolean(pendingAction)} onPress={() => void loadDelivery(false)} style={styles.headerButton}>
+          {refreshing ? <ActivityIndicator color={colors.mutedText} /> : <RefreshCw size={20} color={busy ? colors.disabled : colors.mutedText} />}
         </Pressable>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {error ? <Text accessibilityRole="alert" style={styles.inlineError}>{t(error)}</Text> : null}
-        <View style={styles.statusRow}>
-          <StatusBadge type="order" status={order.status} labelOverride={driverDeliveryStatusLabel(order.status)} />
-          <Text style={styles.muted}>{order.orderNumber}</Text>
-        </View>
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
+
         {order.status !== "cancelled" ? (
-          <View style={styles.stepper} accessibilityLabel={t(DELIVERY_STEPS[stepIndex])}>
-            {DELIVERY_STEPS.map((label, index) => {
-              const done = index < stepIndex || stepIndex === DELIVERY_STEPS.length - 1;
-              const current = index === stepIndex && !done;
-              return (
-                <View key={label} style={styles.step}>
-                  <View style={styles.stepTrack}>
-                    <View style={[styles.stepLine, index === 0 ? styles.stepLineHidden : null, index <= stepIndex ? styles.stepLineActive : null]} />
-                    <View style={[styles.stepDot, done ? styles.stepDotDone : null, current ? styles.stepDotCurrent : null]}>
-                      {done ? <Check color={colors.white} size={12} strokeWidth={3} /> : null}
-                    </View>
-                    <View style={[styles.stepLine, index === DELIVERY_STEPS.length - 1 ? styles.stepLineHidden : null, index < stepIndex ? styles.stepLineActive : null]} />
-                  </View>
-                  <Text numberOfLines={1} style={[styles.stepLabel, index <= stepIndex ? styles.stepLabelActive : null]}>{t(label)}</Text>
-                </View>
-              );
-            })}
+          <View style={styles.progress}>
+            <View style={styles.segments}>
+              {DELIVERY_STEPS.map((label, index) => <View key={label} style={[styles.segment, index <= step ? styles.segmentDone : null]} />)}
+            </View>
+            <Text style={styles.progressText}>{t(DELIVERY_STEPS[step])}  {"·"}  {step + 1} / {DELIVERY_STEPS.length}</Text>
           </View>
         ) : null}
-        {cashDue > 0 && !closed ? (
-          <View style={styles.cashBanner}>
-            <Banknote color="#9A6B00" size={22} />
-            <View style={styles.cashCopy}>
-              <Text style={styles.cashTitle}>{t("Collect payment on delivery")}</Text>
-              <Text style={styles.cashAmount}>{formatCurrency(cashDue, order.currency)}</Text>
+
+        <Sheet style={styles.destination}>
+          <View style={styles.pin}><MapPin color={colors.primary} size={20} /></View>
+          <View style={styles.destinationCopy}>
+            <Text style={styles.eyebrow}>{t("Deliver to")}</Text>
+            <Text style={styles.address}>{deliveryAddressLine(order)}</Text>
+            <Text style={styles.area}>{deliveryAreaLine(order)}</Text>
+          </View>
+        </Sheet>
+
+        <Sheet style={styles.customerSheet}>
+          <View style={styles.person}>
+            <View style={styles.initial}><Text style={styles.initialText}>{customerDisplayName(order).charAt(0).toUpperCase()}</Text></View>
+            <View style={styles.personCopy}>
+              <Text style={styles.personName}>{customerDisplayName(order)}</Text>
+              <Text selectable style={styles.personPhone}>{phone ?? t("No customer phone")}</Text>
             </View>
           </View>
-        ) : null}
-        <View style={styles.destination}>
-          <Text style={styles.eyebrow}>{t("Deliver to")}</Text>
-          <Text style={styles.address}>{deliveryAddressLine(order)}</Text>
-          <Text style={styles.area}>{deliveryAreaLine(order)}</Text>
-          <Text style={styles.muted}>{t(deliveryTimeLabel(order))}</Text>
-        </View>
+          <View style={styles.contactActions}>
+            <Button title="Call" icon={Phone} variant="secondary" disabled={!phone} onPress={callCustomer} style={styles.contactButton} />
+            <Button title="Navigate" icon={Navigation} variant="secondary" disabled={!hasCoordinates} onPress={openLocation} style={styles.contactButton} />
+          </View>
+          {!hasCoordinates ? <Text style={styles.subtle}>{t("No pin attached")}</Text> : null}
+        </Sheet>
 
-        <View style={styles.customer}>
-          <Text style={styles.customerName}>{customerDisplayName(order)}</Text>
-          {phone ? <Text selectable style={styles.muted}>{phone}</Text> : null}
-          <Text style={styles.product}>{productSummary(order)}</Text>
-        </View>
+        <Sheet style={styles.facts}>
+          <Fact icon={Droplet} label="Items" last={false}><Text style={styles.factText}>{productSummary(order)}</Text></Fact>
+          <Fact icon={Clock3} label="Window" last={false}>
+            <Text style={styles.factText}>{t(order.deliverySchedule?.label ?? "No delivery time set")}</Text>
+            {order.deliverySchedule?.window ? <Text style={styles.factMuted}>{order.deliverySchedule.window}</Text> : null}
+          </Fact>
+          <Fact icon={Banknote} label="Payment" last tint={due > 0 && !closed ? "amber" : "aqua"}>
+            <Text style={styles.factText}>{formatCurrency(order.total, order.currency)}</Text>
+            <Text style={due > 0 && !closed ? styles.factDue : styles.factMuted}>
+              {due > 0 && !closed ? t("Collect on delivery") : t(paymentStatusLabel(order.paymentStatus))}
+              {order.payment?.methodLabel ? "  ·  " + t(order.payment.methodLabel) : ""}
+            </Text>
+          </Fact>
+        </Sheet>
 
-        <View style={styles.quickActions}>
-          <Button title="Navigate" icon={Navigation} variant="secondary" disabled={!hasCoordinates} onPress={openLocation} style={styles.quickButton} />
-          <Button title="Call" icon={Phone} variant="secondary" disabled={!phone} onPress={callCustomer} style={styles.quickButton} />
-        </View>
-        {!hasCoordinates ? <Text style={styles.muted}>{t("No pin attached")}</Text> : null}
-        {!phone ? <Text style={styles.muted}>{t("No customer phone")}</Text> : null}
-
-        {order.deliveryAddress.deliveryInstructions || order.customerRemarks ? (
+        {notes.length ? (
           <View style={styles.notes}>
-            <Text style={styles.sectionTitle}>{t("Delivery notes")}</Text>
-            {order.deliveryAddress.deliveryInstructions ? <Text style={styles.body}>{order.deliveryAddress.deliveryInstructions}</Text> : null}
-            {order.customerRemarks ? <Text style={styles.body}>{order.customerRemarks}</Text> : null}
+            {notes.map((note) => <Text key={note} style={styles.note}>{note}</Text>)}
           </View>
         ) : null}
 
-        <View style={styles.payment}>
-          <View style={styles.paymentCopy}>
-            <Text style={styles.muted}>{t("Payment")} {order.payment?.methodLabel ? "\u00b7 " + t(order.payment.methodLabel) : ""}</Text>
-            <Text style={styles.amount}>{formatCurrency(order.total, order.currency)}</Text>
-          </View>
-          <StatusBadge type="payment" status={order.paymentStatus} compact />
-        </View>
-
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((open) => !open)} style={styles.detailsToggle}>
-          <Text style={styles.sectionTitle}>{t("Order details")}</Text>
-          {detailsOpen ? <ChevronUp color={colors.mutedText} size={20} /> : <ChevronDown color={colors.mutedText} size={20} />}
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: activityOpen }} onPress={() => setActivityOpen((open) => !open)} style={styles.link}>
+          <Text style={styles.linkText}>{t(activityOpen ? "Hide activity" : "Show activity")}</Text>
         </Pressable>
-        {detailsOpen ? (
-          <View style={styles.details}>
-            <InfoRow label="Quantity" value={String(order.quantity)} />
-            <InfoRow label="Last updated" value={formatDate(order.updatedAt)} />
-            {order.customerReceivedAt ? <InfoRow label="Confirmed received on" value={formatDate(order.customerReceivedAt)} /> : null}
+        {activityOpen ? (
+          <View style={styles.activity}>
+            {order.customerReceivedAt ? <Text style={styles.subtle}>{t("Confirmed received on")} {formatDate(order.customerReceivedAt)}</Text> : null}
             {(order.messages ?? []).slice(-3).map((message) => (
               <View key={message.id} style={styles.notes}>
-                <Text style={styles.sectionTitle}>{t(message.sender === "customer" ? "Customer" : message.sender === "nelma" ? "NELMA" : "System")}</Text>
-                <Text style={styles.body}>{message.body}</Text>
+                <Text style={styles.noteAuthor}>{t(message.sender === "customer" ? "Customer" : message.sender === "nelma" ? "NELMA" : "System")}</Text>
+                <Text style={styles.note}>{message.body}</Text>
               </View>
             ))}
             <OrderTimeline events={order.timeline} currentStatus={order.status} />
           </View>
         ) : null}
-        <Button title="Contact NELMA" variant="ghost" onPress={() => router.push("/support/contact")} />
+
+        {open ? (
+          <Pressable accessibilityRole="button" onPress={() => { setIssueError(null); setIssueOpen(true); }} style={styles.link}>
+            <Text style={styles.linkText}>{t("Problem with this stop?")}</Text>
+          </Pressable>
+        ) : (
+          <Pressable accessibilityRole="button" onPress={() => router.push("/support/contact")} style={styles.link}>
+            <Text style={styles.linkText}>{t("Contact NELMA")}</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       <BottomActionBar
@@ -298,66 +330,83 @@ export default function DriverDeliveryDetailScreen() {
       </BottomActionBar>
 
       <ConfirmDialog
-        visible={Boolean(pendingAction)}
-        title={pendingAction ? dialogTitleFor(pendingAction) : "Confirm"}
-        message={pendingAction ? dialogMessageFor(pendingAction, order) : "Confirm this delivery update."}
-        confirmLabel={pendingAction ? dialogConfirmFor(pendingAction) : "Confirm"}
-        loading={Boolean(submittingAction)}
+        visible={pendingAction === "start"}
+        title={dialogTitleFor("start")}
+        message={dialogMessageFor("start", order)}
+        confirmLabel={dialogConfirmFor("start")}
+        loading={submittingAction === "start"}
         onCancel={() => { if (!submittingAction) setPendingAction(null); }}
-        onConfirm={submitAction}
+        onConfirm={() => void submitAction()}
+      />
+
+      <HandoverSheet
+        visible={pendingAction === "delivered"}
+        order={order}
+        loading={submittingAction === "delivered"}
+        error={handoverError}
+        onCancel={() => { if (!submittingAction) { setPendingAction(null); setHandoverError(null); } }}
+        onConfirm={(handover) => submitAction(handover)}
+      />
+
+      <IssueSheet
+        visible={issueOpen}
+        canUndo={order.status === "out_for_delivery"}
+        loading={submittingIssue}
+        error={issueError}
+        onClose={() => setIssueOpen(false)}
+        onSubmit={(input) => void submitIssue(input)}
+        onContact={() => { setIssueOpen(false); router.push("/support/contact"); }}
       />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.white },
-  screen: { backgroundColor: colors.white, flex: 1 },
-  localHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", gap: spacing.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderBottomColor: colors.line, borderBottomWidth: 1 },
-  headerIconButton: { alignItems: "center", justifyContent: "center", width: 44, height: 44 },
-  headerTitle: { flex: 1, textAlign: "center", color: colors.text, fontFamily: typography.fonts.bold, fontSize: 18, lineHeight: 26 },
+  safe: { backgroundColor: driverTheme.pageBg },
+  screen: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.xs, paddingVertical: spacing.xxs },
+  headerButton: { alignItems: "center", justifyContent: "center", width: 44, height: 44 },
+  orderNumber: { flex: 1, color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
   scroll: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md },
-  statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, flexWrap: "wrap" },
-  stepper: { flexDirection: "row", paddingVertical: spacing.xs },
-  step: { flex: 1, alignItems: "center", gap: spacing.xxs },
-  stepTrack: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
-  stepLine: { flex: 1, height: 3, backgroundColor: colors.line },
-  stepLineHidden: { backgroundColor: "transparent" },
-  stepLineActive: { backgroundColor: colors.primary },
-  stepDot: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.white, borderColor: colors.border, borderWidth: 2 },
-  stepDotDone: { backgroundColor: colors.primary, borderColor: colors.primary },
-  stepDotCurrent: { borderColor: colors.primary, borderWidth: 6 },
-  stepLabel: { color: colors.subtleText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
-  stepLabelActive: { color: colors.text, fontFamily: typography.fonts.bold },
-  cashBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.warningBg, borderRadius: radius.sm, padding: spacing.md },
-  cashCopy: { flex: 1, gap: 2 },
-  cashTitle: { color: "#9A6B00", fontFamily: typography.fonts.semibold, fontSize: 13, lineHeight: 20 },
-  cashAmount: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
-  destination: { gap: spacing.xs, paddingVertical: spacing.sm },
-  eyebrow: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
-  address: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 27, lineHeight: 35 },
-  area: { color: colors.text, fontFamily: typography.fonts.medium, fontSize: 16, lineHeight: 24 },
-  muted: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 20 },
-  customer: { gap: spacing.xxs },
-  customerName: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 20, lineHeight: 28 },
-  product: { color: colors.text, fontFamily: typography.fonts.medium, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
-  quickActions: { flexDirection: "row", gap: spacing.sm },
-  quickButton: { flex: 1, paddingHorizontal: spacing.xs },
-  notes: { backgroundColor: colors.surfaceAlt, padding: spacing.md, borderRadius: radius.sm, gap: spacing.xs },
-  sectionTitle: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 22 },
-  body: { color: colors.text, fontFamily: typography.fonts.regular, fontSize: 14, lineHeight: 22 },
-  payment: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md, borderTopColor: colors.line, borderTopWidth: 1, borderBottomColor: colors.line, borderBottomWidth: 1 },
-  paymentCopy: { flex: 1, gap: spacing.xxs },
-  amount: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 20, lineHeight: 28 },
-  detailsToggle: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  details: { gap: spacing.md },
-  infoRow: { gap: spacing.xxs },
-  infoLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
-  infoValue: { color: colors.text, fontFamily: typography.fonts.regular, fontSize: 15, lineHeight: 22 },
-  actionHint: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20, textAlign: "center" },
-  inlineError: { backgroundColor: colors.dangerBg, borderRadius: radius.sm, color: colors.danger, padding: spacing.sm, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 20 },
-  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  loadingText: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 15, lineHeight: 22 },
-  stateWrap: { flex: 1, justifyContent: "center", padding: spacing.lg }
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
+  error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19 },
+  progress: { gap: spacing.xs },
+  segments: { flexDirection: "row", gap: 4 },
+  segment: { flex: 1, height: 6, borderRadius: 3, backgroundColor: driverTheme.aquaLine },
+  segmentDone: { backgroundColor: colors.primary },
+  progressText: { color: colors.mutedText, fontFamily: typography.fonts.semibold, fontSize: 12, lineHeight: 18 },
+  destination: { flexDirection: "row", gap: spacing.md, padding: spacing.md + 2 },
+  pin: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.aqua },
+  destinationCopy: { flex: 1, gap: 2 },
+  eyebrow: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 18 },
+  address: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 23, letterSpacing: -0.4, lineHeight: 29 },
+  area: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 15, lineHeight: 22 },
+  customerSheet: { padding: spacing.md, gap: spacing.md },
+  person: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  initial: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.deep },
+  initialText: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 18, lineHeight: 24 },
+  personCopy: { flex: 1, gap: 1 },
+  personName: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 18, lineHeight: 25 },
+  personPhone: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
+  contactActions: { flexDirection: "row", gap: spacing.xs },
+  contactButton: { flex: 1, minHeight: 48, paddingHorizontal: spacing.xs, backgroundColor: driverTheme.aqua, borderColor: driverTheme.aquaLine },
+  subtle: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 19 },
+  facts: { borderRadius: radius.xl },
+  fact: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
+  factDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: driverTheme.aquaLine },
+  factIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.aqua },
+  factIconAmber: { backgroundColor: driverTheme.amberBg },
+  factLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 17 },
+  factValue: { flex: 1, gap: 1 },
+  factText: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 15, lineHeight: 21 },
+  factMuted: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 13, lineHeight: 19 },
+  factDue: { color: driverTheme.amberText, fontFamily: typography.fonts.bold, fontSize: 13, lineHeight: 19 },
+  notes: { gap: spacing.xxs, padding: spacing.md, borderRadius: radius.md, backgroundColor: driverTheme.aqua, borderLeftWidth: 4, borderLeftColor: colors.primary },
+  note: { color: colors.text, fontFamily: typography.fonts.regular, fontSize: 15, lineHeight: 22 },
+  noteAuthor: { color: colors.mutedText, fontFamily: typography.fonts.semibold, fontSize: 12, lineHeight: 18 },
+  link: { minHeight: 44, justifyContent: "center" },
+  linkText: { color: colors.primary, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 },
+  activity: { gap: spacing.md },
+  actionHint: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19, textAlign: "center" }
 });

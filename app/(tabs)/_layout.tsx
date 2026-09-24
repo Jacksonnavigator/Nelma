@@ -3,6 +3,7 @@ import { Redirect, Tabs } from "expo-router";
 import { Home, ReceiptText, User } from "lucide-react-native";
 import { LoadingScreen } from "../../components";
 import { colors } from "../../constants/colors";
+import { usePushRegistration } from "../../hooks/use-push-registration";
 import { useTranslation } from "../../hooks/use-translation";
 import { useAuth } from "../../store/auth-context";
 
@@ -11,6 +12,7 @@ export default function TabsLayout() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 12);
+  usePushRegistration(user?.role === "USER" ? user.id : undefined, "USER");
 
   if (status === "loading") {
     return <LoadingScreen />;

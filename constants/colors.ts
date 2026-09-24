@@ -23,6 +23,8 @@ export const colors = {
   backgroundBlue: "#E9F7FF",
   warning: "#E8B64C",
   warningBg: "#FFF6DE",
+  warningText: "#8A6100",
+  deepShadow: "#0A3FA6",
   danger: "#E35D6A",
   dangerBg: "#FFECEE",
   info: "#009FE3",

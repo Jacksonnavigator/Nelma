@@ -3,7 +3,8 @@ import type { AuthSession, ChangePasswordInput, ForgotPasswordInput, ForgotPassw
 import type { BusinessDashboard } from "../types/business";
 import type { Notification } from "../types/notification";
 import type { DriverSummary } from "../types/driver";
-import type { CreateOrderInput, CreateOrderMessageInput, DriverDeliveryActionStatus, Order } from "../types/order";
+import type { PaginatedResult } from "../types/api";
+import type { CreateOrderInput, CreateOrderMessageInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../types/order";
 import type { InitializePaymentInput, Payment, PaymentMethod } from "../types/payment";
 import type { PublicSettings } from "../types/settings";
 import type { UpdateUserInput, User } from "../types/user";
@@ -38,12 +39,15 @@ export type OrderRepository = {
   cancel(id: string): Promise<Order>;
   confirmReceived(id: string): Promise<Order>;
   message(id: string, input: CreateOrderMessageInput): Promise<Order>;
+  getDeliveryCode(id: string): Promise<string>;
 };
 
 export type DriverRepository = {
-  listDeliveries(): Promise<Order[]>;
+  listActive(): Promise<Order[]>;
+  listHistory(page: number, pageSize?: number): Promise<PaginatedResult<Order>>;
   getDelivery(id: string): Promise<Order>;
-  updateStatus(id: string, status: DriverDeliveryActionStatus): Promise<Order>;
+  updateStatus(id: string, status: DriverDeliveryActionStatus, handover?: DriverDeliveryHandover): Promise<Order>;
+  reportIssue(id: string, input: DeliveryIssueInput): Promise<Order>;
   getSummary(): Promise<DriverSummary>;
 };
 

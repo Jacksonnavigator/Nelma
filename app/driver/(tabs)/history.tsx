@@ -1,53 +1,49 @@
 import { router, useFocusEffect } from "expo-router";
-import { CalendarDays, CheckCircle2, Clock3, Droplets, PackageCheck, Search } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { AppTopBar, Button, DriverDeliveryCard, EmptyState, ErrorState, Input, Screen } from "../../../components";
+import { Search } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { DriverTitle, DropletArt, ErrorState, LedgerRow, Screen, Sheet, SkyBackdrop, WeekBars } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { driverTheme, sheetShadow } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
+import type { DriverSummary } from "../../../types/driver";
 import type { Order } from "../../../types/order";
-import { closedTimeLabel, currentDateKey, driverHistoryStats, filterDriverHistory, type DriverHistoryDateFilter } from "../../../utils/driver-deliveries";
+import { currentDateKey, filterDriverHistory, groupHistoryByDay } from "../../../utils/driver-deliveries";
+import { formatDayHeading } from "../../../utils/format";
 
-const pageSize = 12;
-
-const dateFilters: Array<{ value: DriverHistoryDateFilter; label: string }> = [
-  { value: "all", label: "All dates" },
-  { value: "today", label: "Today" },
-  { value: "week", label: "Last 7 days" }
-];
-
-function DateChip({ value, label, active, onPress }: { value: DriverHistoryDateFilter; label: string; active: boolean; onPress: (value: DriverHistoryDateFilter) => void }) {
-  const { t } = useTranslation();
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => onPress(value)} style={({ pressed }) => [styles.chip, active ? styles.chipActive : null, { opacity: pressed ? 0.75 : 1 }]}>
-      <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{t(label)}</Text>
-    </Pressable>
-  );
-}
+const pageSize = 30;
 
 export default function DriverHistoryScreen() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [summary, setSummary] = useState<DriverSummary | null>(null);
+  const [nextPage, setNextPage] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState<DriverHistoryDateFilter>("all");
-  const [visibleCount, setVisibleCount] = useState(pageSize);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const todayKey = useMemo(() => currentDateKey(), []);
-  const filtered = useMemo(() => {
-    return filterDriverHistory(orders, search, dateFilter, todayKey).sort((first, second) => closedTimeLabel(second).localeCompare(closedTimeLabel(first)));
-  }, [dateFilter, orders, search, todayKey]);
-  const visibleOrders = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const stats = useMemo(() => driverHistoryStats(orders, todayKey), [orders, todayKey]);
-
-  useEffect(() => {
-    setVisibleCount(pageSize);
-  }, [dateFilter, search]);
+  const matches = useMemo(() => filterDriverHistory(orders, search, "all", todayKey), [orders, search, todayKey]);
+  const days = useMemo(() => {
+    return groupHistoryByDay(matches).map((day) => {
+      const heading = formatDayHeading(day.key, todayKey);
+      return { ...day, title: heading.kind === "date" ? heading.label : t(heading.label) };
+    });
+  }, [matches, todayKey, t]);
+  const week = useMemo(() => {
+    return (summary?.daily ?? []).map((point) => ({
+      key: point.date,
+      count: point.deliveries,
+      today: point.date === todayKey,
+      label: new Intl.DateTimeFormat("en-GB", { weekday: "narrow" }).format(new Date(point.date + "T00:00:00"))
+    }));
+  }, [summary, todayKey]);
+  const weekTotal = week.reduce((sum, point) => sum + point.count, 0);
 
   const loadHistory = useCallback(async (initial = false) => {
     if (initial) {
@@ -57,7 +53,13 @@ export default function DriverHistoryScreen() {
     }
     setError(null);
     try {
-      setOrders(await repositories.driver.listDeliveries());
+      const [first, totals] = await Promise.all([
+        repositories.driver.listHistory(1, pageSize),
+        Promise.resolve().then(() => repositories.driver.getSummary()).catch(() => null)
+      ]);
+      setOrders(first.items);
+      setNextPage(first.hasNext ? 2 : null);
+      if (totals) setSummary(totals);
     } catch {
       setError("Unable to load delivery history right now.");
     } finally {
@@ -66,97 +68,104 @@ export default function DriverHistoryScreen() {
     }
   }, []);
 
+  // Older pages come from the server on demand, so history never silently stops at a fixed count.
+  const loadMore = useCallback(async () => {
+    if (nextPage === null || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await repositories.driver.listHistory(nextPage, pageSize);
+      setOrders((current) => [...current, ...page.items.filter((item) => !current.some((existing) => existing.id === item.id))]);
+      setNextPage(page.hasNext ? nextPage + 1 : null);
+    } catch {
+      setError("Unable to load older deliveries right now.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, nextPage]);
+
+  useEffect(() => {
+    // Searching looks through everything loaded, so pull in the rest first.
+    if (search.trim() && nextPage !== null && !loadingMore) void loadMore();
+  }, [search, nextPage, loadingMore, loadMore]);
+
+  const hasLoaded = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void loadHistory(orders.length === 0);
-    }, [loadHistory, orders.length])
+      void loadHistory(!hasLoaded.current).then(() => { hasLoaded.current = true; });
+    }, [loadHistory])
   );
 
-  const openDelivery = (order: Order) => {
+  const open = (order: Order) => {
     haptics.selection();
     router.push({ pathname: "/driver/delivery/[id]", params: { id: order.id } });
   };
 
-  const header = (
-    <View style={styles.headerStack}>
-      <View style={styles.headerPanel}>
-        <View style={styles.iconWrap}>
-          <Clock3 color={colors.primary} size={22} strokeWidth={2.5} />
-        </View>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>{t("Delivery History")}</Text>
-          <Text style={styles.subtitle}>{t("Completed driver deliveries assigned to this account.")}</Text>
-        </View>
-      </View>
-
-      <View style={styles.tiles}>
-        <View style={styles.tile}>
-          <CheckCircle2 color={colors.primary} size={18} />
-          <Text style={styles.tileNumber}>{stats.deliveries}</Text>
-          <Text style={styles.tileLabel}>{t("Completed")}</Text>
-        </View>
-        <View style={styles.tile}>
-          <Droplets color="#1F8A7C" size={18} />
-          <Text style={styles.tileNumber}>{stats.bottles}</Text>
-          <Text style={styles.tileLabel}>{t("Bottles delivered")}</Text>
-        </View>
-        <View style={styles.tile}>
-          <CalendarDays color="#9A6B00" size={18} />
-          <Text style={styles.tileNumber}>{stats.thisWeek}</Text>
-          <Text style={styles.tileLabel}>{t("Last 7 days")}</Text>
-        </View>
-      </View>
-
-      <View style={styles.searchPanel}>
-        <Input
-          label="Search history"
-          placeholder="Customer, product, or location"
-          value={search}
-          onChangeText={setSearch}
-          right={<Search color={colors.mutedText} size={18} strokeWidth={2.2} />}
-        />
-        <View style={styles.chipRow}>
-          {dateFilters.map((item) => (
-            <DateChip key={item.value} value={item.value} label={item.label} active={dateFilter === item.value} onPress={setDateFilter} />
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-
   return (
     <Screen safeBottom={false} contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
-      <AppTopBar />
+      <SkyBackdrop />
       {loading && !orders.length ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>{t("Loading delivery history")}</Text>
-        </View>
+        <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
       ) : error && !orders.length ? (
-        <View style={styles.stateWrap}>
-          <ErrorState message={error} onAction={() => void loadHistory(true)} />
-        </View>
+        <View style={styles.center}><ErrorState message={error} onAction={() => void loadHistory(true)} /></View>
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
-          data={visibleOrders}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={header}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={
-            <EmptyState
-              artwork={
-                <View style={styles.emptyArtwork}>
-                  <PackageCheck color={colors.primary} size={44} strokeWidth={2.3} />
-                </View>
-              }
-              title="No completed deliveries yet"
-              message="Delivered and customer-received assignments will be kept here."
-            />
-          }
-          ListFooterComponent={visibleOrders.length < filtered.length ? <Button title="Load More" icon={CalendarDays} variant="secondary" onPress={() => setVisibleCount((current) => current + pageSize)} style={styles.loadMoreButton} /> : null}
+          data={days}
+          keyExtractor={(day) => day.key}
+          contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadHistory(false)} tintColor={colors.primary} colors={[colors.primary]} />}
-          renderItem={({ item }) => <DriverDeliveryCard order={item} mode="history" onPress={() => openDelivery(item)} />}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <DriverTitle title={t("History")} />
+              {week.length ? (
+                <Sheet style={styles.weekSheet}>
+                  <View style={styles.weekTop}>
+                    <Text style={styles.weekTitle}>{t("Last 7 days")}</Text>
+                    <Text style={styles.weekTotal}>{weekTotal} {t(weekTotal === 1 ? "delivery" : "deliveries")}</Text>
+                  </View>
+                  <WeekBars days={week} />
+                </Sheet>
+              ) : null}
+              <View style={[styles.search, sheetShadow]}>
+                <Search color={colors.mutedText} size={18} />
+                <TextInput
+                  accessibilityLabel={t("Search history")}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={setSearch}
+                  placeholder={t("Search by customer or place")}
+                  placeholderTextColor={colors.subtleText}
+                  returnKeyType="search"
+                  style={styles.searchInput}
+                  value={search}
+                />
+              </View>
+              {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
+            </View>
+          }
+          renderItem={({ item: day }) => (
+            <View style={styles.day}>
+              <View style={styles.dayHeader}>
+                <Text style={styles.dayTitle}>{day.title}</Text>
+                <Text style={styles.dayMeta}>{day.deliveries} {t(day.deliveries === 1 ? "delivery" : "deliveries")}  {"·"}  {day.bottles} {t(day.bottles === 1 ? "bottle" : "bottles")}</Text>
+              </View>
+              <Sheet style={styles.daySheet}>
+                {day.data.map((order, index) => <LedgerRow key={order.id} order={order} last={index === day.data.length - 1} onPress={() => open(order)} />)}
+              </Sheet>
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <DropletArt size={110} />
+              <Text style={styles.emptyText}>{t(search ? "Nothing matches that search." : "Finished deliveries will be listed here, newest first.")}</Text>
+            </View>
+          }
+          ListFooterComponent={
+            nextPage !== null ? (
+              <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void loadMore()} style={styles.more}>
+                {loadingMore ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.moreText}>{t("Show older")}</Text>}
+              </Pressable>
+            ) : null
+          }
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -165,112 +174,25 @@ export default function DriverHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.white },
-  screen: { backgroundColor: colors.white, flex: 1 },
-  listContent: {
-    padding: spacing.lg,
-    paddingBottom: 132
-  },
-  headerStack: {
-    gap: spacing.md,
-    marginBottom: spacing.md
-  },
-  headerPanel: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    paddingBottom: spacing.xs,
-    paddingTop: spacing.xs
-  },
-  iconWrap: {
-    alignItems: "center",
-    backgroundColor: "transparent",
-    height: 30,
-    justifyContent: "center",
-    width: 30
-  },
-  headerCopy: {
-    flex: 1,
-    gap: spacing.xs,
-    minWidth: 0
-  },
-  title: {
-    color: colors.black,
-    fontFamily: typography.fonts.bold,
-    fontSize: 22,
-    lineHeight: 28
-  },
-  subtitle: {
-    color: colors.black,
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body
-  },
-  tiles: { flexDirection: "row", gap: spacing.xs },
-  tile: { flex: 1, backgroundColor: colors.white, borderColor: colors.line, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xxs },
-  tileNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
-  tileLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
-  searchPanel: {
-    gap: spacing.md,
-    paddingTop: spacing.xs
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs
-  },
-  chip: {
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    minHeight: 38,
-    paddingHorizontal: spacing.md,
-    justifyContent: "center"
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  chipText: {
-    color: colors.black,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  chipTextActive: {
-    color: colors.white
-  },
-  separator: {
-    height: spacing.md
-  },
-  loadMoreButton: {
-    marginTop: spacing.md
-  },
-  stateWrap: {
-    flex: 1,
-    justifyContent: "center"
-  },
-  loadingWrap: {
-    alignItems: "center",
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: "center",
-    padding: spacing.xl
-  },
-  loadingText: {
-    color: colors.black,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body
-  },
-  emptyArtwork: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceBlue,
-    borderRadius: 18,
-    height: 96,
-    justifyContent: "center",
-    width: 96
-  }
+  safe: { backgroundColor: driverTheme.pageBg },
+  screen: { flex: 1 },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  header: { gap: spacing.md },
+  weekSheet: { padding: spacing.md, gap: spacing.md },
+  weekTop: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  weekTitle: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 16, lineHeight: 22 },
+  weekTotal: { color: colors.primary, fontFamily: typography.fonts.bold, fontSize: 14, lineHeight: 20 },
+  search: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: radius.md + 4, backgroundColor: colors.white },
+  searchInput: { flex: 1, color: colors.ink, fontFamily: typography.fonts.regular, fontSize: 15, minHeight: 48, paddingVertical: 0 },
+  error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19 },
+  day: { marginTop: spacing.lg },
+  dayHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm, marginBottom: spacing.xs, paddingHorizontal: spacing.xxs },
+  dayTitle: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 17, lineHeight: 24 },
+  dayMeta: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
+  daySheet: { borderRadius: radius.xl },
+  empty: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xxl },
+  emptyText: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 15, lineHeight: 22, textAlign: "center", maxWidth: 280 },
+  more: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
+  moreText: { color: colors.primary, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 }
 });

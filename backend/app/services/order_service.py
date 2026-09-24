@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
-from datetime import UTC, datetime
-from math import ceil
+from datetime import UTC, datetime, timedelta
+from math import asin, ceil, cos, radians, sin, sqrt
 
 from fastapi import status
 from sqlalchemy.orm import Session
@@ -20,7 +22,14 @@ from app.models.user import User
 from app.repositories.orders import OrderRepository
 from app.repositories.users import UserRepository
 from app.schemas.common import Page
-from app.schemas.order import CreateOrderForCustomerRequest, CreateOrderMessageRequest, CreateOrderRequest, OrderRead
+from app.schemas.order import (
+    CreateOrderForCustomerRequest,
+    CreateOrderMessageRequest,
+    CreateOrderRequest,
+    DeliveryIssueRequest,
+    DriverStatusUpdateRequest,
+    OrderRead,
+)
 from app.services.address_service import address_service
 from app.services.audit_service import audit_service
 from app.services.delivery_service import charges_for_snapshot, schedule_snapshot
@@ -33,6 +42,16 @@ user_repo = UserRepository()
 
 VALID_STATUSES = ["pending", "confirmed", "processing", "out_for_delivery", "delivered", "received", "cancelled"]
 CUSTOMER_CANCELLABLE_STATUSES = {"pending", "confirmed"}
+ACTIVE_STATUSES = ("pending", "confirmed", "processing", "out_for_delivery")
+CLOSED_STATUSES = ("delivered", "received", "cancelled")
+ISSUE_LABELS = {
+    "customer_unreachable": "Customer not answering",
+    "wrong_address": "Cannot find the address",
+    "customer_refused": "Customer refused or not home",
+    "started_by_mistake": "Started by mistake",
+    "other": "Other problem",
+}
+FAR_FROM_ADDRESS_METERS = 300
 ALLOWED_TRANSITIONS = {
     "pending": {"confirmed", "cancelled"},
     "confirmed": {"processing", "cancelled"},
@@ -65,6 +84,7 @@ class OrderService:
         completed: bool | None = None,
     ) -> Page[OrderRead]:
         authorize(user, Permission.ORDER_VIEW_SELF)
+        self.auto_receive_stale(db, user_id=user.id)
         page = max(page, 1)
         page_size = min(max(page_size, 1), 100)
         if order_status and order_status not in VALID_STATUSES:
@@ -83,9 +103,54 @@ class OrderService:
             has_previous=page > 1 and total > 0,
         )
 
-    def list_assigned_to_driver(self, db: Session, driver: User) -> list[OrderRead]:
+    def list_assigned_to_driver(
+        self, db: Session, driver: User, *, scope: str = "all", page: int = 1, page_size: int = 30
+    ) -> list[OrderRead] | Page[OrderRead]:
         authorize(driver, Permission.DELIVERY_VIEW_ASSIGNED)
+        self.auto_receive_stale(db, driver_id=driver.id)
+        if scope == "active":
+            orders, _ = repo.list_for_driver_statuses(db, driver.id, ACTIVE_STATUSES)
+            return [order_to_read(order) for order in orders]
+        if scope == "history":
+            page = max(page, 1)
+            page_size = min(max(page_size, 1), 100)
+            orders, total = repo.list_for_driver_statuses(db, driver.id, CLOSED_STATUSES, page=page, page_size=page_size)
+            total_pages = max(1, ceil(total / page_size)) if total else 1
+            return Page(
+                items=[order_to_read(order) for order in orders],
+                page=page,
+                page_size=page_size,
+                total=total,
+                total_pages=total_pages,
+                has_next=page < total_pages,
+                has_previous=page > 1 and total > 0,
+            )
         return [order_to_read(order) for order in repo.list_for_driver(db, driver.id)]
+
+    def auto_receive_stale(self, db: Session, *, driver_id: str | None = None, user_id: str | None = None) -> None:
+        """Close deliveries the customer never confirmed. Runs lazily whenever a list is read."""
+        cutoff = utc_now() - timedelta(hours=get_settings().auto_receive_hours)
+        stale = repo.list_stale_delivered(db, cutoff, driver_id=driver_id, user_id=user_id)
+        for order in stale:
+            order.status = "received"
+            order.customer_received_at = utc_now()
+            audit_service.record(
+                db, actor=None, event_type="ORDER_AUTO_RECEIVED", resource_type="order", resource_id=order.id, metadata={"reason": "customer_did_not_confirm"}
+            )
+        if stale:
+            db.commit()
+
+    def delivery_code_for(self, order: Order) -> str:
+        secret = get_settings().jwt_secret_key.encode("utf-8")
+        digest = hmac.new(secret, ("delivery-code:" + order.id).encode("utf-8"), hashlib.sha256).digest()
+        return f"{int.from_bytes(digest[:4], 'big') % 10_000:04d}"
+
+    def get_delivery_code(self, db: Session, user: User, order_id: str) -> str:
+        authorize(user, Permission.ORDER_VIEW_SELF)
+        order = self.get_model(db, user, order_id)
+        if order.status != "out_for_delivery":
+            raise AppException("DELIVERY_CODE_UNAVAILABLE", "The delivery code is available while your order is on the way.", status.HTTP_409_CONFLICT)
+        return self.delivery_code_for(order)
 
     def get(self, db: Session, user: User, order_id: str) -> OrderRead:
         authorize(user, Permission.ORDER_VIEW_SELF)
@@ -260,17 +325,87 @@ class OrderService:
                 },
             )
 
-    def update_assigned_delivery_status(self, db: Session, driver: User, order_id: str, next_status: str) -> OrderRead:
+    def update_assigned_delivery_status(
+        self, db: Session, driver: User, order_id: str, next_status: str, handover: DriverStatusUpdateRequest | None = None
+    ) -> OrderRead:
         authorize(driver, Permission.DELIVERY_UPDATE)
         if next_status == "received":
             authorize(driver, Permission.CUSTOMER_RECEIPT_CONFIRM)
         if next_status not in {"out_for_delivery", "delivered", "received"}:
             raise AppException("INVALID_DRIVER_DELIVERY_STATUS", "Drivers can only update active delivery progress.", status.HTTP_400_BAD_REQUEST)
         order = self.get_assigned_driver_model(db, driver, order_id)
+        if order.status == next_status and next_status in {"out_for_delivery", "delivered"}:
+            # A retry after a lost response must succeed without repeating notifications or payments.
+            return order_to_read(order)
+        if next_status == "delivered":
+            self._check_handover(db, order, driver, handover)
         if next_status == "out_for_delivery":
             # Also support assignments created before assignment released orders.
             self._release_assigned_order(db, order, driver)
         self.transition(db, order, next_status, actor=driver)
+        if next_status == "delivered" and order.payment_method == "cash" and order.payment_status == "pending":
+            from app.services.payment_service import payment_service
+
+            payment_service.record_cash(db, order, handover.cash_collected, driver)  # type: ignore[union-attr]
+        db.commit()
+        db.refresh(order)
+        return order_to_read(self.get_assigned_driver_model(db, driver, order.id))
+
+    def _check_handover(self, db: Session, order: Order, driver: User, handover: DriverStatusUpdateRequest | None) -> None:
+        """Validate proof of handover and cash before an order can be marked delivered."""
+        handover = handover or DriverStatusUpdateRequest(status="delivered")
+        if order.payment_method == "cash" and order.payment_status == "pending":
+            if handover.cash_collected is None:
+                raise AppException("CASH_CONFIRMATION_REQUIRED", "Confirm the cash you collected before completing this delivery.", HTTP_422_UNPROCESSABLE_CONTENT)
+            if handover.cash_collected != order.total:
+                raise AppException("CASH_AMOUNT_MISMATCH", "Collect the full order total, or report a problem with this delivery.", HTTP_422_UNPROCESSABLE_CONTENT)
+        proof = {}
+        if get_settings().delivery_code_required:
+            if handover.delivery_code:
+                if not hmac.compare_digest(handover.delivery_code, self.delivery_code_for(order)):
+                    raise AppException("INVALID_DELIVERY_CODE", "That delivery code is not correct. Ask the customer to check their app.", status.HTTP_400_BAD_REQUEST)
+                proof["proof"] = "code"
+            elif handover.proof_skip_reason:
+                proof["proof"] = "skipped"
+                proof["skipReason"] = handover.proof_skip_reason
+            else:
+                raise AppException("DELIVERY_CODE_REQUIRED", "Enter the delivery code shown in the customer's app.", HTTP_422_UNPROCESSABLE_CONTENT)
+        destination = order.delivery_address_snapshot or {}
+        if None not in (handover.latitude, handover.longitude, destination.get("latitude"), destination.get("longitude")):
+            distance = self._distance_meters(handover.latitude, handover.longitude, destination["latitude"], destination["longitude"])
+            proof["distanceMeters"] = round(distance)
+            proof["farFromAddress"] = distance > FAR_FROM_ADDRESS_METERS
+        audit_service.record(db, actor=driver, event_type="DELIVERY_HANDOVER_RECORDED", resource_type="order", resource_id=order.id, metadata=proof)
+
+    @staticmethod
+    def _distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        d_lat, d_lon = radians(lat2 - lat1), radians(lon2 - lon1)
+        a = sin(d_lat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2
+        return 6_371_000 * 2 * asin(sqrt(a))
+
+    def report_delivery_issue(self, db: Session, driver: User, order_id: str, data: DeliveryIssueRequest) -> OrderRead:
+        authorize(driver, Permission.DELIVERY_UPDATE)
+        order = self.get_assigned_driver_model(db, driver, order_id)
+        if order.status not in {"processing", "out_for_delivery"}:
+            raise AppException("ISSUE_NOT_ALLOWED", "Problems can only be reported for deliveries that are still open.", status.HTTP_409_CONFLICT)
+        if data.reason == "started_by_mistake" and order.status != "out_for_delivery":
+            raise AppException("ISSUE_NOT_ALLOWED", "This delivery has not been started.", status.HTTP_409_CONFLICT)
+        previous_status = order.status
+        if previous_status == "out_for_delivery":
+            order.status = "processing"  # Back in dispatch's queue; the driver stays assigned until dispatch decides.
+        if data.reason != "started_by_mistake":
+            body = "Driver update: " + ISSUE_LABELS[data.reason] + (". " + data.note if data.note else "")
+            order.messages.append(OrderMessage(user_id=driver.id, sender="system", body=body))
+            notification_service.create_for_event(db, user_id=order.user_id, event_type="order_delivery_issue", order_id=order.id)
+            notification_service.notify_staff(db, event_type="staff_delivery_issue", order_id=order.id)
+        audit_service.record(
+            db,
+            actor=driver,
+            event_type="DELIVERY_ISSUE_REPORTED",
+            resource_type="order",
+            resource_id=order.id,
+            metadata={"reason": data.reason, "note": data.note, "previousStatus": previous_status},
+        )
         db.commit()
         db.refresh(order)
         return order_to_read(self.get_assigned_driver_model(db, driver, order.id))

@@ -2,7 +2,7 @@
 
 from app.api.dependencies import CurrentUser, DbSession, IdempotencyKey
 from app.schemas.common import Page
-from app.schemas.order import CreateOrderMessageRequest, CreateOrderRequest, OrderRead
+from app.schemas.order import CreateOrderMessageRequest, CreateOrderRequest, DeliveryCodeRead, OrderRead
 from app.services.idempotency_service import idempotency_service
 from app.services.order_service import order_service
 
@@ -47,6 +47,11 @@ def create_order(data: CreateOrderRequest, request: Request, user: CurrentUser, 
 @router.get("/{order_id}", response_model=OrderRead, summary="Read an order")
 def get_order(order_id: str, user: CurrentUser, db: DbSession) -> OrderRead:
     return order_service.get(db, user, order_id)
+
+
+@router.get("/{order_id}/delivery-code", response_model=DeliveryCodeRead, summary="Code the customer shows the driver at handover")
+def get_delivery_code(order_id: str, user: CurrentUser, db: DbSession) -> DeliveryCodeRead:
+    return DeliveryCodeRead(code=order_service.get_delivery_code(db, user, order_id))
 
 
 @router.post("/{order_id}/cancel", response_model=OrderRead, summary="Cancel an allowed order")

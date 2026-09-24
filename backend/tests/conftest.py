@@ -7,6 +7,7 @@ os.environ["JWT_SECRET_KEY"] = "test-secret-key-with-enough-length"
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["PAYMENT_PROVIDER"] = "development"
 os.environ["NOTIFICATION_PROVIDER"] = "development"
+os.environ["DELIVERY_CODE_REQUIRED"] = "false"  # Proof-of-delivery tests switch this on explicitly.
 
 import pytest
 from fastapi.testclient import TestClient

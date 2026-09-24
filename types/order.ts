@@ -11,6 +11,21 @@ export type OrderSource = "USER_MOBILE" | "SALES_MANAGER_DASHBOARD";
 
 export type DriverDeliveryActionStatus = "out_for_delivery" | "delivered";
 
+export type ProofSkipReason = "customer_has_no_phone" | "code_not_working";
+
+// Extra details the backend requires when a driver completes a handover.
+export type DriverDeliveryHandover = {
+  cashCollected?: number;
+  deliveryCode?: string;
+  proofSkipReason?: ProofSkipReason;
+  latitude?: number;
+  longitude?: number;
+};
+
+export type DeliveryIssueReason = "customer_unreachable" | "wrong_address" | "customer_refused" | "started_by_mistake" | "other";
+
+export type DeliveryIssueInput = { reason: DeliveryIssueReason; note?: string };
+
 export type DriverDeliveryGroupFilter = "today" | "upcoming" | "all";
 
 export type DriverDeliveryStatusFilter = "all" | "assigned" | "out_for_delivery" | "delivered";
@@ -85,6 +100,7 @@ export type Order = {
   currency: "TZS";
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: string;
   payment?: Payment | null;
   timeline: OrderTimelineEvent[];
   availableActions: OrderAction[];

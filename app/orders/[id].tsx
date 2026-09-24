@@ -2,7 +2,7 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-rou
 import { CheckCircle2, MessageCircle, RefreshCw, Repeat, Send, XCircle } from "lucide-react-native";
 import { useCallback, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
-import { Button, Card, ConfirmDialog, ErrorState, Header, Input, LoadingScreen, OrderTimeline, ReceiptSummary, Screen, ServiceAreaMap, StatusBadge } from "../../components";
+import { Button, Card, ConfirmDialog, DeliveryCodeCard, ErrorState, Header, Input, LoadingScreen, OrderTimeline, ReceiptSummary, Screen, ServiceAreaMap, StatusBadge } from "../../components";
 import { colors } from "../../constants/colors";
 import { radius, spacing, typography } from "../../constants/theme";
 import { useTranslation } from "../../hooks/use-translation";
@@ -136,6 +136,7 @@ export default function OrderDetailsScreen() {
             <Button title="I Received This Order" icon={CheckCircle2} variant="accent" onPress={() => setShowReceived(true)} loading={receiving} />
           </View>
         ) : null}
+        {order.status === "out_for_delivery" ? <DeliveryCodeCard orderId={order.id} /> : null}
         <OrderTimeline events={order.timeline} currentStatus={order.status} />
         {order.customerReceivedAt ? <Text style={styles.receivedNote}>{t("Confirmed received on")} {formatDate(order.customerReceivedAt)}.</Text> : null}
         <Button title="Refresh order" icon={RefreshCw} variant="ghost" onPress={() => void loadOrder()} loading={refreshing} disabled={receiving || cancelling} />

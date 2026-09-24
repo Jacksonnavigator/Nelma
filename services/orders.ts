@@ -47,6 +47,11 @@ export const ordersService = {
     return apiClient.post<Order>("/orders/" + encodeURIComponent(id) + "/received");
   },
 
+  async getDeliveryCode(id: string): Promise<string> {
+    const response = await apiClient.get<{ code: string }>("/orders/" + encodeURIComponent(id) + "/delivery-code");
+    return response.code;
+  },
+
   message(id: string, input: CreateOrderMessageInput): Promise<Order> {
     return apiClient.post<Order>("/orders/" + encodeURIComponent(id) + "/messages", input);
   }

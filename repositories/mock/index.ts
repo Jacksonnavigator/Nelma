@@ -4,11 +4,11 @@ import { buildOrderTimeline, calculateOrderPricing } from "../../utils/order";
 import type { AppRepositories } from "../contracts";
 import { normalizeDeliveryAddress } from "../../utils/address";
 import { calculateDeliveryQuote, chargesForDeliveryQuote, getDefaultDeliverySchedule } from "../../utils/delivery";
-import { canStartDelivery, driverSummaryFromOrders } from "../../utils/driver-deliveries";
+import { canStartDelivery, driverSummaryFromOrders, isDriverActiveDelivery, isDriverHistoryDelivery } from "../../utils/driver-deliveries";
 import type { AuthSession, ForgotPasswordResult } from "../../types/auth";
 import type { BusinessDashboard, BusinessOrderQueueItem, CustomerRecord, SalesReport, SalesReportMetrics, SalesReportPeriod } from "../../types/business";
 import type { Notification } from "../../types/notification";
-import type { CreateOrderMessageInput, DriverDeliveryActionStatus, Order, OrderMessage } from "../../types/order";
+import type { CreateOrderMessageInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order, OrderMessage } from "../../types/order";
 import type { Payment } from "../../types/payment";
 import type { PublicSettings } from "../../types/settings";
 import type { SavedAddress } from "../../types/address";
@@ -456,6 +456,11 @@ export const mockRepositories: AppRepositories = {
       });
     },
 
+    async getDeliveryCode(_id: string): Promise<string> {
+      await latency();
+      return "4821";
+    },
+
     async message(id: string, input: CreateOrderMessageInput): Promise<Order> {
       await latency();
       const body = input.body.trim();
@@ -471,11 +476,32 @@ export const mockRepositories: AppRepositories = {
     }
   },
   driver: {
-    async listDeliveries(): Promise<Order[]> {
+    async listActive(): Promise<Order[]> {
       await latency();
       const user = await assertMockDriver();
       const orders = await mockStorage.getOrders();
-      return orders.filter((order) => order.assignedDriverId === user.id);
+      return orders.filter((order) => order.assignedDriverId === user.id && isDriverActiveDelivery(order));
+    },
+
+    async listHistory(page: number, pageSize = 30) {
+      await latency();
+      const user = await assertMockDriver();
+      const closed = (await mockStorage.getOrders()).filter((order) => order.assignedDriverId === user.id && isDriverHistoryDelivery(order));
+      const start = (page - 1) * pageSize;
+      const totalPages = Math.max(1, Math.ceil(closed.length / pageSize));
+      return { items: closed.slice(start, start + pageSize), page, pageSize, total: closed.length, totalPages, hasNext: page < totalPages, hasPrevious: page > 1 };
+    },
+
+    async reportIssue(id: string, input: DeliveryIssueInput): Promise<Order> {
+      await latency();
+      const user = await assertMockDriver();
+      const nowIso = new Date().toISOString();
+      return updateOrder(id, (order) => {
+        if (order.assignedDriverId !== user.id) {
+          throw new Error("This delivery is no longer assigned to you.");
+        }
+        return { ...order, status: order.status === "out_for_delivery" ? "processing" : order.status, updatedAt: nowIso, timeline: buildOrderTimeline("processing", nowIso) };
+      });
     },
 
     async getDelivery(id: string): Promise<Order> {
@@ -488,7 +514,7 @@ export const mockRepositories: AppRepositories = {
       return order;
     },
 
-    async updateStatus(id: string, status: DriverDeliveryActionStatus): Promise<Order> {
+    async updateStatus(id: string, status: DriverDeliveryActionStatus, _handover?: DriverDeliveryHandover): Promise<Order> {
       await latency();
       const user = await assertMockDriver();
       if (status !== "out_for_delivery" && status !== "delivered") {

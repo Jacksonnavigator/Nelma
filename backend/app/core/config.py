@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     twilio_from_number: str = ""
     twilio_messaging_service_sid: str = ""
 
+    expo_push_enabled: bool = False
+    expo_push_access_token: str = Field("", repr=False)
+    delivery_code_required: bool = True
+    auto_receive_hours: int = Field(24, ge=1, le=720)
+
     first_purchase_price: int = 18000
     refill_price: int = 4000
     currency: str = "TZS"
@@ -73,7 +78,7 @@ class Settings(BaseSettings):
                 return "postgresql+psycopg://" + value[len(prefix):]
         return value
 
-    @field_validator("debug", "rate_limit_enabled", "trust_proxy_headers", mode="before")
+    @field_validator("debug", "rate_limit_enabled", "trust_proxy_headers", "expo_push_enabled", "delivery_code_required", mode="before")
     @classmethod
     def parse_boolish(cls, value: object) -> object:
         if isinstance(value, str):

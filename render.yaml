@@ -31,6 +31,10 @@ services:
         value: "true"
       - key: TRUST_PROXY_HEADERS
         value: "true"
+      - key: EXPO_PUSH_ENABLED
+        value: "true"
+      - key: DELIVERY_CODE_REQUIRED
+        value: "true"
       - key: NOTIFICATION_PROVIDER
         value: smtp_twilio
       - key: SMTP_HOST

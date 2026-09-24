@@ -94,8 +94,9 @@ def test_existing_assignment_can_start_without_reassignment(client, initial_stat
     started = client.patch(url, headers=driver, json={"status": "out_for_delivery"})
     assert started.status_code == 200, started.text
     assert started.json()["status"] == "out_for_delivery"
-    # Starting again must not reset an in-progress delivery.
-    assert client.patch(url, headers=driver, json={"status": "out_for_delivery"}).status_code == 400
+    # A retried start (for example after a lost response) succeeds but must not reset or repeat anything.
+    again = client.patch(url, headers=driver, json={"status": "out_for_delivery"})
+    assert again.status_code == 200 and again.json()["status"] == "out_for_delivery"
 
 
 @pytest.mark.parametrize("surface", ["admin", "business"])

@@ -7,7 +7,7 @@ from app.core.permissions import Permission, authorize
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.user import User
-from app.schemas.driver import DriverPeriodStats, DriverSummary
+from app.schemas.driver import DriverDay, DriverPeriodStats, DriverSummary
 from app.services.dashboard_service import local_date, today
 
 ACTIVE_STATUSES = ("pending", "confirmed", "processing", "out_for_delivery")
@@ -31,9 +31,12 @@ class DriverService:
         week_start = current - timedelta(days=6)
         month_start = current.replace(day=1)
         periods = {name: DriverPeriodStats() for name in ("today", "week", "month", "all_time")}
+        daily = {current - timedelta(days=offset): 0 for offset in range(6, -1, -1)}
 
         for delivered_at, updated_at, total, bottles in rows:
             day = local_date(delivered_at or updated_at)
+            if day in daily:
+                daily[day] += 1
             names = ["all_time"]
             if day == current:
                 names.append("today")
@@ -47,7 +50,11 @@ class DriverService:
                 stats.bottles += int(bottles)
                 stats.value += int(total)
 
-        return DriverSummary(active_deliveries=int(active or 0), **periods)
+        return DriverSummary(
+            active_deliveries=int(active or 0),
+            daily=[DriverDay(date=day.isoformat(), deliveries=count) for day, count in daily.items()],
+            **periods,
+        )
 
 
 driver_service = DriverService()

@@ -1,83 +1,53 @@
 import { router, useFocusEffect } from "expo-router";
-import { Bell, ChevronRight, CircleHelp, Droplets, KeyRound, LogOut, PackageCheck, Pencil, ShieldCheck, UserRound, Wallet } from "lucide-react-native";
-import { type ComponentType, useCallback, useState } from "react";
+import { Bell, ChevronRight, KeyRound, LifeBuoy, LogOut, UserRound } from "lucide-react-native";
+import { type ComponentType, useCallback, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { AppTopBar, Screen } from "../../../components";
+import { Screen, Sheet, SkyBackdrop } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { driverTheme, sheetShadow } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
 import { useAuth } from "../../../store/auth-context";
+import { useNotifications } from "../../../store/notification-context";
 import type { DriverSummary } from "../../../types/driver";
+import { isDriverNotification } from "../../../utils/driver-deliveries";
 import { formatCurrency, initialsFromName } from "../../../utils/format";
 
 type SummaryPeriod = "today" | "week" | "month" | "allTime";
 
-const summaryPeriods: Array<{ value: SummaryPeriod; label: string }> = [
+const periods: Array<{ value: SummaryPeriod; label: string }> = [
   { value: "today", label: "Today" },
-  { value: "week", label: "Last 7 days" },
-  { value: "month", label: "This month" },
+  { value: "week", label: "7 days" },
+  { value: "month", label: "Month" },
   { value: "allTime", label: "All time" }
 ];
 
-type IconComponent = ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;
+type Row = { label: string; icon: ComponentType<{ color?: string; size?: number }>; route: Parameters<typeof router.push>[0]; badge?: boolean };
 
-type DriverProfileOption = {
-  accent: string;
-  icon: IconComponent;
-  label: string;
-  route: Parameters<typeof router.push>[0];
-};
-
-const profileOptions: DriverProfileOption[] = [
-  {
-    accent: "#E9F7FF",
-    icon: UserRound,
-    label: "Personal Info",
-    route: "/driver/profile/edit"
-  },
-  {
-    accent: "#DFF8F4",
-    icon: Bell,
-    label: "Notifications",
-    route: "/driver/(tabs)/notifications"
-  },
-  {
-    accent: "#FFF6DE",
-    icon: KeyRound,
-    label: "Security",
-    route: "/driver/profile/security"
-  },
-  {
-    accent: "#E9F7FF",
-    icon: CircleHelp,
-    label: "Help & Support",
-    route: "/support"
-  }
+const rows: Row[] = [
+  { label: "Personal Info", icon: UserRound, route: "/driver/profile/edit" },
+  { label: "Notifications", icon: Bell, route: "/driver/(tabs)/notifications", badge: true },
+  { label: "Security", icon: KeyRound, route: "/driver/profile/security" },
+  { label: "Help & Support", icon: LifeBuoy, route: "/support" }
 ];
-
-const twoLetterInitials = (name?: string | null) => {
-  const initials = initialsFromName(name ?? "NELMA");
-  if (initials.length >= 2) {
-    return initials.slice(0, 2);
-  }
-  return (name ?? "NELMA").trim().slice(0, 2).toUpperCase().padEnd(2, "E");
-};
 
 export default function DriverProfileScreen() {
   const { logout, user } = useAuth();
   const { t } = useTranslation();
-  const initials = twoLetterInitials(user?.fullName);
+  const { notifications, loadNotifications } = useNotifications();
   const [summary, setSummary] = useState<DriverSummary | null>(null);
   const [period, setPeriod] = useState<SummaryPeriod>("week");
   const stats = summary?.[period];
+  const unread = useMemo(() => notifications.filter((item) => isDriverNotification(item) && !item.read).length, [notifications]);
 
   useFocusEffect(useCallback(() => {
     let cancelled = false;
     repositories.driver.getSummary().then((result) => { if (!cancelled) setSummary(result); }).catch(() => undefined);
+    void loadNotifications();
     return () => { cancelled = true; };
-  }, []));
+  }, [loadNotifications]));
 
   const signOut = async () => {
     haptics.selection();
@@ -87,93 +57,64 @@ export default function DriverProfileScreen() {
 
   return (
     <Screen safeBottom={false} contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
-      <AppTopBar />
+      <SkyBackdrop />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.identityCard}>
+        <View style={styles.identity}>
           {user?.avatarUrl ? (
             <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            </View>
+            <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarText}>{initialsFromName(user?.fullName ?? "N").slice(0, 2)}</Text></View>
           )}
-
-          <View style={styles.identityCopy}>
-            <Text numberOfLines={1} style={styles.name}>{user?.fullName ?? t("NELMA Driver")}</Text>
-            <Text numberOfLines={1} style={styles.meta}>{user?.phone || user?.email || t("Arusha and NM-AIST service area")}</Text>
-            <View style={styles.rolePill}>
-              <ShieldCheck color={colors.primary} size={14} strokeWidth={2.5} />
-              <Text style={styles.roleText}>{t("Role: Driver")}</Text>
-            </View>
-          </View>
-
-          <Pressable accessibilityLabel={t("Edit profile")} accessibilityRole="button" hitSlop={8} onPress={() => router.push("/driver/profile/edit")} style={styles.editButton}>
-            <Pencil color={colors.primary} size={18} strokeWidth={2.4} />
-          </Pressable>
+          <Text numberOfLines={1} style={styles.name}>{user?.fullName ?? t("NELMA Driver")}</Text>
+          <Text numberOfLines={1} style={styles.contact}>{user?.phone || user?.email}</Text>
         </View>
 
         {summary ? (
-          <View style={styles.performance}>
-            <Text style={styles.sectionEyebrow}>{t("PERFORMANCE")}</Text>
-            <View style={styles.periodRow}>
-              {summaryPeriods.map((item) => {
+          <Sheet style={styles.performance}>
+            <View style={styles.segments}>
+              {periods.map((item) => {
                 const active = period === item.value;
                 return (
-                  <Pressable key={item.value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => { haptics.selection(); setPeriod(item.value); }} style={[styles.periodChip, active ? styles.periodChipActive : null]}>
-                    <Text style={[styles.periodText, active ? styles.periodTextActive : null]}>{t(item.label)}</Text>
+                  <Pressable key={item.value} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => { haptics.selection(); setPeriod(item.value); }} style={[styles.segment, active ? [styles.segmentActive, sheetShadow] : null]}>
+                    <Text style={[styles.segmentText, active ? styles.segmentTextActive : null]}>{t(item.label)}</Text>
                   </Pressable>
                 );
               })}
             </View>
-            <View style={styles.statRow}>
-              <View style={styles.statCard}>
-                <PackageCheck color={colors.primary} size={18} />
-                <Text style={styles.statNumber}>{stats?.deliveries ?? 0}</Text>
-                <Text style={styles.statLabel}>{t("Deliveries")}</Text>
+            <View style={styles.big}>
+              <Text style={styles.bigNumber}>{stats?.deliveries ?? 0}</Text>
+              <Text style={styles.bigLabel}>{t("Deliveries")}</Text>
+            </View>
+            <View style={styles.pair}>
+              <View style={styles.pairCell}>
+                <Text style={styles.pairValue}>{stats?.bottles ?? 0}</Text>
+                <Text style={styles.pairLabel}>{t("Bottles")}</Text>
               </View>
-              <View style={styles.statCard}>
-                <Droplets color="#1F8A7C" size={18} />
-                <Text style={styles.statNumber}>{stats?.bottles ?? 0}</Text>
-                <Text style={styles.statLabel}>{t("Bottles delivered")}</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Wallet color="#9A6B00" size={18} />
-                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statNumber}>{formatCurrency(stats?.value ?? 0, "").trim()}</Text>
-                <Text style={styles.statLabel}>{t("TZS delivered")}</Text>
+              <View style={styles.pairRule} />
+              <View style={styles.pairCell}>
+                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.pairValue}>{formatCurrency(stats?.value ?? 0)}</Text>
+                <Text style={styles.pairLabel}>{t("Value delivered")}</Text>
               </View>
             </View>
-          </View>
+          </Sheet>
         ) : null}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionEyebrow}>{t("ACCOUNT")}</Text>
-          <Text style={styles.sectionTitle}>{t("Driver Profile")}</Text>
-        </View>
-
-        <View style={styles.optionsList}>
-          {profileOptions.map((option) => {
-            const Icon = option.icon;
+        <Sheet style={styles.menu}>
+          {rows.map((row, index) => {
+            const Icon = row.icon;
             return (
-              <Pressable
-                key={option.label}
-                accessibilityRole="button"
-                onPress={() => router.push(option.route)}
-                style={({ pressed }) => [styles.optionRow, { opacity: pressed ? 0.7 : 1 }]}
-              >
-                <View style={styles.optionIconWrap}>
-                  <Icon color={colors.primary} size={20} strokeWidth={2.3} />
-                </View>
-                <View style={styles.optionCopy}>
-                  <Text style={styles.optionLabel}>{t(option.label)}</Text>
-                </View>
-                <ChevronRight color={colors.mutedText} size={18} />
+              <Pressable key={row.label} accessibilityRole="button" onPress={() => router.push(row.route)} style={({ pressed }) => [styles.row, index < rows.length - 1 ? styles.rowDivider : null, pressed ? styles.rowPressed : null]}>
+                <View style={styles.rowIcon}><Icon color={colors.primary} size={18} /></View>
+                <Text style={styles.rowLabel}>{t(row.label)}</Text>
+                {row.badge && unread > 0 ? <Text style={styles.unread}>{unread}</Text> : null}
+                <ChevronRight color={colors.subtleText} size={18} />
               </Pressable>
             );
           })}
-        </View>
+        </Sheet>
 
-        <Pressable accessibilityRole="button" onPress={signOut} style={({ pressed }) => [styles.signOutButton, { opacity: pressed ? 0.76 : 1 }]}>
-          <LogOut color={colors.danger} size={20} strokeWidth={2.4} />
+        <Pressable accessibilityRole="button" onPress={signOut} style={({ pressed }) => [styles.signOut, { opacity: pressed ? 0.6 : 1 }]}>
+          <LogOut color={colors.danger} size={18} />
           <Text style={styles.signOutText}>{t("Sign Out")}</Text>
         </Pressable>
       </ScrollView>
@@ -182,157 +123,36 @@ export default function DriverProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.white },
-  screen: { backgroundColor: colors.white, flex: 1 },
-  content: {
-    paddingBottom: 132,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg
-  },
-  identityCard: {
-    alignItems: "center",
-    backgroundColor: colors.black,
-    borderRadius: 18,
-    flexDirection: "row",
-    gap: spacing.md,
-    padding: spacing.md
-  },
-  avatar: {
-    borderRadius: 16,
-    height: 68,
-    width: 68
-  },
-  avatarFallback: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    justifyContent: "center"
-  },
-  avatarInitials: {
-    color: colors.white,
-    fontFamily: typography.fonts.bold,
-    fontSize: 22,
-    letterSpacing: 0,
-    lineHeight: 28
-  },
-  identityCopy: {
-    flex: 1,
-    gap: 4,
-    minWidth: 0
-  },
-  name: {
-    color: colors.white,
-    fontFamily: typography.fonts.bold,
-    fontSize: 21,
-    lineHeight: 28
-  },
-  meta: {
-    color: "#D5E3ED",
-    fontFamily: typography.fonts.regular,
-    fontSize: 14,
-    lineHeight: 20
-  },
-  rolePill: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: radius.pill,
-    flexDirection: "row",
-    gap: spacing.xs,
-    minHeight: 28,
-    paddingHorizontal: spacing.sm
-  },
-  roleText: {
-    color: colors.accent,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.tiny,
-    lineHeight: typography.lineHeight.tiny,
-    textTransform: "uppercase"
-  },
-  editButton: {
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderRadius: radius.pill,
-    height: 38,
-    justifyContent: "center",
-    width: 38
-  },
-  performance: { gap: spacing.sm, marginTop: spacing.xl },
-  periodRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  periodChip: { minHeight: 34, paddingHorizontal: spacing.sm, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  periodChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 12, lineHeight: 18 },
-  periodTextActive: { color: colors.white },
-  statRow: { flexDirection: "row", gap: spacing.xs },
-  statCard: { flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xxs },
-  statNumber: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
-  statLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 11, lineHeight: 16 },
-  sectionHeader: {
-    alignItems: "flex-start",
-    gap: spacing.xs,
-    marginTop: spacing.xl
-  },
-  sectionEyebrow: {
-    color: colors.primary,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.tiny,
-    letterSpacing: 0.8,
-    lineHeight: typography.lineHeight.tiny
-  },
-  sectionTitle: {
-    color: colors.black,
-    fontFamily: typography.fonts.bold,
-    fontSize: 23,
-    letterSpacing: 0,
-    lineHeight: 30,
-    textAlign: "left"
-  },
-  optionsList: {
-    marginTop: spacing.md
-  },
-  optionRow: {
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: spacing.md,
-    minHeight: 62,
-    paddingVertical: spacing.sm
-  },
-  optionIconWrap: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceBlue,
-    borderRadius: 9,
-    height: 36,
-    justifyContent: "center",
-    width: 36
-  },
-  optionCopy: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0
-  },
-  optionLabel: {
-    color: colors.black,
-    fontFamily: typography.fonts.bold,
-    fontSize: 16,
-    lineHeight: 22
-  },
-  signOutButton: {
-    alignItems: "center",
-    borderColor: colors.dangerBg,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.xs,
-    height: 47,
-    justifyContent: "center",
-    marginTop: spacing.xl
-  },
-  signOutText: {
-    color: colors.danger,
-    fontFamily: typography.fonts.bold,
-    fontSize: 15,
-    lineHeight: 20
-  }
+  safe: { backgroundColor: driverTheme.pageBg },
+  screen: { flex: 1 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.md },
+  identity: { alignItems: "center", gap: 2, paddingBottom: spacing.sm },
+  avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 4, borderColor: colors.white, marginBottom: spacing.xs },
+  avatarFallback: { alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.deep },
+  avatarText: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 28, lineHeight: 34 },
+  name: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 26, letterSpacing: -0.4, lineHeight: 32 },
+  contact: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
+  performance: { padding: spacing.md, gap: spacing.md },
+  segments: { flexDirection: "row", backgroundColor: driverTheme.aqua, borderRadius: radius.md, padding: 4 },
+  segment: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 36, borderRadius: radius.sm },
+  segmentActive: { backgroundColor: colors.white },
+  segmentText: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 18 },
+  segmentTextActive: { color: colors.ink, fontFamily: typography.fonts.bold },
+  big: { alignItems: "center", paddingVertical: spacing.xs },
+  bigNumber: { color: driverTheme.deep, fontFamily: typography.fonts.bold, fontSize: 56, letterSpacing: -1.5, lineHeight: 62, fontVariant: ["tabular-nums"] },
+  bigLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20 },
+  pair: { flexDirection: "row", alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: driverTheme.aquaLine, paddingTop: spacing.md },
+  pairCell: { flex: 1, alignItems: "center", gap: 2, paddingHorizontal: spacing.xs },
+  pairRule: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: driverTheme.aquaLine },
+  pairValue: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 20, lineHeight: 26, fontVariant: ["tabular-nums"] },
+  pairLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
+  menu: { borderRadius: radius.xl },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 60, paddingHorizontal: spacing.md },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: driverTheme.aquaLine },
+  rowPressed: { backgroundColor: driverTheme.pageBg },
+  rowIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.aqua },
+  rowLabel: { flex: 1, color: colors.ink, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 21 },
+  unread: { minWidth: 22, paddingHorizontal: 6, borderRadius: 11, overflow: "hidden", textAlign: "center", color: colors.white, backgroundColor: colors.primary, fontFamily: typography.fonts.bold, fontSize: 12, lineHeight: 22 },
+  signOut: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, minHeight: 52, marginTop: spacing.xs },
+  signOutText: { color: colors.danger, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 21 }
 });

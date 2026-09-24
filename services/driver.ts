@@ -1,42 +1,35 @@
 import { apiClient } from "./api";
 import type { PaginatedResult } from "../types/api";
 import type { DriverSummary } from "../types/driver";
-import type { DriverDeliveryActionStatus, Order } from "../types/order";
+import type { DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../types/order";
 
-type DriverDeliveriesResponse = Order[] | PaginatedResult<Order>;
-
-const hasAnotherPage = <T>(response: PaginatedResult<T>): boolean => {
-  if (typeof response.hasNext === "boolean") {
-    return response.hasNext;
-  }
-  return Boolean(response.page && response.totalPages && response.page < response.totalPages);
-};
+// The first request after the free Render plan sleeps can take up to a minute.
+const MUTATION_TIMEOUT_MS = 60000;
 
 export const driverService = {
-  async listDeliveries(): Promise<Order[]> {
-    const pageSize = 100;
-    let page = 1;
-    const items: Order[] = [];
+  async listActive(): Promise<Order[]> {
+    const response = await apiClient.get<Order[] | PaginatedResult<Order>>("/driver/deliveries?scope=active");
+    return Array.isArray(response) ? response : response.items;
+  },
 
-    while (true) {
-      const response = await apiClient.get<DriverDeliveriesResponse>(`/driver/deliveries?page=${page}&page_size=${pageSize}`);
-      if (Array.isArray(response)) {
-        return response;
-      }
-      items.push(...response.items);
-      if (!hasAnotherPage(response)) {
-        return items;
-      }
-      page += 1;
+  async listHistory(page: number, pageSize = 30): Promise<PaginatedResult<Order>> {
+    const response = await apiClient.get<Order[] | PaginatedResult<Order>>(`/driver/deliveries?scope=history&page=${page}&page_size=${pageSize}`);
+    if (Array.isArray(response)) {
+      return { items: response, page, pageSize, total: response.length, totalPages: 1, hasNext: false, hasPrevious: page > 1 };
     }
+    return response;
   },
 
   getDelivery(id: string): Promise<Order> {
     return apiClient.get<Order>("/driver/deliveries/" + encodeURIComponent(id));
   },
 
-  updateStatus(id: string, status: DriverDeliveryActionStatus): Promise<Order> {
-    return apiClient.patch<Order>("/driver/deliveries/" + encodeURIComponent(id) + "/status", { status });
+  updateStatus(id: string, status: DriverDeliveryActionStatus, handover?: DriverDeliveryHandover): Promise<Order> {
+    return apiClient.patch<Order>("/driver/deliveries/" + encodeURIComponent(id) + "/status", { status, ...handover }, true, MUTATION_TIMEOUT_MS);
+  },
+
+  reportIssue(id: string, input: DeliveryIssueInput): Promise<Order> {
+    return apiClient.post<Order>("/driver/deliveries/" + encodeURIComponent(id) + "/issue", input, true, undefined, MUTATION_TIMEOUT_MS);
   },
 
   getSummary(): Promise<DriverSummary> {

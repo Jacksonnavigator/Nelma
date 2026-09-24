@@ -21,7 +21,7 @@ export const pushNotifications = {
     return requested.granted;
   },
 
-  async getExpoPushToken(): Promise<string | null> {
+  async getExpoPushToken(projectId?: string): Promise<string | null> {
     const granted = await this.requestPermission();
     if (!granted) {
       return null;
@@ -29,10 +29,10 @@ export const pushNotifications = {
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("orders", {
         name: "Order updates",
-        importance: Notifications.AndroidImportance.DEFAULT
+        importance: Notifications.AndroidImportance.HIGH
       });
     }
-    const token = await Notifications.getExpoPushTokenAsync();
+    const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
     return token.data;
   }
 };

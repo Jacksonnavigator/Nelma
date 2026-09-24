@@ -14,6 +14,7 @@ from app.models.user import User
 from app.repositories.notifications import NotificationRepository
 from app.schemas.common import Page
 from app.schemas.notification import NotificationRead
+from app.services import push_service
 from app.services.serializers import notification_to_read
 
 repo = NotificationRepository()
@@ -40,6 +41,8 @@ EVENT_COPY = {
     "driver_schedule_changed": ("Delivery schedule changed", "A scheduled delivery assigned to you has changed."),
     "driver_delivery_note": ("Delivery note", "NELMA added an important note to a delivery assigned to you."),
     "driver_system_message": ("NELMA driver update", "You have a new driver update from NELMA."),
+    "order_delivery_issue": ("Delivery attempt", "Your driver could not complete the delivery. NELMA will contact you."),
+    "staff_delivery_issue": ("Delivery problem", "A driver reported a problem with a delivery. Open the order for details."),
 }
 
 
@@ -54,6 +57,7 @@ class NotificationService:
             related_order_id=order_id,
         )
         repo.add(db, notification)
+        push_service.queue_push(db, user_id=user_id, title=title, body=body, data={"type": event_type, "orderId": order_id})
         alert_key = (
             "newOrderAlerts"
             if event_type == "order_received"
@@ -81,6 +85,11 @@ class NotificationService:
                         ),
                     )
         return notification
+
+    def notify_staff(self, db: Session, *, event_type: str, order_id: str | None = None) -> None:
+        title, body = EVENT_COPY[event_type]
+        for staff in db.scalars(select(User).where(User.role.in_([Role.SALES_MANAGER, Role.SYSTEM_ADMIN]), User.is_active.is_(True))):
+            repo.add(db, Notification(user_id=staff.id, type=event_type, title=title, message=body, related_order_id=order_id))
 
     def list(self, db: Session, user: User, *, page: int = 1, page_size: int = 20) -> Page[NotificationRead]:
         authorize(user, Permission.NOTIFICATION_VIEW_SELF)

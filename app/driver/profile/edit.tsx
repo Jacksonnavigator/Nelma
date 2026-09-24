@@ -1,9 +1,9 @@
 import { router } from "expo-router";
-import { ArrowLeft, Save } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { AppTopBar, Button, Card, Header, Input, Screen } from "../../../components";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Button, DriverTitle, Input, Screen, Sheet, SkyBackdrop } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { driverTheme } from "../../../constants/driver-theme";
 import { spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { useAuth } from "../../../store/auth-context";
@@ -43,75 +43,27 @@ export default function DriverEditProfileScreen() {
 
   return (
     <Screen contentContainerStyle={styles.screen} keyboard padded={false} scroll={false} style={styles.safe}>
-      <AppTopBar />
-      <View style={styles.localHeader}>
-        <Pressable accessibilityLabel={t("Back to Profile")} accessibilityRole="button" onPress={() => router.back()} style={styles.headerIconButton}>
-          <ArrowLeft size={22} color={colors.black} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t("Personal Info")}</Text>
-        <View style={styles.headerIconButton} />
-      </View>
-
-      <View style={styles.content}>
-        <Header title="Personal Info" subtitle="Update driver contact details NELMA is allowed to keep in-app." />
-        <Card style={styles.form}>
+      <SkyBackdrop />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <DriverTitle title={t("Personal Info")} backLabel="Back to Profile" onBack={() => router.back()} />
+        <Sheet style={styles.form}>
           <Input label="Full name" value={form.fullName} onChangeText={setField("fullName")} error={errors.fullName} />
           <Input label="Phone" value={form.phone} onChangeText={setField("phone")} keyboardType="phone-pad" error={errors.phone} />
           <Input label="Email" value={form.email ?? ""} onChangeText={setField("email")} autoCapitalize="none" keyboardType="email-address" error={errors.email} />
-          {message ? <Text style={styles.message}>{t(message)}</Text> : null}
-          {saveError ? <Text style={styles.error}>{t(saveError)}</Text> : null}
-          <Button title="Save Changes" icon={Save} onPress={save} loading={saving} />
-        </Card>
-      </View>
+        </Sheet>
+        {message ? <Text style={styles.message}>{t(message)}</Text> : null}
+        {saveError ? <Text accessibilityRole="alert" style={styles.error}>{t(saveError)}</Text> : null}
+        <Button title="Save Changes" onPress={save} loading={saving} />
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.white },
-  screen: { backgroundColor: colors.white, flex: 1 },
-  localHeader: {
-    alignItems: "center",
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm
-  },
-  headerIconButton: {
-    alignItems: "center",
-    height: 42,
-    justifyContent: "center",
-    width: 42
-  },
-  headerTitle: {
-    color: colors.black,
-    flex: 1,
-    fontFamily: typography.fonts.bold,
-    fontSize: 17,
-    lineHeight: 23,
-    textAlign: "center"
-  },
-  content: {
-    flex: 1,
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  form: { gap: spacing.lg },
-  message: {
-    color: colors.success,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  error: {
-    backgroundColor: colors.dangerBg,
-    borderRadius: 12,
-    color: colors.danger,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small,
-    padding: spacing.md
-  }
+  safe: { backgroundColor: driverTheme.pageBg },
+  screen: { flex: 1 },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  form: { gap: spacing.md, padding: spacing.md },
+  message: { color: colors.success, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 },
+  error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20 }
 });

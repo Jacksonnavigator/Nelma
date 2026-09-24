@@ -1,9 +1,9 @@
 import { router } from "expo-router";
-import { ArrowLeft, LockKeyhole } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { AppTopBar, Button, Card, Header, Input, Screen } from "../../../components";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Button, DriverTitle, Input, Screen, Sheet, SkyBackdrop } from "../../../components";
 import { colors } from "../../../constants/colors";
+import { driverTheme } from "../../../constants/driver-theme";
 import { spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { useAuth } from "../../../store/auth-context";
@@ -50,75 +50,27 @@ export default function DriverSecurityScreen() {
 
   return (
     <Screen contentContainerStyle={styles.screen} keyboard padded={false} scroll={false} style={styles.safe}>
-      <AppTopBar />
-      <View style={styles.localHeader}>
-        <Pressable accessibilityLabel={t("Back to Profile")} accessibilityRole="button" onPress={() => router.back()} style={styles.headerIconButton}>
-          <ArrowLeft size={22} color={colors.black} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t("Security")}</Text>
-        <View style={styles.headerIconButton} />
-      </View>
-
-      <View style={styles.content}>
-        <Header title="Security" subtitle="Change your password without storing it on this device." />
-        <Card style={styles.form}>
+      <SkyBackdrop />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <DriverTitle title={t("Change password")} backLabel="Back to Profile" onBack={() => router.back()} />
+        <Sheet style={styles.form}>
           <Input label="Current password" value={form.currentPassword} onChangeText={setField("currentPassword")} secureTextEntry error={errors.currentPassword} />
           <Input label="New password" value={form.newPassword} onChangeText={setField("newPassword")} secureTextEntry error={errors.newPassword} />
           <Input label="Confirm new password" value={form.confirmPassword} onChangeText={setField("confirmPassword")} secureTextEntry error={errors.confirmPassword} />
-          {message ? <Text style={styles.message}>{t(message)}</Text> : null}
-          {saveError ? <Text style={styles.error}>{t(saveError)}</Text> : null}
-          <Button title="Update Password" icon={LockKeyhole} onPress={save} loading={saving} />
-        </Card>
-      </View>
+        </Sheet>
+        {message ? <Text style={styles.message}>{t(message)}</Text> : null}
+        {saveError ? <Text accessibilityRole="alert" style={styles.error}>{t(saveError)}</Text> : null}
+        <Button title="Update Password" onPress={save} loading={saving} />
+      </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.white },
-  screen: { backgroundColor: colors.white, flex: 1 },
-  localHeader: {
-    alignItems: "center",
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm
-  },
-  headerIconButton: {
-    alignItems: "center",
-    height: 42,
-    justifyContent: "center",
-    width: 42
-  },
-  headerTitle: {
-    color: colors.black,
-    flex: 1,
-    fontFamily: typography.fonts.bold,
-    fontSize: 17,
-    lineHeight: 23,
-    textAlign: "center"
-  },
-  content: {
-    flex: 1,
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  form: { gap: spacing.lg },
-  message: {
-    color: colors.success,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  error: {
-    backgroundColor: colors.dangerBg,
-    borderRadius: 12,
-    color: colors.danger,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small,
-    padding: spacing.md
-  }
+  safe: { backgroundColor: driverTheme.pageBg },
+  screen: { flex: 1 },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  form: { gap: spacing.md, padding: spacing.md },
+  message: { color: colors.success, fontFamily: typography.fonts.semibold, fontSize: 14, lineHeight: 20 },
+  error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20 }
 });

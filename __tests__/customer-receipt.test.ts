@@ -23,7 +23,7 @@ vi.mock("../components", () => ({
   ConfirmDialog: (props: object) => createElement("dialog", props),
   Header: () => null, Input: () => null, LoadingScreen: () => createElement("loading"),
   ErrorState: () => createElement("error"), OrderTimeline: () => null, ReceiptSummary: () => null,
-  ServiceAreaMap: () => null, StatusBadge: () => null
+  ServiceAreaMap: () => null, StatusBadge: () => null, DeliveryCodeCard: () => null
 }));
 import Details from "../app/orders/[id]";
 

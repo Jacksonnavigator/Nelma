@@ -55,7 +55,10 @@ export const currentDateKey = (now = new Date()): string => {
   return year + "-" + month + "-" + day;
 };
 
-export const isDeliveryToday = (order: Order, todayKey = currentDateKey()): boolean => deliveryDateKey(order) === todayKey;
+// Local calendar day of an ISO timestamp, so late-night deliveries land on the right day.
+export const localDayKey = (iso: string): string => currentDateKey(new Date(iso));
+
+export const isDeliveryToday =(order: Order, todayKey = currentDateKey()): boolean => deliveryDateKey(order) === todayKey;
 
 export const isUpcomingDelivery = (order: Order, todayKey = currentDateKey()): boolean => deliveryDateKey(order) > todayKey;
 
@@ -199,7 +202,16 @@ export const bottleCount = (order: Order): number => order.quantity || primaryOr
 
 export const cashDueAmount = (order: Order): number => {
   if (order.status === "cancelled" || order.paymentStatus === "paid" || order.paymentStatus === "refunded") return 0;
+  if (order.paymentMethod && order.paymentMethod !== "cash") return 0; // Mobile money is settled online, not at the door.
   return order.total;
+};
+
+// True when the driver must collect the money themselves at handover.
+export const needsCashConfirmation = (order: Order): boolean => order.paymentMethod === "cash" && order.paymentStatus === "pending" && order.status !== "cancelled";
+
+export const isConnectionError = (error: unknown): boolean => {
+  const code = (error as Partial<ApiError> | null)?.code;
+  return code === "NETWORK_ERROR" || code === "TIMEOUT";
 };
 
 export type DriverDayStats = {
@@ -213,7 +225,7 @@ export type DriverDayStats = {
 
 export const driverDayStats = (orders: Order[], todayKey = currentDateKey()): DriverDayStats => {
   const active = orders.filter(isDriverActiveDelivery);
-  const completedToday = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled" && closedTimeLabel(order).slice(0, 10) === todayKey).length;
+  const completedToday = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled" && localDayKey(closedTimeLabel(order)) === todayKey).length;
   return {
     remaining: active.length,
     inProgress: active.filter((order) => order.status === "out_for_delivery").length,
@@ -234,7 +246,7 @@ export const driverHistoryStats = (orders: Order[], todayKey = currentDateKey())
   return {
     deliveries: done.length,
     bottles: done.reduce((sum, order) => sum + bottleCount(order), 0),
-    thisWeek: done.filter((order) => closedTimeLabel(order).slice(0, 10) >= weekKey).length
+    thisWeek: done.filter((order) => localDayKey(closedTimeLabel(order)) >= weekKey).length
   };
 };
 
@@ -245,11 +257,25 @@ export const driverSummaryFromOrders = (orders: Order[], todayKey = currentDateK
   const weekKey = currentDateKey(weekStart);
   const monthKey = todayKey.slice(0, 8) + "01";
   const totals = (keep: (day: string) => boolean): DriverPeriodStats => {
-    const done = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled" && keep(closedTimeLabel(order).slice(0, 10)));
+    const done = orders.filter((order) => isDriverHistoryDelivery(order) && order.status !== "cancelled" && keep(localDayKey(closedTimeLabel(order))));
     return { deliveries: done.length, bottles: done.reduce((sum, order) => sum + bottleCount(order), 0), value: done.reduce((sum, order) => sum + order.total, 0) };
   };
+  const closedPerDay = new Map<string, number>();
+  for (const order of orders) {
+    if (isDriverHistoryDelivery(order) && order.status !== "cancelled") {
+      const key = localDayKey(closedTimeLabel(order));
+      closedPerDay.set(key, (closedPerDay.get(key) ?? 0) + 1);
+    }
+  }
+  const daily = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(todayKey + "T00:00:00");
+    day.setDate(day.getDate() - (6 - index));
+    const date = currentDateKey(day);
+    return { date, deliveries: closedPerDay.get(date) ?? 0 };
+  });
   return {
     activeDeliveries: orders.filter(isDriverActiveDelivery).length,
+    daily,
     today: totals((day) => day === todayKey),
     week: totals((day) => day >= weekKey && day <= todayKey),
     month: totals((day) => day >= monthKey && day <= todayKey),
@@ -257,7 +283,52 @@ export const driverSummaryFromOrders = (orders: Order[], todayKey = currentDateK
   };
 };
 
-export const DELIVERY_STEPS =["Assigned", "On the way", "Delivered", "Received"] as const;
+export const isDriverNotification = (notification: { type: string }): boolean => notification.type.startsWith("driver_") || notification.type === "system_announcement";
+
+export type WeekPoint = { key: string; count: number; today: boolean };
+
+// One point per day for the last seven days ending today (oldest first).
+export const lastSevenDays = (orders: Order[], todayKey = currentDateKey()): WeekPoint[] => {
+  const counts = new Map<string, number>();
+  for (const order of orders) {
+    if (!isDriverHistoryDelivery(order) || order.status === "cancelled") continue;
+    const key = localDayKey(closedTimeLabel(order));
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(todayKey + "T00:00:00");
+    day.setDate(day.getDate() - (6 - index));
+    const key = currentDateKey(day);
+    return { key, count: counts.get(key) ?? 0, today: key === todayKey };
+  });
+};
+
+export const deliveryWindowLabel = (order: Order): string => {
+  const schedule = order.deliverySchedule;
+  if (!schedule) return "Any time";
+  return schedule.window || schedule.label || "Any time";
+};
+
+export type HistoryDay = { key: string; deliveries: number; bottles: number; data: Order[] };
+
+// Newest day first; inside a day, the most recently closed delivery first.
+export const groupHistoryByDay = (orders: Order[]): HistoryDay[] => {
+  const days = new Map<string, HistoryDay>();
+  const sorted = [...orders].sort((first, second) => closedTimeLabel(second).localeCompare(closedTimeLabel(first)));
+  for (const order of sorted) {
+    const key = localDayKey(closedTimeLabel(order));
+    const day = days.get(key) ?? { key, deliveries: 0, bottles: 0, data: [] };
+    day.data.push(order);
+    if (order.status !== "cancelled") {
+      day.deliveries += 1;
+      day.bottles += bottleCount(order);
+    }
+    days.set(key, day);
+  }
+  return [...days.values()];
+};
+
+export const DELIVERY_STEPS = ["Assigned", "On the way", "Delivered", "Received"] as const;
 
 // 0 = assigned, 1 = on the way, 2 = delivered (awaiting customer), 3 = received.
 export const deliveryStepIndex = (order: Order): number => {

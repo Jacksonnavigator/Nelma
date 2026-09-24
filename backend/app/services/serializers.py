@@ -206,6 +206,7 @@ def order_to_read(order: Order) -> OrderRead:
         currency=order.currency,
         status=order.status,
         payment_status=order.payment_status,
+        payment_method=order.payment_method,
         payment=payment_to_read(latest_payment) if latest_payment else None,
         timeline=build_order_timeline(order),
         available_actions=available_order_actions(order),
