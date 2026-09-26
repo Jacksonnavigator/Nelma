@@ -16,6 +16,7 @@ import type {
   DashboardUser,
   Delivery,
   Driver,
+  OperationsOverview,
   Order,
   OrderStatus,
   PaginatedResponse,
@@ -255,5 +256,15 @@ export const httpServices: ServiceRegistry = {
     list: (role) => apiRequest<AppNotification[]>("admin/notifications", { query: { role } }),
     markRead: (id) => apiRequest<void>(`admin/notifications/${id}/read`, { method: "POST" }),
     markAllRead: () => apiRequest<void>("admin/notifications/read-all", { method: "POST" }),
+  },
+
+  operations: {
+    overview: () => apiRequest<OperationsOverview>("admin/operations"),
+    handIn: (driverId, paymentIds, amountReceived) =>
+      apiRequest<{ settled: number }>(`admin/operations/cash/${driverId}/hand-in`, {
+        method: "POST",
+        body: { paymentIds, amountReceived },
+      }),
+    reviewFlag: (id) => apiRequest<void>(`admin/operations/flags/${id}/review`, { method: "POST" }),
   },
 };

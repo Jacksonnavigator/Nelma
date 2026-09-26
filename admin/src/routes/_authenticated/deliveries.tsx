@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
 import { deliveriesService, driversService } from "@/services";
+import { isApiError } from "@/services/api";
 import { PRODUCT_SHORT_LABELS, formatDate } from "@/lib/format";
 import type { Delivery, DeliveryStatus } from "@/types";
 
@@ -82,7 +83,8 @@ function DeliveriesPage() {
       setTarget(null);
       qc.invalidateQueries();
     },
-    onError: () => toast.error("Could not assign this driver"),
+    onError: (error) =>
+      toast.error(isApiError(error) ? error.message : "Could not assign this driver"),
   });
 
   const updateStatus = useMutation({

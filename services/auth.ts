@@ -27,7 +27,7 @@ export const authService = {
     return apiClient.post<AuthSession>("/auth/refresh", { refreshToken }, false);
   },
 
-  logout(refreshToken: string): Promise<void> {
-    return apiClient.post<void>("/auth/logout", { refreshToken }, false);
+  logout(refreshToken: string, pushToken?: string | null): Promise<void> {
+    return apiClient.post<void>("/auth/logout", { refreshToken, ...(pushToken ? { pushToken } : {}) }, false);
   }
 };

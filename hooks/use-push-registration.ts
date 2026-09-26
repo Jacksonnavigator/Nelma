@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { apiClient } from "../services/api";
+import { registeredPushToken } from "../services/push-token";
 
 type PushData = { orderId?: string; type?: string };
 
@@ -31,6 +32,7 @@ export const usePushRegistration = (userId: string | undefined, role: "DRIVER" |
         const token = await pushNotifications.getExpoPushToken(projectId);
         if (token && !cancelled) {
           await apiClient.post("/users/me/push-tokens", { token, platform: Platform.OS === "ios" ? "ios" : "android" });
+          registeredPushToken.set(token);
         }
       } catch {
         // Ignore: alerts fall back to in-app refresh.

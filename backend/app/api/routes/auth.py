@@ -65,7 +65,7 @@ def dashboard_refresh(data: RefreshRequest, request: Request, db: DbSession) -> 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Revoke a mobile refresh session")
 def logout(data: LogoutRequest, db: DbSession) -> Response:
-    auth_service.logout(db, data.refresh_token, audience=SessionAudience.MOBILE)
+    auth_service.logout(db, data.refresh_token, audience=SessionAudience.MOBILE, push_token=data.push_token)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

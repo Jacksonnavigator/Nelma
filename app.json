@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.nelma.drinkingwater",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "NELMA uses your location only when you attach GPS coordinates to a delivery address, or when a driver confirms a delivery."
+        "NSLocationWhenInUseUsageDescription": "NELMA uses your location when you attach GPS coordinates to a delivery address. Drivers also share their position with dispatch while they are on duty and the app is open."
       }
     },
     "android": {
@@ -48,7 +48,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NELMA uses your location only when you attach GPS coordinates to a delivery address, or when a driver confirms a delivery."
+          "locationWhenInUsePermission": "NELMA uses your location when you attach GPS coordinates to a delivery address. Drivers also share their position with dispatch while they are on duty and the app is open."
         }
       ],
       [

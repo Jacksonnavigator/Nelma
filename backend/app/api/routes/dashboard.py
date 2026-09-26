@@ -15,13 +15,21 @@ from app.models.audit_log import AuditLog
 from app.models.notification import Notification
 from app.models.order import Order
 from app.models.user import User
-from app.schemas.dashboard import CashCollectionInput, DashboardOrderInput, DashboardSettingsPatch, DeliveryStatusInput, PriceInput
+from app.schemas.dashboard import (
+    CashCollectionInput,
+    CashHandInInput,
+    DashboardOrderInput,
+    DashboardSettingsPatch,
+    DeliveryStatusInput,
+    PriceInput,
+)
 from app.schemas.order import AssignDriverRequest, CreateOrderForCustomerRequest
 from app.schemas.settings import PricingUpdate
 from app.schemas.user import AccountUpdate, DriverCreate
 from app.services import dashboard_service as svc
 from app.services.account_service import account_service
 from app.services.notification_service import notification_service
+from app.services.operations_service import operations_service
 from app.services.order_service import order_service
 from app.services.payment_service import payment_service
 from app.services.settings_service import settings_service
@@ -354,6 +362,23 @@ def read_all(user: DashboardUser, db: DbSession):
 @router.post("/notifications/{notification_id}/read", status_code=204)
 def mark_read(notification_id: str, user: DashboardUser, db: DbSession):
     notification_service.mark_read(db, user, notification_id)
+    return Response(status_code=204)
+
+
+@router.get("/operations")
+def operations(user: DashboardUser, db: DbSession):
+    return operations_service.overview(db, user)
+
+
+@router.post("/operations/cash/{driver_id}/hand-in")
+def cash_hand_in(driver_id: str, data: CashHandInInput, user: DashboardUser, db: DbSession):
+    settled = payment_service.record_hand_in(db, user, driver_id, data.payment_ids, data.amount_received)
+    return {"settled": settled}
+
+
+@router.post("/operations/flags/{flag_id}/review", status_code=204)
+def review_flag(flag_id: str, user: DashboardUser, db: DbSession):
+    operations_service.review_flag(db, user, flag_id)
     return Response(status_code=204)
 
 

@@ -43,6 +43,7 @@ EVENT_COPY = {
     "driver_system_message": ("NELMA driver update", "You have a new driver update from NELMA."),
     "order_delivery_issue": ("Delivery attempt", "Your driver could not complete the delivery. NELMA will contact you."),
     "staff_delivery_issue": ("Delivery problem", "A driver reported a problem with a delivery. Open the order for details."),
+    "staff_assignment_declined": ("Assignment declined", "A driver declined a delivery. Assign another driver from Deliveries."),
 }
 
 

@@ -59,6 +59,8 @@ class OrderRead(CamelModel):
     created_by_user_id: str | None = Field(None, validation_alias=AliasChoices("createdByUserId", "created_by_user_id"))
     source: OrderSource = "USER_MOBILE"
     assigned_driver_id: str | None = Field(None, validation_alias=AliasChoices("assignedDriverId", "assigned_driver_id"))
+    driver_assigned_at: str | None = Field(None, validation_alias=AliasChoices("driverAssignedAt", "driver_assigned_at"))
+    driver_accepted_at: str | None = Field(None, validation_alias=AliasChoices("driverAcceptedAt", "driver_accepted_at"))
     created_at: str = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updated_at: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     order_type: OrderType = Field(validation_alias=AliasChoices("orderType", "order_type"))
@@ -163,6 +165,21 @@ class DriverStatusUpdateRequest(CamelModel):
 
 class DeliveryIssueRequest(CamelModel):
     reason: DeliveryIssueReason
+    note: str | None = Field(None, max_length=500)
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def blank_note_to_none(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+DeclineReason = Literal["vehicle_problem", "too_far", "not_enough_stock", "ending_shift", "other"]
+
+
+class DeclineAssignmentRequest(CamelModel):
+    reason: DeclineReason
     note: str | None = Field(None, max_length=500)
 
     @field_validator("note", mode="before")

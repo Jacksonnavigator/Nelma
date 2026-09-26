@@ -46,6 +46,8 @@ class Order(TimestampMixin, Base):
     customer_remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    driver_assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    driver_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     customer_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     customer_received_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

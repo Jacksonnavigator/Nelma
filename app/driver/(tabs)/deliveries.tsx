@@ -10,9 +10,12 @@ import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
 import { useLivePolling } from "../../../hooks/use-live-polling";
+import { useDriverOutbox } from "../../../hooks/use-driver-outbox";
+import { driverDuty } from "../../../services/driver-duty";
+import { applyPending, driverOutbox } from "../../../services/driver-outbox";
 import type { DriverSummary } from "../../../types/driver";
 import type { Order } from "../../../types/order";
-import { bottleCount, buildExternalMapUrl, canStartDelivery, cashDueAmount, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryWindowLabel, driverActionHint, driverDayStats, driverDeliveryQueue, hasDeliveryCoordinates } from "../../../utils/driver-deliveries";
+import { bottleCount, buildExternalMapUrl, canStartDelivery, cashDueAmount, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryWindowLabel, driverActionHint, driverDayStats, driverDeliveryQueue, hasDeliveryCoordinates, isConnectionError, needsAcceptance } from "../../../utils/driver-deliveries";
 import { formatCurrency } from "../../../utils/format";
 import { driverDeliveryStatusLabel } from "../../../utils/status";
 
@@ -24,6 +27,10 @@ export default function DriverDeliveriesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [serverTotals, setServerTotals] = useState<DriverSummary | null>(null);
   const [newStops, setNewStops] = useState(0);
+  const [switchingDuty, setSwitchingDuty] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const outbox = useDriverOutbox();
+  const onDuty = serverTotals?.onDuty ?? true;
   const requestVersion = useRef(0);
   const knownIds = useRef<Set<string> | null>(null);
   const entrance = useRef(new Animated.Value(0)).current;
@@ -35,6 +42,7 @@ export default function DriverDeliveriesScreen() {
   const queue = useMemo(() => driverDeliveryQueue(orders), [orders]);
   const [current, ...remaining] = queue;
   const live = current?.status === "out_for_delivery";
+  const isNewStop = current ? needsAcceptance(current) : false;
   const continuing = live || current?.status === "delivered";
   const phone = current ? customerContactPhone(current) : null;
   const canNavigate = current ? hasDeliveryCoordinates(current) : false;
@@ -56,6 +64,8 @@ export default function DriverDeliveriesScreen() {
       setError(null);
     }
     try {
+      // Send anything done without signal first, so the list below already reflects it.
+      await driverOutbox.flush().catch(() => undefined);
       const [result, totals] = await Promise.all([
         repositories.driver.listActive(),
         Promise.resolve().then(() => repositories.driver.getSummary()).catch(() => null)
@@ -68,10 +78,20 @@ export default function DriverDeliveriesScreen() {
         haptics.success();
         setNewStops((count) => count + fresh);
       }
-      setOrders(result);
+      void driverOutbox.saveRoute(result);
+      setOrders(result.map((order) => applyPending(order)));
+      setOffline(false);
       if (totals) setServerTotals(totals);
-    } catch {
-      if (version === requestVersion.current && !silent) setError("Unable to load assigned deliveries right now.");
+    } catch (caught) {
+      if (version !== requestVersion.current) return;
+      const saved = isConnectionError(caught) ? await driverOutbox.savedRoute() : null;
+      if (version !== requestVersion.current) return;
+      if (saved) {
+        setOrders(saved.map((order) => applyPending(order)));
+        setOffline(true);
+      } else if (!silent) {
+        setError("Unable to load assigned deliveries right now.");
+      }
     } finally {
       if (version === requestVersion.current) {
         setLoading(false);
@@ -88,10 +108,31 @@ export default function DriverDeliveriesScreen() {
   useLivePolling(() => void loadDeliveries(true), 30000);
 
   useEffect(() => {
+    // Older backends do not report duty; leave the location beacon off for them.
+    if (serverTotals) driverDuty.set(serverTotals.onDuty ?? null);
+  }, [serverTotals]);
+
+  useEffect(() => {
     if (loading) return;
     entrance.setValue(0);
     Animated.timing(entrance, { toValue: 1, duration: 420, useNativeDriver: true }).start();
   }, [entrance, loading, current?.id]);
+
+  const toggleDuty = async () => {
+    if (switchingDuty || !serverTotals) return;
+    haptics.selection();
+    setSwitchingDuty(true);
+    setError(null);
+    try {
+      const next = await repositories.driver.setDuty(!onDuty);
+      setServerTotals((totals) => (totals ? { ...totals, onDuty: next } : totals));
+    } catch (caught) {
+      const message = (caught as { message?: unknown }).message;
+      setError(typeof message === "string" ? message : "Unable to change your duty status right now.");
+    } finally {
+      setSwitchingDuty(false);
+    }
+  };
 
   const open = (order: Order) => {
     haptics.selection();
@@ -137,7 +178,44 @@ export default function DriverDeliveriesScreen() {
                   </Pressable>
                 }
               />
+              {serverTotals ? (
+                <Pressable
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: onDuty, busy: switchingDuty }}
+                  accessibilityLabel={t("On duty")}
+                  disabled={switchingDuty}
+                  onPress={() => void toggleDuty()}
+                  style={[styles.duty, onDuty ? styles.dutyOn : styles.dutyOff]}
+                >
+                  <View style={[styles.dutyDot, onDuty ? styles.dutyDotOn : null]} />
+                  <Text style={[styles.dutyLabel, onDuty ? styles.dutyLabelOn : null]}>{t(onDuty ? "On duty" : "Off duty")}</Text>
+                  <Text style={styles.dutyHint}>
+                    {switchingDuty ? t("Updating…") : t(onDuty ? "Tap to stop new stops" : "Tap when you are ready")}
+                  </Text>
+                </Pressable>
+              ) : null}
               {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
+              {offline || outbox.pending.length ? (
+                <View style={styles.sync}>
+                  <Text style={styles.syncTitle}>{t(offline ? "No signal. This is your saved route." : "Sending your updates…")}</Text>
+                  {outbox.pending.length ? (
+                    <Text style={styles.syncBody}>
+                      {outbox.pending.length === 1 ? t("1 update is saved on this phone") : outbox.pending.length + " " + t("updates are saved on this phone")}
+                      {"  ·  "}{t("They send by themselves when the signal is back.")}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+              {outbox.failures.length ? (
+                <Pressable accessibilityRole="button" onPress={() => driverOutbox.dismissFailures()} style={styles.rejected}>
+                  {outbox.failures.map((failure) => (
+                    <Text key={failure.orderId + failure.action} style={styles.rejectedText}>
+                      {failure.orderNumber ?? t("A delivery")}: {t(failure.message)}
+                    </Text>
+                  ))}
+                  <Text style={styles.rejectedDismiss}>{t("Dismiss")}</Text>
+                </Pressable>
+              ) : null}
               {newStops > 0 ? (
                 <Pressable accessibilityRole="button" onPress={() => setNewStops(0)} style={styles.newStops}>
                   <Text style={styles.newStopsText}>{newStops === 1 ? t("1 new stop assigned to you") : newStops + " " + t("new stops assigned to you")}</Text>
@@ -163,7 +241,7 @@ export default function DriverDeliveriesScreen() {
                     <View style={styles.jobTop}>
                       <View style={styles.jobBadge}>
                         {live ? <LiveDot /> : null}
-                        <Text style={styles.jobBadgeText}>{t(continuing ? "Current delivery" : "Next delivery")}</Text>
+                        <Text style={styles.jobBadgeText}>{t(continuing ? "Current delivery" : isNewStop ? "New stop" : "Next delivery")}</Text>
                       </View>
                       <Text style={styles.jobStatus}>{t(driverDeliveryStatusLabel(current.status))}</Text>
                     </View>
@@ -184,15 +262,17 @@ export default function DriverDeliveriesScreen() {
                       <Pressable accessibilityRole="button" accessibilityLabel={t("Navigate")} disabled={!canNavigate} onPress={navigate} style={[styles.jobIcon, !canNavigate ? styles.jobIconOff : null]}>
                         <Navigation color={colors.white} size={20} />
                       </Pressable>
-                      <Button title={continuing ? "Continue delivery" : canStartDelivery(current) ? "View pickup" : "View delivery"} variant="light" onPress={() => open(current)} style={styles.jobButton} />
+                      <Button title={continuing ? "Continue delivery" : isNewStop ? "Review and accept" : canStartDelivery(current) ? "View pickup" : "View delivery"} variant="light" onPress={() => open(current)} style={styles.jobButton} />
                     </View>
                   </BrandGradient>
                 </Animated.View>
               ) : (
                 <View style={styles.empty}>
                   <DropletArt />
-                  <Text style={styles.emptyTitle}>{t("No stops right now")}</Text>
-                  <Text style={styles.emptyBody}>{t("New assignments show up here as soon as dispatch sends them. Pull down to check.")}</Text>
+                  <Text style={styles.emptyTitle}>{t(onDuty ? "No stops right now" : "You are off duty")}</Text>
+                  <Text style={styles.emptyBody}>
+                    {t(onDuty ? "New assignments show up here as soon as dispatch sends them. Pull down to check." : "Dispatch will not send you new stops. Switch to On duty when you are ready to drive.")}
+                  </Text>
                 </View>
               )}
 
@@ -223,6 +303,20 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
   refresh: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.white },
+  sync: { gap: 2, borderRadius: radius.md, backgroundColor: driverTheme.amberBg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  syncTitle: { color: driverTheme.amberText, fontFamily: typography.fonts.bold, fontSize: 13, lineHeight: 19 },
+  syncBody: { color: colors.text, fontFamily: typography.fonts.regular, fontSize: 12, lineHeight: 18 },
+  rejected: { gap: 4, borderRadius: radius.md, borderLeftWidth: 4, borderLeftColor: colors.danger, backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  rejectedText: { color: colors.ink, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19 },
+  rejectedDismiss: { color: colors.primary, fontFamily: typography.fonts.semibold, fontSize: 12, lineHeight: 18 },
+  duty: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 8, borderRadius: 999, borderWidth: 1, paddingLeft: 12, paddingRight: 14, paddingVertical: 7, marginBottom: spacing.md },
+  dutyOn: { backgroundColor: driverTheme.mintBg, borderColor: "rgba(27,127,111,0.22)" },
+  dutyOff: { backgroundColor: colors.white, borderColor: driverTheme.aquaLine },
+  dutyDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.mutedText },
+  dutyDotOn: { backgroundColor: driverTheme.mintText },
+  dutyLabel: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 13, lineHeight: 18 },
+  dutyLabelOn: { color: driverTheme.mintText },
+  dutyHint: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 12, lineHeight: 17 },
   error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19, marginBottom: spacing.sm },
   newStops: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.md },
   newStopsText: { flex: 1, color: colors.white, fontFamily: typography.fonts.bold, fontSize: 14, lineHeight: 20 },

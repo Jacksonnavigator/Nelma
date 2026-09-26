@@ -10,6 +10,7 @@ import type {
   Delivery,
   DeliveryStatus,
   Driver,
+  OperationsOverview,
   Order,
   OrderStatus,
   OrderType,
@@ -191,6 +192,19 @@ export interface NotificationsService {
   markAllRead(role: DashboardRole): Promise<void>;
 }
 
+export interface OperationsService {
+  /** GET /admin/operations */
+  overview(): Promise<OperationsOverview>;
+  /** POST /admin/operations/cash/{driverId}/hand-in */
+  handIn(
+    driverId: string,
+    paymentIds: string[],
+    amountReceived: number,
+  ): Promise<{ settled: number }>;
+  /** POST /admin/operations/flags/{id}/review */
+  reviewFlag(id: string): Promise<void>;
+}
+
 export interface ServiceRegistry {
   auth: AuthService;
   orders: OrdersService;
@@ -203,4 +217,5 @@ export interface ServiceRegistry {
   settings: SettingsService;
   audit: AuditService;
   notifications: NotificationsService;
+  operations: OperationsService;
 }

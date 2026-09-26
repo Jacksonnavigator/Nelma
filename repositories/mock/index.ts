@@ -8,13 +8,16 @@ import { canStartDelivery, driverSummaryFromOrders, isDriverActiveDelivery, isDr
 import type { AuthSession, ForgotPasswordResult } from "../../types/auth";
 import type { BusinessDashboard, BusinessOrderQueueItem, CustomerRecord, SalesReport, SalesReportMetrics, SalesReportPeriod } from "../../types/business";
 import type { Notification } from "../../types/notification";
-import type { CreateOrderMessageInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order, OrderMessage } from "../../types/order";
+import type { CreateOrderMessageInput, DeclineAssignmentInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order, OrderMessage } from "../../types/order";
 import type { Payment } from "../../types/payment";
 import type { PublicSettings } from "../../types/settings";
 import type { SavedAddress } from "../../types/address";
 import type { UpdateUserInput, User } from "../../types/user";
 import { mockPaymentMethods } from "./mock-data";
 import { mockStorage } from "./storage";
+
+// Demo only: duty status lives for the app session.
+let mockDriverOnDuty = true;
 
 const latency = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 350));
@@ -523,11 +526,47 @@ export const mockRepositories: AppRepositories = {
       return updateDriverDelivery(id, user, status);
     },
 
+    async accept(id: string): Promise<Order> {
+      await latency();
+      const user = await assertMockDriver();
+      return updateOrder(id, (order) => {
+        if (order.assignedDriverId !== user.id) {
+          throw new Error("This delivery is no longer assigned to you.");
+        }
+        return { ...order, driverAcceptedAt: order.driverAcceptedAt ?? new Date().toISOString() };
+      });
+    },
+
+    async decline(id: string, _input: DeclineAssignmentInput): Promise<void> {
+      await latency();
+      const user = await assertMockDriver();
+      await updateOrder(id, (order) => {
+        if (order.assignedDriverId !== user.id) {
+          throw new Error("This delivery is no longer assigned to you.");
+        }
+        if (!canStartDelivery(order)) {
+          throw new Error("Started deliveries cannot be declined. Report a problem instead.");
+        }
+        return { ...order, assignedDriverId: null, driverAssignedAt: null, driverAcceptedAt: null };
+      });
+    },
+
+    async setDuty(onDuty: boolean): Promise<boolean> {
+      await latency();
+      await assertMockDriver();
+      mockDriverOnDuty = onDuty;
+      return mockDriverOnDuty;
+    },
+
+    async shareLocation(): Promise<void> {
+      // Demo mode has no dispatch to share with.
+    },
+
     async getSummary() {
       await latency();
       const user = await assertMockDriver();
       const orders = (await mockStorage.getOrders()).filter((order) => order.assignedDriverId === user.id);
-      return driverSummaryFromOrders(orders);
+      return { ...driverSummaryFromOrders(orders), onDuty: mockDriverOnDuty };
     }
   },
   payments: {

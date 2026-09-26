@@ -66,18 +66,22 @@ export function AssignmentModal({
             ) : (
               selectable.map((driver) => {
                 const isCurrent = driver.id === currentDriverId;
+                const offDuty = driver.onDuty === false;
                 return (
                   <button
                     key={driver.id}
                     type="button"
-                    disabled={isCurrent}
+                    disabled={isCurrent || offDuty}
+                    title={
+                      offDuty ? `${driver.fullName} is off duty in the driver app.` : undefined
+                    }
                     onClick={() => setSelected(driver.id)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors",
                       selected === driver.id
                         ? "border-primary bg-primary/5"
                         : "border-border hover:bg-muted/60",
-                      isCurrent && "opacity-60",
+                      (isCurrent || offDuty) && "cursor-not-allowed opacity-60",
                     )}
                   >
                     <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -89,7 +93,7 @@ export function AssignmentModal({
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {driver.todayAssigned} today · {driver.activeDeliveries} active ·{" "}
-                        {driver.available ? "Available" : "Busy"}
+                        {offDuty ? "Off duty" : driver.available ? "Available" : "Busy"}
                       </span>
                     </span>
                     <StatusBadge kind="account" status={driver.status} />

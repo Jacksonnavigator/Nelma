@@ -59,6 +59,8 @@ class RefreshRequest(CamelModel):
 
 class LogoutRequest(CamelModel):
     refresh_token: str = Field(min_length=20, validation_alias=AliasChoices("refreshToken", "refresh_token"))
+    # This device's Expo token, so alerts for the old account stop arriving on a shared phone.
+    push_token: str | None = Field(None, max_length=500, validation_alias=AliasChoices("pushToken", "push_token"))
 
 
 class ForgotPasswordRequest(CamelModel):

@@ -19,6 +19,7 @@ class Payment(TimestampMixin, Base):
         Index("ix_payments_user_id", "user_id"),
         Index("ix_payments_provider_reference", "provider_reference", unique=True),
         Index("ix_payments_client_reference", "client_reference"),
+        Index("ix_payments_collected_by_handed_in", "collected_by_user_id", "handed_in_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
@@ -33,6 +34,11 @@ class Payment(TimestampMixin, Base):
     client_reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Cash only: who is holding the money, and when it was handed in to the office.
+    collected_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    handed_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    handed_in_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     order: Mapped["Order"] = relationship(back_populates="payments")
-    user: Mapped["User"] = relationship(back_populates="payments")
+    user: Mapped["User"] = relationship(back_populates="payments", foreign_keys=[user_id])
+    collected_by: Mapped["User | None"] = relationship(foreign_keys=[collected_by_user_id])

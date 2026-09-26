@@ -20,6 +20,7 @@ import type {
   DashboardUser,
   Delivery,
   Driver,
+  OperationsOverview,
   Order,
   OrderStatus,
   OrderType,
@@ -378,7 +379,11 @@ export const mockServices: ServiceRegistry = {
       return delay(driver);
     },
     async available() {
-      return delay(db.drivers.filter((d) => d.status === "active"));
+      return delay(
+        db.drivers
+          .filter((d) => d.status === "active")
+          .map((d) => ({ ...d, onDuty: d.onDuty ?? d.available })),
+      );
     },
     async create(input) {
       const driver: Driver = {
@@ -601,6 +606,183 @@ export const mockServices: ServiceRegistry = {
       await delay(null, 160);
     },
   },
+
+  operations: {
+    async overview() {
+      return delay(structuredClone({ ...operations, generatedAt: todayISO() }));
+    },
+    async handIn(driverId, paymentIds, amountReceived) {
+      const entry = operations.cash.find((c) => c.driverId === driverId);
+      const receipts = entry?.receipts.filter((r) => paymentIds.includes(r.paymentId)) ?? [];
+      if (!entry || receipts.length !== paymentIds.length)
+        throw { status: 409, message: "This driver's cash changed. Refresh and count again." };
+      const expected = receipts.reduce((sum, r) => sum + r.amount, 0);
+      if (expected !== amountReceived)
+        throw {
+          status: 422,
+          message: `You counted ${amountReceived.toLocaleString()} but the receipts add up to ${expected.toLocaleString()}. Count again before confirming.`,
+        };
+      operations.cash = operations.cash.filter((c) => c.driverId !== driverId);
+      pushAudit({
+        actor: readSession()?.fullName ?? "Demo",
+        role: "SALES_MANAGER",
+        action: "CASH_HANDED_IN",
+        entity: "user",
+        description: `Cash handed in by ${entry.driverName}`,
+      });
+      return delay({ settled: expected }, 400);
+    },
+    async reviewFlag(id) {
+      operations.flags = operations.flags.filter((f) => f.id !== id);
+      await delay(null, 200);
+    },
+  },
+};
+
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+
+const operations: OperationsOverview = {
+  generatedAt: todayISO(),
+  cash: [
+    {
+      driverId: "drv_001",
+      driverName: "Salum Rashid",
+      driverPhone: "+255712004411",
+      onDuty: true,
+      amount: 26000,
+      oldestAt: minutesAgo(310),
+      receipts: [
+        {
+          paymentId: "pay_m1",
+          orderId: null,
+          orderNumber: "NELMA-DEMO-000118",
+          customerName: "Neema Mushi",
+          area: "Sakina",
+          amount: 18000,
+          collectedAt: minutesAgo(310),
+        },
+        {
+          paymentId: "pay_m2",
+          orderId: null,
+          orderNumber: "NELMA-DEMO-000124",
+          customerName: "Baraka Temba",
+          area: "Njiro",
+          amount: 8000,
+          collectedAt: minutesAgo(95),
+        },
+      ],
+    },
+    {
+      driverId: "drv_003",
+      driverName: "Hawa Mbwana",
+      driverPhone: "+255689223114",
+      onDuty: false,
+      amount: 4000,
+      oldestAt: minutesAgo(1500),
+      receipts: [
+        {
+          paymentId: "pay_m3",
+          orderId: null,
+          orderNumber: "NELMA-DEMO-000097",
+          customerName: "Grace Lema",
+          area: "Kijenge",
+          amount: 4000,
+          collectedAt: minutesAgo(1500),
+        },
+      ],
+    },
+  ],
+  flags: [
+    {
+      id: "flag_m1",
+      at: minutesAgo(40),
+      kinds: ["proof_skipped", "far_from_address"],
+      detail:
+        "Delivered without the code: customer had no phone. Marked delivered 1,240 m from the saved address",
+      driverId: "drv_004",
+      driverName: "Frank Lyimo",
+      orderId: null,
+      orderNumber: "NELMA-DEMO-000131",
+      customerName: "Rehema Kweka",
+      area: "Themi",
+    },
+    {
+      id: "flag_m2",
+      at: minutesAgo(130),
+      kinds: ["declined"],
+      detail: "Declined: Vehicle problem (flat tyre)",
+      driverId: "drv_002",
+      driverName: "Joseph Mnyika",
+      orderId: null,
+      orderNumber: "NELMA-DEMO-000129",
+      customerName: "Daudi Shirima",
+      area: "Olasiti",
+    },
+    {
+      id: "flag_m3",
+      at: minutesAgo(600),
+      kinds: ["delivery_issue"],
+      detail: "Customer not answering",
+      driverId: "drv_001",
+      driverName: "Salum Rashid",
+      orderId: null,
+      orderNumber: "NELMA-DEMO-000102",
+      customerName: "Upendo Massawe",
+      area: "Sanawari",
+    },
+  ],
+  stalled: [
+    {
+      kind: "not_accepted",
+      since: minutesAgo(52),
+      driverId: "drv_006",
+      driverName: "Elias Sanga",
+      scheduledDate: todayISO().slice(0, 10),
+      timeWindow: "12:00 - 16:00",
+      orderId: null,
+      orderNumber: "NELMA-DEMO-000133",
+      customerName: "Janeth Mollel",
+      area: "Ngarenaro",
+    },
+    {
+      kind: "driver_off_duty",
+      since: minutesAgo(180),
+      driverId: "drv_004",
+      driverName: "Frank Lyimo",
+      scheduledDate: todayISO().slice(0, 10),
+      timeWindow: "16:00 - 19:00",
+      orderId: null,
+      orderNumber: "NELMA-DEMO-000127",
+      customerName: "Said Mfinanga",
+      area: "Moshono",
+    },
+  ],
+  drivers: [
+    {
+      driverId: "drv_001",
+      driverName: "Salum Rashid",
+      driverPhone: "+255712004411",
+      onTheRoad: 1,
+      waiting: 1,
+      lastLocation: { latitude: -3.3731, longitude: 36.6937, at: minutesAgo(1) },
+    },
+    {
+      driverId: "drv_006",
+      driverName: "Elias Sanga",
+      driverPhone: "+255783551209",
+      onTheRoad: 0,
+      waiting: 1,
+      lastLocation: { latitude: -3.3869, longitude: 36.7123, at: minutesAgo(26) },
+    },
+    {
+      driverId: "drv_002",
+      driverName: "Joseph Mnyika",
+      driverPhone: "+255754110982",
+      onTheRoad: 0,
+      waiting: 0,
+      lastLocation: null,
+    },
+  ],
 };
 
 async function advance(id: string, from: OrderStatus, to: OrderStatus): Promise<Order> {

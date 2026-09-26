@@ -1,7 +1,7 @@
 import { apiClient } from "./api";
 import type { PaginatedResult } from "../types/api";
 import type { DriverSummary } from "../types/driver";
-import type { DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../types/order";
+import type { DeclineAssignmentInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../types/order";
 
 // The first request after the free Render plan sleeps can take up to a minute.
 const MUTATION_TIMEOUT_MS = 60000;
@@ -30,6 +30,23 @@ export const driverService = {
 
   reportIssue(id: string, input: DeliveryIssueInput): Promise<Order> {
     return apiClient.post<Order>("/driver/deliveries/" + encodeURIComponent(id) + "/issue", input, true, undefined, MUTATION_TIMEOUT_MS);
+  },
+
+  accept(id: string): Promise<Order> {
+    return apiClient.post<Order>("/driver/deliveries/" + encodeURIComponent(id) + "/accept", undefined, true, undefined, MUTATION_TIMEOUT_MS);
+  },
+
+  async decline(id: string, input: DeclineAssignmentInput): Promise<void> {
+    await apiClient.post<void>("/driver/deliveries/" + encodeURIComponent(id) + "/decline", input, true, undefined, MUTATION_TIMEOUT_MS);
+  },
+
+  async setDuty(onDuty: boolean): Promise<boolean> {
+    const result = await apiClient.patch<{ onDuty: boolean }>("/driver/duty", { onDuty }, true, MUTATION_TIMEOUT_MS);
+    return result.onDuty;
+  },
+
+  async shareLocation(position: { latitude: number; longitude: number }): Promise<void> {
+    await apiClient.post<void>("/driver/location", position);
   },
 
   getSummary(): Promise<DriverSummary> {

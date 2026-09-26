@@ -1,6 +1,7 @@
-﻿from typing import TYPE_CHECKING
+﻿from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, Enum, String
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, String, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.roles import Role
@@ -44,6 +45,12 @@ class User(TimestampMixin, Base):
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Drivers only: off-duty drivers cannot receive new assignments.
+    is_on_duty: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    # Drivers only: last position shared from the app while on duty. Cleared when they go off duty.
+    last_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_location_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     preferred_language: Mapped[str] = mapped_column(String(2), default="en", nullable=False)
@@ -56,7 +63,7 @@ class User(TimestampMixin, Base):
 
     addresses: Mapped[list["Address"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     orders: Mapped[list["Order"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys="Order.user_id")
-    payments: Mapped[list["Payment"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    payments: Mapped[list["Payment"]] = relationship(back_populates="user", cascade="all, delete-orphan", foreign_keys="Payment.user_id")
     notifications: Mapped[list["Notification"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     refresh_sessions: Mapped[list["RefreshSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")

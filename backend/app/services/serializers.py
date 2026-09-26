@@ -189,6 +189,8 @@ def order_to_read(order: Order) -> OrderRead:
         created_by_user_id=order.created_by_user_id,
         source=order.source,
         assigned_driver_id=order.assigned_driver_id,
+        driver_assigned_at=iso(order.driver_assigned_at),
+        driver_accepted_at=iso(order.driver_accepted_at),
         created_at=iso(order.created_at) or "",
         updated_at=iso(order.updated_at) or "",
         order_type=order_type,

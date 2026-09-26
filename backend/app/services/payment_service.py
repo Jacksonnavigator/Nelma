@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AppException
 from app.core.http_status import HTTP_422_UNPROCESSABLE_CONTENT
 from app.core.permissions import Permission, authorize
+from app.core.roles import Role
 from app.core.security import utc_now
 from app.integrations.payments.factory import get_payment_provider
 from app.models.order import Order
@@ -76,7 +77,12 @@ class PaymentService:
             status="paid",
             provider_reference=reference,
             paid_at=utc_now(),
+            collected_by_user_id=actor.id,
         )
+        if actor.role != Role.DRIVER:
+            # Staff took the money at the office, so there is nothing to hand in.
+            payment.handed_in_at = payment.paid_at
+            payment.handed_in_by_user_id = actor.id
         db.add(payment)
         db.flush()
         audit_service.record(
@@ -89,6 +95,47 @@ class PaymentService:
         )
         notification_service.create_for_event(db, user_id=order.user_id, event_type="payment_successful", order_id=order_id)
         db.refresh(order)
+
+    def record_hand_in(self, db: Session, actor: User, driver_id: str, payment_ids: list[str], amount_received: int) -> int:
+        """Mark cash a driver brought back to the office as handed in. Returns the amount settled."""
+        authorize(actor, Permission.CASH_COLLECTION_RECORD)
+        ids = set(payment_ids)
+        payments = list(
+            db.scalars(
+                select(Payment)
+                .where(
+                    Payment.id.in_(ids),
+                    Payment.collected_by_user_id == driver_id,
+                    Payment.provider == "cash",
+                    Payment.status == "paid",
+                    Payment.handed_in_at.is_(None),
+                )
+                .with_for_update()
+            )
+        )
+        if not ids or len(payments) != len(ids):
+            raise AppException("CASH_LEDGER_CHANGED", "This driver's cash changed. Refresh and count again.", status.HTTP_409_CONFLICT)
+        expected = sum(payment.amount for payment in payments)
+        if amount_received != expected:
+            raise AppException(
+                "CASH_HAND_IN_MISMATCH",
+                f"You counted {amount_received:,} but the receipts add up to {expected:,}. Count again before confirming.",
+                HTTP_422_UNPROCESSABLE_CONTENT,
+            )
+        now = utc_now()
+        for payment in payments:
+            payment.handed_in_at = now
+            payment.handed_in_by_user_id = actor.id
+        audit_service.record(
+            db,
+            actor=actor,
+            event_type="CASH_HANDED_IN",
+            resource_type="user",
+            resource_id=driver_id,
+            metadata={"amount": expected, "payments": len(payments)},
+        )
+        db.commit()
+        return expected
 
     def methods(self) -> list[PaymentMethodRead]:
         return [PaymentMethodRead.model_validate(get_payment_method(method["id"])) for method in PAYMENT_METHODS]

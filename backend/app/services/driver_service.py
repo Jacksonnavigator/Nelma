@@ -51,6 +51,7 @@ class DriverService:
                 stats.value += int(total)
 
         return DriverSummary(
+            on_duty=driver.is_on_duty,
             active_deliveries=int(active or 0),
             daily=[DriverDay(date=day.isoformat(), deliveries=count) for day, count in daily.items()],
             **periods,

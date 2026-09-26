@@ -26,6 +26,10 @@ export type DeliveryIssueReason = "customer_unreachable" | "wrong_address" | "cu
 
 export type DeliveryIssueInput = { reason: DeliveryIssueReason; note?: string };
 
+export type DeclineReason = "vehicle_problem" | "too_far" | "not_enough_stock" | "ending_shift" | "other";
+
+export type DeclineAssignmentInput = { reason: DeclineReason; note?: string };
+
 export type DriverDeliveryGroupFilter = "today" | "upcoming" | "all";
 
 export type DriverDeliveryStatusFilter = "all" | "assigned" | "out_for_delivery" | "delivered";
@@ -83,6 +87,9 @@ export type Order = {
   createdByUserId?: string | null;
   source?: OrderSource;
   assignedDriverId?: string | null;
+  driverAssignedAt?: string | null;
+  /** Null until the driver accepts or starts the stop. Missing on older backends. */
+  driverAcceptedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   orderType: OrderType;

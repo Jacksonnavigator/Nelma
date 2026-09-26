@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from math import asin, ceil, cos, radians, sin, sqrt
 
 from fastapi import status
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -15,6 +16,7 @@ from app.core.http_status import HTTP_422_UNPROCESSABLE_CONTENT
 from app.core.permissions import Permission, authorize
 from app.core.roles import Role
 from app.core.security import utc_now
+from app.models.audit_log import AuditLog
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_message import OrderMessage
@@ -26,6 +28,7 @@ from app.schemas.order import (
     CreateOrderForCustomerRequest,
     CreateOrderMessageRequest,
     CreateOrderRequest,
+    DeclineAssignmentRequest,
     DeliveryIssueRequest,
     DriverStatusUpdateRequest,
     OrderRead,
@@ -51,7 +54,15 @@ ISSUE_LABELS = {
     "started_by_mistake": "Started by mistake",
     "other": "Other problem",
 }
+DECLINE_LABELS = {
+    "vehicle_problem": "Vehicle problem",
+    "too_far": "Too far from my route",
+    "not_enough_stock": "Not enough bottles on board",
+    "ending_shift": "Ending my shift",
+    "other": "Other reason",
+}
 FAR_FROM_ADDRESS_METERS = 300
+MAX_CODE_ATTEMPTS = 5
 ALLOWED_TRANSITIONS = {
     "pending": {"confirmed", "cancelled"},
     "confirmed": {"processing", "cancelled"},
@@ -342,6 +353,7 @@ class OrderService:
         if next_status == "out_for_delivery":
             # Also support assignments created before assignment released orders.
             self._release_assigned_order(db, order, driver)
+            order.driver_accepted_at = order.driver_accepted_at or utc_now()  # Starting a stop accepts it.
         self.transition(db, order, next_status, actor=driver)
         if next_status == "delivered" and order.payment_method == "cash" and order.payment_status == "pending":
             from app.services.payment_service import payment_service
@@ -362,8 +374,26 @@ class OrderService:
         proof = {}
         if get_settings().delivery_code_required:
             if handover.delivery_code:
+                failures = db.scalar(
+                    select(func.count()).select_from(AuditLog).where(AuditLog.resource_id == order.id, AuditLog.event_type == "DELIVERY_CODE_FAILED")
+                ) or 0
+                if failures >= MAX_CODE_ATTEMPTS:
+                    raise AppException(
+                        "DELIVERY_CODE_LOCKED",
+                        "Too many wrong codes. Choose why the customer cannot show the code instead.",
+                        status.HTTP_409_CONFLICT,
+                    )
                 if not hmac.compare_digest(handover.delivery_code, self.delivery_code_for(order)):
-                    raise AppException("INVALID_DELIVERY_CODE", "That delivery code is not correct. Ask the customer to check their app.", status.HTTP_400_BAD_REQUEST)
+                    # Keep the failed attempt even though the request fails, so guessing is capped.
+                    audit_service.record(db, actor=driver, event_type="DELIVERY_CODE_FAILED", resource_type="order", resource_id=order.id)
+                    if failures + 1 >= MAX_CODE_ATTEMPTS:
+                        audit_service.record(db, actor=driver, event_type="DELIVERY_CODE_LOCKED", resource_type="order", resource_id=order.id)
+                    db.commit()
+                    left = MAX_CODE_ATTEMPTS - failures - 1
+                    message = "That delivery code is not correct. Ask the customer to check their app."
+                    if left <= 2:
+                        message += f" {left} {'try' if left == 1 else 'tries'} left." if left else " No tries left."
+                    raise AppException("INVALID_DELIVERY_CODE", message, status.HTTP_400_BAD_REQUEST)
                 proof["proof"] = "code"
             elif handover.proof_skip_reason:
                 proof["proof"] = "skipped"
@@ -410,6 +440,64 @@ class OrderService:
         db.refresh(order)
         return order_to_read(self.get_assigned_driver_model(db, driver, order.id))
 
+    def accept_assignment(self, db: Session, driver: User, order_id: str) -> OrderRead:
+        authorize(driver, Permission.DELIVERY_UPDATE)
+        order = self.get_assigned_driver_model(db, driver, order_id)
+        if order.status in CLOSED_STATUSES:
+            raise AppException("DELIVERY_CLOSED", "This delivery is already closed.", status.HTTP_409_CONFLICT)
+        if order.driver_accepted_at is None:
+            order.driver_accepted_at = utc_now()
+            audit_service.record(db, actor=driver, event_type="ASSIGNMENT_ACCEPTED", resource_type="order", resource_id=order.id)
+            db.commit()
+            db.refresh(order)
+        return order_to_read(order)
+
+    def decline_assignment(self, db: Session, driver: User, order_id: str, data: DeclineAssignmentRequest) -> None:
+        """Hand an unstarted stop back to dispatch. The driver loses access to it."""
+        authorize(driver, Permission.DELIVERY_UPDATE)
+        order = self.get_assigned_driver_model(db, driver, order_id)
+        if order.status not in {"pending", "confirmed", "processing"}:
+            raise AppException(
+                "DECLINE_NOT_ALLOWED", "Started deliveries cannot be declined. Report a problem instead.", status.HTTP_409_CONFLICT
+            )
+        order.assigned_driver_id = None
+        order.driver_assigned_at = None
+        order.driver_accepted_at = None
+        notification_service.notify_staff(db, event_type="staff_assignment_declined", order_id=order.id)
+        audit_service.record(
+            db,
+            actor=driver,
+            event_type="ASSIGNMENT_DECLINED",
+            resource_type="order",
+            resource_id=order.id,
+            metadata={"reason": data.reason, "note": data.note, "driverId": driver.id},
+        )
+        db.commit()
+
+    def set_duty(self, db: Session, driver: User, on_duty: bool) -> bool:
+        authorize(driver, Permission.DELIVERY_UPDATE)
+        if not on_duty and repo.list_for_driver_statuses(db, driver.id, ("out_for_delivery",), limit=1)[1]:
+            raise AppException(
+                "DELIVERY_IN_PROGRESS", "Finish or report a problem with your started delivery before going off duty.", status.HTTP_409_CONFLICT
+            )
+        if driver.is_on_duty != on_duty:
+            driver.is_on_duty = on_duty
+            if not on_duty:
+                # Dispatch only sees where a driver is while they are working.
+                driver.last_latitude = driver.last_longitude = driver.last_location_at = None
+            audit_service.record(db, actor=driver, event_type="DRIVER_DUTY_CHANGED", resource_type="user", resource_id=driver.id, metadata={"onDuty": on_duty})
+            db.commit()
+        return driver.is_on_duty
+
+    def record_location(self, db: Session, driver: User, latitude: float, longitude: float) -> None:
+        authorize(driver, Permission.DELIVERY_UPDATE)
+        if not driver.is_on_duty:
+            return  # Never store the position of an off-duty driver.
+        driver.last_latitude = latitude
+        driver.last_longitude = longitude
+        driver.last_location_at = utc_now()
+        db.commit()
+
     def assign_driver(self, db: Session, actor: User, order_id: str, driver_id: str) -> OrderRead:
         authorize(actor, Permission.DRIVER_ASSIGN)
         order = self.get_any_model(db, order_id)
@@ -419,6 +507,11 @@ class OrderService:
         if driver is None or driver.role != Role.DRIVER or not driver.is_active:
             raise AppException("DRIVER_NOT_FOUND", "Driver not found.", status.HTTP_404_NOT_FOUND)
         previous_driver_id = order.assigned_driver_id
+        if previous_driver_id != driver.id:
+            if not driver.is_on_duty:
+                raise AppException("DRIVER_OFF_DUTY", f"{driver.full_name} is off duty. Choose a driver who is on duty.", status.HTTP_409_CONFLICT)
+            order.driver_assigned_at = utc_now()
+            order.driver_accepted_at = None
         order.assigned_driver_id = driver.id
         self._release_assigned_order(db, order, actor)
         if previous_driver_id and previous_driver_id != driver.id:

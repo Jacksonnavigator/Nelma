@@ -4,10 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { baseOrder } from "./fixtures/driver-order";
 import type { Order } from "../types/order";
 
-const api = vi.hoisted(() => ({ listActive: vi.fn(), getSummary: vi.fn(), getDelivery: vi.fn(), updateStatus: vi.fn(), reportIssue: vi.fn(), confirmReceived: vi.fn() }));
+const api = vi.hoisted(() => ({ listActive: vi.fn(), getSummary: vi.fn(), getDelivery: vi.fn(), updateStatus: vi.fn(), reportIssue: vi.fn(), confirmReceived: vi.fn(), accept: vi.fn(), decline: vi.fn(), setDuty: vi.fn() }));
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }));
 const native = vi.hoisted(() => ({ openURL: vi.fn(async () => undefined) }));
+const phoneStorage = vi.hoisted(() => new Map<string, string>());
 vi.mock("../repositories", () => ({ repositories: { driver: api } }));
+vi.mock("../storage/local-store", () => ({
+  localStore: {
+    getJson: async (key: string) => (phoneStorage.has(key) ? JSON.parse(phoneStorage.get(key)!) : null),
+    setJson: async (key: string, value: unknown) => { phoneStorage.set(key, JSON.stringify(value)); },
+    remove: async (key: string) => { phoneStorage.delete(key); }
+  }
+}));
 vi.mock("expo-router", async () => {
   const { useEffect } = await import("react");
   return { router: navigation, useLocalSearchParams: () => ({ id: "order_1" }), useFocusEffect: (callback: () => void | (() => void)) => useEffect(callback, [callback]) };
@@ -36,6 +44,7 @@ vi.mock("../components", () => ({
   StatusBadge: (props: object) => createElement("badge", props),
   HandoverSheet: (props: object) => createElement("handover", props),
   IssueSheet: (props: object) => createElement("issue", props),
+  DeclineSheet: (props: object) => createElement("decline", props),
   DriverTitle: (props: object) => createElement("title", props),
   RouteStop: (props: object) => createElement("stop", props),
   Sheet: ({ children }: { children: import("react").ReactNode }) => createElement("sheet", null, children),
@@ -49,6 +58,7 @@ vi.mock("../components", () => ({
 
 import Detail from "../app/driver/delivery/[id]";
 import Deliveries from "../app/driver/(tabs)/deliveries";
+import { driverOutbox } from "../services/driver-outbox";
 let renderer: ReactTestRenderer | undefined;
 async function mount(Component = Detail) {
   await act(async () => { renderer = create(createElement(Component)); });
@@ -66,14 +76,17 @@ async function confirmHandover(handover: object = { deliveryCode: "4821" }) {
   expect(handoverSheet().props.visible).toBe(true);
   await act(async () => { await handoverSheet().props.onConfirm(handover); });
 }
-const openIssueSheet = async () => {
-  const link = renderer!.root.findAll((node) => String(node.type) === "pressable").find((node) => node.findAll((child) => String(child.type) === "text").some((text) => text.props.children === "Problem with this stop?"))!;
+const pressLink = async (label: string) => {
+  const link = renderer!.root.findAll((node) => String(node.type) === "pressable").find((node) => node.findAll((child) => String(child.type) === "text").some((text) => text.props.children === label))!;
   await act(async () => { link.props.onPress(); });
 };
+const openIssueSheet = () => pressLink("Problem with this stop?");
 
-beforeEach(() => {
+beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.clearAllMocks();
+  await driverOutbox.clear();
+  phoneStorage.clear();
   api.getDelivery.mockResolvedValue({ ...baseOrder });
   api.listActive.mockResolvedValue([]);
   api.getSummary.mockResolvedValue({ activeDeliveries: 0, today: { deliveries: 0, bottles: 0, value: 0 }, week: { deliveries: 0, bottles: 0, value: 0 }, month: { deliveries: 0, bottles: 0, value: 0 }, allTime: { deliveries: 0, bottles: 0, value: 0 }, daily: [] });
@@ -132,14 +145,47 @@ describe("simplified driver workflow", () => {
     expect(action().props.buttonTitle).toBe("Mark Delivered");
   });
 
-  it("re-checks the real status when the connection drops during an update", async () => {
+  it("saves the step on the phone when there is no signal", async () => {
     api.updateStatus.mockRejectedValue({ code: "TIMEOUT", message: "Unable to connect" });
-    api.getDelivery.mockResolvedValueOnce({ ...baseOrder }).mockResolvedValueOnce({ ...baseOrder, status: "out_for_delivery" });
     await mount();
     await confirmAction();
-    expect(api.getDelivery).toHaveBeenCalledTimes(2);
     expect(action().props.buttonTitle).toBe("Mark Delivered");
-    expect(renderer!.root.findAllByType("text").some((node) => String(node.props.children).includes("connection was slow"))).toBe(true);
+    expect(renderer!.root.findAllByType("text").some((node) => String(node.props.children).includes("saved on this phone"))).toBe(true);
+    expect(driverOutbox.snapshot().pending).toMatchObject([{ orderId: baseOrder.id, action: "out_for_delivery" }]);
+  });
+
+  it("sends saved steps in order once the route loads with signal again", async () => {
+    await driverOutbox.enqueue({ ...baseOrder }, "out_for_delivery");
+    await driverOutbox.enqueue({ ...baseOrder, status: "out_for_delivery" }, "delivered", { deliveryCode: "4821" });
+    api.updateStatus.mockImplementation(async (_id: string, status: Order["status"]) => ({ ...baseOrder, status }));
+    await mount(Deliveries);
+    expect(api.updateStatus.mock.calls).toEqual([
+      [baseOrder.id, "out_for_delivery"],
+      [baseOrder.id, "delivered", { deliveryCode: "4821" }]
+    ]);
+    expect(driverOutbox.snapshot().pending).toEqual([]);
+    expect(api.listActive).toHaveBeenCalled();
+  });
+
+  it("tells the driver when NELMA rejects a saved step", async () => {
+    await driverOutbox.enqueue({ ...baseOrder, status: "out_for_delivery" }, "delivered", { deliveryCode: "0000" });
+    api.updateStatus.mockRejectedValue({ status: 400, code: "INVALID_DELIVERY_CODE", message: "That delivery code is not correct." });
+    await mount(Deliveries);
+    expect(driverOutbox.snapshot().pending).toEqual([]);
+    const text = renderer!.root.findAllByType("text").map((node) => [node.props.children].flat().join(""));
+    expect(text.some((line) => line.includes("That delivery code is not correct."))).toBe(true);
+  });
+
+  it("keeps saved steps and shows the saved route while offline", async () => {
+    await driverOutbox.saveRoute([{ ...baseOrder }]);
+    await driverOutbox.enqueue({ ...baseOrder }, "out_for_delivery");
+    api.updateStatus.mockRejectedValue({ code: "NETWORK_ERROR", message: "offline" });
+    api.listActive.mockRejectedValue({ code: "NETWORK_ERROR", message: "offline" });
+    await mount(Deliveries);
+    expect(driverOutbox.snapshot().pending).toHaveLength(1);
+    const text = renderer!.root.findAllByType("text").map((node) => node.props.children);
+    expect(text).toContain("No signal. This is your saved route.");
+    expect(renderer!.root.findAllByType("button").some((node) => node.props.title === "Continue delivery")).toBe(true);
   });
 
   it("reports a problem and shows the delivery back with dispatch", async () => {
@@ -196,5 +242,46 @@ describe("simplified driver workflow", () => {
     await act(async () => { viewButton.props.onPress(); });
     expect(navigation.push).toHaveBeenCalledWith({ pathname: "/driver/delivery/[id]", params: { id: baseOrder.id } });
     expect(api.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("asks the driver to accept a new stop before starting it", async () => {
+    api.getDelivery.mockResolvedValue({ ...baseOrder, status: "processing", driverAcceptedAt: null });
+    api.accept.mockResolvedValue({ ...baseOrder, status: "processing", driverAcceptedAt: "2026-09-26T08:00:00Z" });
+    await mount();
+    expect(action().props.buttonTitle).toBe("Accept stop");
+    await act(async () => { action().props.onPress(); });
+    expect(api.accept).toHaveBeenCalledWith(baseOrder.id);
+    expect(api.updateStatus).not.toHaveBeenCalled();
+    expect(action().props.buttonTitle).toBe("Start Delivery");
+  });
+
+  it("hands an unstarted stop back to dispatch and leaves the screen", async () => {
+    api.getDelivery.mockResolvedValue({ ...baseOrder, status: "processing", driverAcceptedAt: null });
+    api.decline.mockResolvedValue(undefined);
+    await mount();
+    await pressLink("Can't take this stop?");
+    expect(byTag("decline").props.visible).toBe(true);
+    await act(async () => { byTag("decline").props.onSubmit({ reason: "vehicle_problem" }); });
+    expect(api.decline).toHaveBeenCalledWith(baseOrder.id, { reason: "vehicle_problem" });
+    expect(navigation.replace).toHaveBeenCalledWith("/driver/(tabs)/deliveries");
+  });
+
+  it("does not offer decline once the delivery has started", async () => {
+    api.getDelivery.mockResolvedValue({ ...baseOrder, status: "out_for_delivery" });
+    await mount();
+    const labels = renderer!.root.findAllByType("text").map((node) => node.props.children);
+    expect(labels).not.toContain("Can't take this stop?");
+  });
+
+  it("lets the driver go off duty from the route screen", async () => {
+    api.getSummary.mockResolvedValue({ onDuty: true, activeDeliveries: 0, today: { deliveries: 0, bottles: 0, value: 0 }, week: { deliveries: 0, bottles: 0, value: 0 }, month: { deliveries: 0, bottles: 0, value: 0 }, allTime: { deliveries: 0, bottles: 0, value: 0 }, daily: [] });
+    api.setDuty.mockResolvedValue(false);
+    await mount(Deliveries);
+    const toggle = renderer!.root.find((node) => String(node.type) === "pressable" && node.props.accessibilityRole === "switch");
+    expect(toggle.props.accessibilityState.checked).toBe(true);
+    await act(async () => { toggle.props.onPress(); });
+    expect(api.setDuty).toHaveBeenCalledWith(false);
+    const text = renderer!.root.findAllByType("text").map((node) => node.props.children);
+    expect(text).toContain("You are off duty");
   });
 });

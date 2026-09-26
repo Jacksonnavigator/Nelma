@@ -25,6 +25,7 @@ export const adminAccountsService = services.adminAccounts;
 export const settingsService = services.settings;
 export const auditService = services.audit;
 export const notificationsService = services.notifications;
+export const operationsService = services.operations;
 
 export { DATA_MODE };
 export type { ServiceRegistry };

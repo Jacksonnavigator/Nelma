@@ -1,11 +1,11 @@
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response, status
 
 from app.api.dependencies import CurrentUser, DbSession
 from app.schemas.common import Page
-from app.schemas.driver import DriverSummary
-from app.schemas.order import DeliveryIssueRequest, DriverStatusUpdateRequest, OrderRead
+from app.schemas.driver import DriverDuty, DriverLocation, DriverSummary
+from app.schemas.order import DeclineAssignmentRequest, DeliveryIssueRequest, DriverStatusUpdateRequest, OrderRead
 from app.services.driver_service import driver_service
 from app.services.order_service import order_service
 
@@ -45,6 +45,32 @@ def update_delivery_status(order_id: str, data: DriverStatusUpdateRequest, user:
 @router.post("/deliveries/{order_id}/issue", response_model=OrderRead, summary="Report a problem with an open delivery")
 def report_delivery_issue(order_id: str, data: DeliveryIssueRequest, user: CurrentUser, db: DbSession) -> OrderRead:
     return order_service.report_delivery_issue(db, user, order_id, data)
+
+
+@router.post("/deliveries/{order_id}/accept", response_model=OrderRead, summary="Acknowledge a new assignment")
+def accept_assignment(order_id: str, user: CurrentUser, db: DbSession) -> OrderRead:
+    return order_service.accept_assignment(db, user, order_id)
+
+
+@router.post(
+    "/deliveries/{order_id}/decline",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Hand an unstarted assignment back to dispatch",
+)
+def decline_assignment(order_id: str, data: DeclineAssignmentRequest, user: CurrentUser, db: DbSession) -> Response:
+    order_service.decline_assignment(db, user, order_id, data)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/duty", response_model=DriverDuty, summary="Go on or off duty")
+def set_duty(data: DriverDuty, user: CurrentUser, db: DbSession) -> DriverDuty:
+    return DriverDuty(on_duty=order_service.set_duty(db, user, data.on_duty))
+
+
+@router.post("/location", status_code=status.HTTP_204_NO_CONTENT, summary="Share the driver's position while on duty")
+def share_location(data: DriverLocation, user: CurrentUser, db: DbSession) -> Response:
+    order_service.record_location(db, user, data.latitude, data.longitude)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/deliveries/{order_id}/received", response_model=OrderRead, summary="Confirm customer receipt for an assigned delivery")

@@ -96,3 +96,8 @@ class DashboardAccountUpdate(StrictModel):
 
 class CashCollectionInput(StrictModel):
     amount: int = Field(ge=1, strict=True)
+
+
+class CashHandInInput(StrictModel):
+    payment_ids: list[str] = Field(min_length=1, max_length=500)
+    amount_received: int = Field(ge=0, strict=True)

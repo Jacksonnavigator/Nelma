@@ -4,7 +4,7 @@ import type { BusinessDashboard } from "../types/business";
 import type { Notification } from "../types/notification";
 import type { DriverSummary } from "../types/driver";
 import type { PaginatedResult } from "../types/api";
-import type { CreateOrderInput, CreateOrderMessageInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../types/order";
+import type { CreateOrderInput, CreateOrderMessageInput, DeclineAssignmentInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../types/order";
 import type { InitializePaymentInput, Payment, PaymentMethod } from "../types/payment";
 import type { PublicSettings } from "../types/settings";
 import type { UpdateUserInput, User } from "../types/user";
@@ -15,7 +15,7 @@ export type AuthRepository = {
   forgotPassword(input: ForgotPasswordInput): Promise<ForgotPasswordResult>;
   resetPassword(input: ResetPasswordInput): Promise<void>;
   refresh(refreshToken: string): Promise<AuthSession>;
-  logout(refreshToken: string): Promise<void>;
+  logout(refreshToken: string, pushToken?: string | null): Promise<void>;
   getCurrentUser(): Promise<User>;
 };
 
@@ -48,6 +48,11 @@ export type DriverRepository = {
   getDelivery(id: string): Promise<Order>;
   updateStatus(id: string, status: DriverDeliveryActionStatus, handover?: DriverDeliveryHandover): Promise<Order>;
   reportIssue(id: string, input: DeliveryIssueInput): Promise<Order>;
+  accept(id: string): Promise<Order>;
+  /** Hands the stop back to dispatch; the driver can no longer open it afterwards. */
+  decline(id: string, input: DeclineAssignmentInput): Promise<void>;
+  setDuty(onDuty: boolean): Promise<boolean>;
+  shareLocation(position: { latitude: number; longitude: number }): Promise<void>;
   getSummary(): Promise<DriverSummary>;
 };
 

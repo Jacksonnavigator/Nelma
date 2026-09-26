@@ -158,6 +158,12 @@ def list_orders(db, page, page_size, filters):
     return {"items": [order_dto(o) for o in rows], "page": page, "pageSize": page_size, "total": total}
 
 
+def driver_position(driver):
+    if driver.last_latitude is None or driver.last_longitude is None or not driver.is_on_duty:
+        return None
+    return {"latitude": driver.last_latitude, "longitude": driver.last_longitude, "at": iso(driver.last_location_at)}
+
+
 def driver_dto(db, driver):
     orders = list(db.scalars(select(Order).where(Order.assigned_driver_id == driver.id)))
     active = sum(o.status in ACTIVE for o in orders)
@@ -169,7 +175,9 @@ def driver_dto(db, driver):
         "todayAssigned": sum((o.delivery_schedule_snapshot or {}).get("date") == today().isoformat() for o in orders),
         "activeDeliveries": active,
         "completedDeliveries": sum(o.status in {"delivered", "received"} for o in orders),
-        "available": driver.is_active,
+        "available": driver.is_active and driver.is_on_duty,
+        "onDuty": driver.is_on_duty,
+        "lastLocation": driver_position(driver),
     }
 
 

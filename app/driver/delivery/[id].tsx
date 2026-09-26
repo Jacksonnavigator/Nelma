@@ -2,19 +2,23 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, Banknote, Clock3, Droplet, MapPin, Navigation, Phone, RefreshCw } from "lucide-react-native";
 import { type ComponentType, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { BottomActionBar, Button, ConfirmDialog, ErrorState, HandoverSheet, IssueSheet, OrderTimeline, Screen, Sheet, SkyBackdrop } from "../../../components";
+import { BottomActionBar, Button, ConfirmDialog, DeclineSheet, ErrorState, HandoverSheet, IssueSheet, OrderTimeline, Screen, Sheet, SkyBackdrop } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { driverTheme } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
+import { useDriverOutbox } from "../../../hooks/use-driver-outbox";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
+import { applyPending, driverOutbox } from "../../../services/driver-outbox";
 import { haptics } from "../../../services/haptics";
-import type { DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../../../types/order";
-import { DELIVERY_STEPS, buildExternalMapUrl, canMarkDelivered, canStartDelivery, cashDueAmount, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryStepIndex, driverActionHint, hasDeliveryCoordinates, isAssignmentLostError, isConnectionError, productSummary } from "../../../utils/driver-deliveries";
+import type { DeclineAssignmentInput, DeliveryIssueInput, DriverDeliveryActionStatus, DriverDeliveryHandover, Order } from "../../../types/order";
+import { DELIVERY_STEPS, buildExternalMapUrl, canMarkDelivered, canStartDelivery, cashDueAmount, customerContactPhone, customerDisplayName, deliveryAddressLine, deliveryAreaLine, deliveryStepIndex, driverActionHint, hasDeliveryCoordinates, isAssignmentLostError, isConnectionError, needsAcceptance, productSummary } from "../../../utils/driver-deliveries";
 import { formatCurrency, formatDate } from "../../../utils/format";
 import { paymentStatusLabel } from "../../../utils/status";
 
 type PendingAction = "start" | "delivered";
+
+const SAVED_OFFLINE = "No signal. This step is saved on this phone and will be sent to NELMA automatically.";
 
 const Fact = ({ icon: Icon, label, last, tint = "aqua", children }: { icon: ComponentType<{ color?: string; size?: number }>; label: string; last: boolean; tint?: "aqua" | "amber"; children: ReactNode }) => {
   const { t } = useTranslation();
@@ -49,6 +53,7 @@ export default function DriverDeliveryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const deliveryId = Array.isArray(id) ? id[0] : id;
+  useDriverOutbox(); // Scopes the offline queue to this driver even when opened straight from a push alert.
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,6 +66,10 @@ export default function DriverDeliveryDetailScreen() {
   const [issueOpen, setIssueOpen] = useState(false);
   const [submittingIssue, setSubmittingIssue] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [submittingDecline, setSubmittingDecline] = useState(false);
+  const [declineError, setDeclineError] = useState<string | null>(null);
 
   const loadDelivery = useCallback(async (initial = false) => {
     if (!deliveryId) {
@@ -77,11 +86,16 @@ export default function DriverDeliveryDetailScreen() {
     setError(null);
     setAssignmentLost(false);
     try {
-      setOrder(await repositories.driver.getDelivery(deliveryId));
+      await driverOutbox.flush().catch(() => undefined);
+      setOrder(applyPending(await repositories.driver.getDelivery(deliveryId)));
     } catch (caught) {
+      const saved = isConnectionError(caught) ? await driverOutbox.savedOrder(deliveryId) : null;
       if (isAssignmentLostError(caught)) {
         setAssignmentLost(true);
         setError("This delivery is no longer assigned to you.");
+      } else if (saved) {
+        setOrder(applyPending(saved));
+        setError("No signal. Showing the copy saved on this phone.");
       } else {
         setError("Unable to load this delivery right now.");
       }
@@ -147,10 +161,12 @@ export default function DriverDeliveryDetailScreen() {
         setAssignmentLost(true);
         setError("This delivery is no longer assigned to you.");
       } else if (isConnectionError(caught)) {
-        // The change may have gone through even though the reply never arrived, so show the real state.
+        // Keep the step on the phone and send it later. A replay is safe even if this attempt already
+        // reached NELMA, because repeating the same step changes nothing on the server.
+        await driverOutbox.enqueue(order, actionStatusFor(action), handover);
         setPendingAction(null);
-        await loadDelivery(false);
-        setError("The connection was slow. This is the latest status from NELMA.");
+        setOrder(applyPending(order));
+        setError(SAVED_OFFLINE);
       } else if (action === "delivered") {
         // Wrong code or cash amount: keep the sheet open so the driver can correct it.
         setHandoverError(messageOf(caught, "Unable to complete this delivery right now."));
@@ -192,6 +208,61 @@ export default function DriverDeliveryDetailScreen() {
     }
   };
 
+  const acceptStop = async () => {
+    if (!order || accepting) {
+      return;
+    }
+    setAccepting(true);
+    try {
+      setOrder(await repositories.driver.accept(order.id));
+      setError(null);
+      haptics.success();
+    } catch (caught) {
+      haptics.light();
+      if (isAssignmentLostError(caught)) {
+        setAssignmentLost(true);
+        setError("This delivery is no longer assigned to you.");
+      } else if (isConnectionError(caught)) {
+        await driverOutbox.enqueue(order, "accept");
+        setOrder(applyPending(order));
+        setError(SAVED_OFFLINE);
+      } else {
+        setError(messageOf(caught, "Unable to accept this stop right now."));
+      }
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const submitDecline = async (input: DeclineAssignmentInput) => {
+    if (!order || submittingDecline) {
+      return;
+    }
+    setSubmittingDecline(true);
+    setDeclineError(null);
+    try {
+      await repositories.driver.decline(order.id, input);
+      setDeclineOpen(false);
+      haptics.success();
+      router.replace("/driver/(tabs)/deliveries");
+    } catch (caught) {
+      haptics.light();
+      if (isAssignmentLostError(caught)) {
+        // Already gone from this driver's route, which is what they wanted.
+        setDeclineOpen(false);
+        router.replace("/driver/(tabs)/deliveries");
+      } else if (isConnectionError(caught)) {
+        setDeclineOpen(false);
+        await loadDelivery(false);
+        setError("The connection was slow. This is the latest status from NELMA.");
+      } else {
+        setDeclineError(messageOf(caught, "Unable to hand this stop back right now."));
+      }
+    } finally {
+      setSubmittingDecline(false);
+    }
+  };
+
   if (loading && !order) {
     return (
       <Screen contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
@@ -210,10 +281,11 @@ export default function DriverDeliveryDetailScreen() {
     );
   }
 
+  const awaitingAccept = needsAcceptance(order);
   const nextAction: PendingAction | null = canStartDelivery(order) ? "start"
     : canMarkDelivered(order) ? "delivered" : null;
   const closed = receiptConfirmed || order.status === "delivered" || order.status === "cancelled";
-  const busy = Boolean(submittingAction) || refreshing;
+  const busy = Boolean(submittingAction) || refreshing || accepting;
   const step = deliveryStepIndex(order);
   const due = cashDueAmount(order);
   const notes = [order.deliveryAddress.deliveryInstructions, order.customerRemarks].filter(Boolean) as string[];
@@ -305,11 +377,16 @@ export default function DriverDeliveryDetailScreen() {
           </View>
         ) : null}
 
-        {open ? (
+        {canStartDelivery(order) ? (
+          <Pressable accessibilityRole="button" onPress={() => { setDeclineError(null); setDeclineOpen(true); }} style={styles.link}>
+            <Text style={styles.linkText}>{t("Can't take this stop?")}</Text>
+          </Pressable>
+        ) : null}
+        {open && !awaitingAccept ? (
           <Pressable accessibilityRole="button" onPress={() => { setIssueError(null); setIssueOpen(true); }} style={styles.link}>
             <Text style={styles.linkText}>{t("Problem with this stop?")}</Text>
           </Pressable>
-        ) : (
+        ) : open ? null : (
           <Pressable accessibilityRole="button" onPress={() => router.push("/support/contact")} style={styles.link}>
             <Text style={styles.linkText}>{t("Contact NELMA")}</Text>
           </Pressable>
@@ -317,11 +394,12 @@ export default function DriverDeliveryDetailScreen() {
       </ScrollView>
 
       <BottomActionBar
-        buttonTitle={nextAction ? dialogConfirmFor(nextAction) : closed ? "Back to Deliveries" : "Check for updates"}
-        loading={Boolean(submittingAction)}
+        buttonTitle={awaitingAccept ? "Accept stop" : nextAction ? dialogConfirmFor(nextAction) : closed ? "Back to Deliveries" : "Check for updates"}
+        loading={Boolean(submittingAction) || accepting}
         disabled={busy || Boolean(pendingAction)}
         onPress={() => {
-          if (nextAction) setPendingAction(nextAction);
+          if (awaitingAccept) void acceptStop();
+          else if (nextAction) setPendingAction(nextAction);
           else if (closed) router.replace("/driver/(tabs)/deliveries");
           else void loadDelivery(false);
         }}
@@ -356,6 +434,14 @@ export default function DriverDeliveryDetailScreen() {
         onClose={() => setIssueOpen(false)}
         onSubmit={(input) => void submitIssue(input)}
         onContact={() => { setIssueOpen(false); router.push("/support/contact"); }}
+      />
+
+      <DeclineSheet
+        visible={declineOpen}
+        loading={submittingDecline}
+        error={declineError}
+        onClose={() => setDeclineOpen(false)}
+        onSubmit={(input) => void submitDecline(input)}
       />
     </Screen>
   );

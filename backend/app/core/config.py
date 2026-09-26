@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     expo_push_access_token: str = Field("", repr=False)
     delivery_code_required: bool = True
     auto_receive_hours: int = Field(24, ge=1, le=720)
+    assignment_accept_minutes: int = Field(30, ge=5, le=1440)
 
     first_purchase_price: int = 18000
     refill_price: int = 4000

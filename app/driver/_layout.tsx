@@ -1,9 +1,11 @@
 ﻿import { Redirect, Stack } from "expo-router";
 import { LoadingScreen } from "../../components";
+import { useLocationBeacon } from "../../hooks/use-location-beacon";
 import { useAuth } from "../../store/auth-context";
 
 export default function DriverLayout() {
   const { status, user } = useAuth();
+  useLocationBeacon();
 
   if (status === "loading") {
     return <LoadingScreen />;

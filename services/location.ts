@@ -16,6 +16,18 @@ export type LocationResult =
   | { status: "unavailable"; message: string };
 
 export const locationService = {
+  /** A cheap position fix for the on-duty beacon: no address lookup, and only asks for permission when `prompt` is set. */
+  async getDriverPosition(prompt: boolean): Promise<Coordinates | null> {
+    const current = await Location.getForegroundPermissionsAsync();
+    const granted = current.granted || (prompt && current.canAskAgain && (await Location.requestForegroundPermissionsAsync()).granted);
+    if (!granted) {
+      return null;
+    }
+    const recent = await Location.getLastKnownPositionAsync({ maxAge: 60_000 }).catch(() => null);
+    const position = recent ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+  },
+
   async getCurrentCoordinates(): Promise<LocationResult> {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) {

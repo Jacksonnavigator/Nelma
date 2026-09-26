@@ -20,6 +20,7 @@ from app.core.security import (
 )
 from app.integrations.notifications.factory import get_notification_provider
 from app.models.address import Address
+from app.models.device_push_token import DevicePushToken
 from app.models.password_reset import PasswordResetToken
 from app.models.refresh_session import RefreshSession
 from app.models.user import User
@@ -198,14 +199,25 @@ class AuthService:
         db.commit()
         return new_session
 
-    def logout(self, db: Session, refresh_token: str, *, audience: SessionAudience = SessionAudience.MOBILE) -> None:
+    def logout(
+        self, db: Session, refresh_token: str, *, audience: SessionAudience = SessionAudience.MOBILE, push_token: str | None = None
+    ) -> None:
         payload = decode_jwt(refresh_token, get_settings(), "refresh", expected_audience=audience)
         session = db.scalar(
             select(RefreshSession).where(RefreshSession.token_hash == sha256_token(refresh_token), RefreshSession.jti == payload.get("jti"))
         )
-        if session and session.audience == audience and session.revoked_at is None:
+        if session is None or session.audience != audience:
+            return
+        if session.revoked_at is None:
             session.revoked_at = utc_now()
-            db.commit()
+        if push_token:
+            # Only the signed-out account's own registration is switched off.
+            db.execute(
+                update(DevicePushToken)
+                .where(DevicePushToken.token == push_token, DevicePushToken.user_id == session.user_id)
+                .values(is_active=False)
+            )
+        db.commit()
 
     def forgot_password(self, db: Session, data: ForgotPasswordRequest) -> ForgotPasswordResponse:
         settings = get_settings()

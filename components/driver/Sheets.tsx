@@ -6,7 +6,7 @@ import { driverTheme } from "../../constants/driver-theme";
 import { radius, spacing, typography } from "../../constants/theme";
 import { useTranslation } from "../../hooks/use-translation";
 import { locationService } from "../../services/location";
-import type { DeliveryIssueInput, DeliveryIssueReason, DriverDeliveryHandover, Order, ProofSkipReason } from "../../types/order";
+import type { DeclineAssignmentInput, DeclineReason, DeliveryIssueInput, DeliveryIssueReason, DriverDeliveryHandover, Order, ProofSkipReason } from "../../types/order";
 import { customerDisplayName, needsCashConfirmation } from "../../utils/driver-deliveries";
 import { formatCurrency } from "../../utils/format";
 import { BottomSheet } from "../ui/BottomSheet";
@@ -166,6 +166,58 @@ export const IssueSheet = ({ visible, canUndo, loading, error, onClose, onSubmit
         {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
         <Button title={undoing ? "Undo start" : "Report problem"} variant={undoing ? "primary" : "danger"} onPress={() => reason && onSubmit({ reason, ...(note.trim() && !undoing ? { note: note.trim() } : {}) })} disabled={!reason} loading={loading} />
         <Button title="Contact NELMA" variant="ghost" onPress={onContact} disabled={loading} />
+      </View>
+    </BottomSheet>
+  );
+};
+
+const declineReasons: Array<{ value: DeclineReason; label: string }> = [
+  { value: "vehicle_problem", label: "My vehicle has a problem" },
+  { value: "not_enough_stock", label: "Not enough bottles on board" },
+  { value: "too_far", label: "Too far from my route" },
+  { value: "ending_shift", label: "I am ending my shift" },
+  { value: "other", label: "Something else" }
+];
+
+type DeclineSheetProps = {
+  visible: boolean;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSubmit: (input: DeclineAssignmentInput) => void;
+};
+
+export const DeclineSheet = ({ visible, loading, error, onClose, onSubmit }: DeclineSheetProps) => {
+  const { t } = useTranslation();
+  const [reason, setReason] = useState<DeclineReason | null>(null);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!visible) {
+      setReason(null);
+      setNote("");
+    }
+  }, [visible]);
+
+  return (
+    <BottomSheet visible={visible} title="Can't take this stop" onClose={loading ? () => undefined : onClose}>
+      <View style={styles.body}>
+        <Text style={styles.lead}>{t("Dispatch will pass this delivery to another driver. It leaves your route straight away.")}</Text>
+        <View style={styles.choices}>
+          {declineReasons.map((item) => (
+            <Choice key={item.value} label={item.label} selected={reason === item.value} onPress={() => setReason(item.value)} />
+          ))}
+        </View>
+        {reason === "other" ? <Input label="Tell dispatch why" value={note} onChangeText={setNote} multiline maxLength={500} /> : null}
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{t(error)}</Text> : null}
+        <Button
+          title="Hand back to dispatch"
+          variant="danger"
+          onPress={() => reason && onSubmit({ reason, ...(note.trim() ? { note: note.trim() } : {}) })}
+          disabled={!reason || (reason === "other" && !note.trim())}
+          loading={loading}
+        />
+        <Button title="Keep this stop" variant="ghost" onPress={onClose} disabled={loading} />
       </View>
     </BottomSheet>
   );

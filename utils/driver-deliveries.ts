@@ -72,7 +72,13 @@ export const canStartDelivery = (order: Order): boolean => Boolean(order.assigne
 
 export const canMarkDelivered = (order: Order): boolean => order.status === "out_for_delivery";
 
+// Strict null: older backends omit the field entirely, and those stops need no acknowledgement.
+export const needsAcceptance = (order: Order): boolean => canStartDelivery(order) && order.driverAcceptedAt === null;
+
 export const driverActionHint = (order: Order): string => {
+  if (needsAcceptance(order)) {
+    return "Accept this stop so dispatch knows you have it, or hand it back if you cannot take it.";
+  }
   if (canStartDelivery(order)) {
     return "Collect the water, then tap Start Delivery when you leave.";
   }

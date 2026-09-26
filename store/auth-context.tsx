@@ -1,6 +1,7 @@
 ﻿import { createContext, PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiClient } from "../services/api";
 import { analytics } from "../services/analytics";
+import { registeredPushToken } from "../services/push-token";
 import { secureTokenStorage } from "../storage/secure-token-storage";
 import type { ChangePasswordInput, ForgotPasswordInput, ForgotPasswordResult, LoginInput, RegisterInput, ResetPasswordInput } from "../types/auth";
 import type { UpdateUserInput, User } from "../types/user";
@@ -167,9 +168,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const logout = useCallback(async () => {
     const tokens = await secureTokenStorage.get();
+    const pushToken = registeredPushToken.get();
+    registeredPushToken.set(null);
     await clearSession();
     if (tokens?.refreshToken && tokens.audience === "mobile") {
-      await repositories.auth.logout(tokens.refreshToken).catch(() => undefined);
+      await repositories.auth.logout(tokens.refreshToken, pushToken).catch(() => undefined);
     }
   }, [clearSession]);
 

@@ -119,6 +119,85 @@ export interface Driver {
   activeDeliveries: number;
   completedDeliveries: number;
   available: boolean;
+  /** Set by the driver in the mobile app. Off-duty drivers cannot be assigned. */
+  onDuty?: boolean;
+  lastLocation?: DriverPosition | null;
+}
+
+/** Last position the driver app shared while on duty (foreground only, about once a minute). */
+export interface DriverPosition {
+  latitude: number;
+  longitude: number;
+  at: string | null;
+}
+
+export interface DriverOnDuty {
+  driverId: string;
+  driverName: string;
+  driverPhone: string;
+  onTheRoad: number;
+  waiting: number;
+  lastLocation: DriverPosition | null;
+}
+
+export interface CashReceipt {
+  paymentId: string;
+  orderId: string | null;
+  orderNumber: string | null;
+  customerName: string | null;
+  area: string | null;
+  amount: number;
+  collectedAt: string;
+}
+
+export interface DriverCashBalance {
+  driverId: string;
+  driverName: string;
+  driverPhone: string;
+  onDuty: boolean;
+  amount: number;
+  oldestAt: string;
+  receipts: CashReceipt[];
+}
+
+export type DeliveryFlagKind =
+  "proof_skipped" | "far_from_address" | "delivery_issue" | "declined" | "code_locked";
+
+export interface DeliveryFlag {
+  id: string;
+  at: string;
+  kinds: DeliveryFlagKind[];
+  detail: string;
+  driverId: string | null;
+  driverName: string;
+  orderId: string | null;
+  orderNumber: string | null;
+  customerName: string | null;
+  area: string | null;
+}
+
+export type StalledKind = "not_accepted" | "not_started" | "driver_off_duty";
+
+export interface StalledAssignment {
+  kind: StalledKind;
+  since: string | null;
+  driverId: string | null;
+  driverName: string;
+  scheduledDate: string | null;
+  timeWindow: string | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  customerName: string | null;
+  area: string | null;
+}
+
+export interface OperationsOverview {
+  generatedAt: string;
+  cash: DriverCashBalance[];
+  flags: DeliveryFlag[];
+  stalled: StalledAssignment[];
+  /** Missing on backends older than the location release. */
+  drivers?: DriverOnDuty[];
 }
 
 export interface PriceConfiguration {
