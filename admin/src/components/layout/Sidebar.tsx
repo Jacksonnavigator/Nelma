@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronLeft, Droplets } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { navigationFor } from "@/lib/nav";
 import { can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -29,9 +29,13 @@ export function Sidebar({
       )}
     >
       <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-4">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Droplets className="size-5" />
-        </span>
+        <img
+          src="/brand/nelma-icon.png"
+          alt="NELMA"
+          width={36}
+          height={36}
+          className="size-9 shrink-0 rounded-lg object-contain"
+        />
         {!collapsed ? (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">

@@ -11,8 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "@/hooks/useAuth";
-import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -79,23 +77,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "NELMA | Management Portal" },
+      { title: "NELMA Drinking Water" },
       {
         name: "description",
-        content: "NELMA Drinking Water staff dashboard for orders, deliveries and sales.",
+        content:
+          "Safe, clean and affordable NELMA drinking water at NM-AIST, Arusha. Order and track deliveries with the NELMA app.",
       },
       { name: "author", content: "NELMA" },
-      { name: "robots", content: "noindex, nofollow" },
       { name: "theme-color", content: "#009FE3" },
-      { property: "og:title", content: "NELMA | Management Portal" },
-      { property: "og:description", content: "NELMA Drinking Water staff dashboard." },
+      { property: "og:title", content: "NELMA Drinking Water" },
+      {
+        property: "og:description",
+        content:
+          "Safe, clean and affordable NELMA drinking water at NM-AIST, Arusha. Get the NELMA app.",
+      },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "/icon-512.png" },
+      { property: "og:image", content: "/brand/nelma-logo.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "/brand/nelma-logo.png" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", sizes: "any" },
       { rel: "icon", href: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
@@ -129,11 +139,8 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster richColors position="top-right" />
-      </AuthProvider>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
     </QueryClientProvider>
   );
 }

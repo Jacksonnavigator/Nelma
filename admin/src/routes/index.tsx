@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Droplets, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,14 +57,17 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <div className="hidden flex-1 flex-col justify-between bg-sidebar p-10 lg:flex">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Droplets className="size-5" />
-          </span>
-          <div>
-            <p className="text-base font-semibold tracking-tight text-sidebar-foreground">NELMA</p>
-            <p className="text-xs text-muted-foreground">Management Portal</p>
-          </div>
+        <div className="space-y-3">
+          <img
+            src="/brand/nelma-logo.png"
+            alt="Nelma — Maji Safi na Salama"
+            width={220}
+            height={110}
+            className="h-auto w-[220px]"
+          />
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Management Portal
+          </p>
         </div>
         <div className="max-w-md">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -81,9 +84,13 @@ function LoginPage() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Droplets className="size-5" />
-            </span>
+            <img
+              src="/brand/nelma-icon.png"
+              alt=""
+              width={40}
+              height={40}
+              className="size-10 rounded-lg object-contain"
+            />
             <div>
               <p className="text-base font-semibold tracking-tight text-foreground">NELMA</p>
               <p className="text-xs text-muted-foreground">Management Portal</p>
