@@ -77,6 +77,8 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
   signal?: AbortSignal;
   skipRefresh?: boolean;
+  /** Set on the single automatic retry after a dropped connection. */
+  isRetry?: boolean;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -105,7 +107,18 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       ...(options.signal ? { signal: options.signal } : {}),
     });
   } catch {
-    const error: ApiError = { status: 0, message: "Unable to reach the server." };
+    // A dropped connection usually means the server is waking up or restarting after a deploy
+    // (Render's free plan). Reads and sign-in are safe to repeat, so try once more before failing.
+    const method = options.method ?? "GET";
+    const repeatable = method === "GET" || /^\/?auth\/dashboard\/(login|refresh)$/.test(path);
+    if (repeatable && !options.isRetry && !options.signal?.aborted) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      return apiRequest<T>(path, { ...options, isRetry: true });
+    }
+    const error: ApiError = {
+      status: 0,
+      message: "Unable to reach the server. It may be starting up; please try again in a minute.",
+    };
     throw error;
   }
 
