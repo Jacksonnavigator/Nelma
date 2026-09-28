@@ -11,13 +11,8 @@ import { OrderTable, type OrderSortKey } from "@/components/orders/OrderTable";
 import { OrderCard } from "@/components/orders/OrderCard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { ordersService } from "@/services";
-import {
-  ORDER_STATUS_LABELS,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_STATUS_LABELS,
-  PRODUCT_LABELS,
-} from "@/lib/format";
+import { ordersService, productsService } from "@/services";
+import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/format";
 import type { Order, OrderStatus, OrderType, PaymentMethod, PaymentStatus } from "@/types";
 
 export const Route = createFileRoute("/_authenticated/orders/")({
@@ -67,6 +62,8 @@ function OrdersPage() {
     queryFn: () => ordersService.list(query),
     placeholderData: keepPreviousData,
   });
+
+  const products = useQuery({ queryKey: ["products"], queryFn: () => productsService.list() });
 
   const sorted = useMemo(() => {
     const items = [...(orders.data?.items ?? [])];
@@ -160,8 +157,7 @@ function OrdersPage() {
           }}
           options={[
             { value: "all", label: "All products" },
-            { value: "first_purchase", label: PRODUCT_LABELS.first_purchase },
-            { value: "refill", label: PRODUCT_LABELS.refill },
+            ...(products.data ?? []).map((p) => ({ value: p.code, label: p.name })),
           ]}
         />
         <FilterSelect

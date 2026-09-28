@@ -5,12 +5,13 @@ import {
   ClipboardList,
   FileClock,
   LayoutDashboard,
+  Package,
   PlusCircle,
   Settings,
   ShieldCheck,
-  Tag,
   Truck,
   UserCircle,
+  UserRound,
   Users,
 } from "lucide-react";
 import type { DashboardRole } from "@/types";
@@ -33,7 +34,7 @@ const SALES_MANAGER_NAV: NavItem[] = [
   { label: "Operations", to: "/operations", icon: Activity, permission: "deliveries.view" },
   { label: "Drivers", to: "/drivers", icon: Users, permission: "drivers.view" },
   { label: "Sales", to: "/sales", icon: BarChart3, permission: "reports.view" },
-  { label: "Pricing", to: "/pricing", icon: Tag, permission: "pricing.manage" },
+  { label: "Products", to: "/products", icon: Package, permission: "pricing.manage" },
   { label: "Notifications", to: "/notifications", icon: Bell, permission: "notifications.view" },
   { label: "Profile", to: "/profile", icon: UserCircle, permission: "profile.view" },
 ];
@@ -45,7 +46,8 @@ const SYSTEM_ADMIN_NAV: NavItem[] = [
   { label: "Operations", to: "/operations", icon: Activity, permission: "deliveries.view" },
   { label: "Drivers", to: "/drivers", icon: Users, permission: "drivers.view" },
   { label: "Sales Reports", to: "/sales", icon: BarChart3, permission: "reports.view" },
-  { label: "Pricing", to: "/pricing", icon: Tag, permission: "pricing.manage" },
+  { label: "Products", to: "/products", icon: Package, permission: "pricing.manage" },
+  { label: "Users", to: "/users", icon: UserRound, permission: "accounts.manage" },
   {
     label: "Admin Accounts",
     to: "/admin-accounts",
@@ -75,7 +77,8 @@ export const PAGE_TITLES: Record<string, string> = {
   "/operations": "Operations",
   "/drivers": "Drivers",
   "/sales": "Sales",
-  "/pricing": "Pricing",
+  "/products": "Products",
+  "/users": "Users",
   "/admin-accounts": "Admin Accounts",
   "/system-settings": "System Settings",
   "/audit-logs": "Audit Logs",

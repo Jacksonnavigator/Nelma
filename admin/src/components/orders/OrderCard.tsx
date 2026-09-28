@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   PAYMENT_METHOD_LABELS,
-  PRODUCT_LABELS,
+  productLabel,
   formatDate,
   formatDateTime,
   formatTZS,
@@ -28,7 +28,7 @@ export function OrderCard({ order, compact }: { order: Order; compact?: boolean 
         <div>
           <dt className="text-muted-foreground">Product</dt>
           <dd className="text-foreground">
-            {PRODUCT_LABELS[order.item.product]} × {order.item.quantity}
+            {productLabel(order.item.product, order.item.productName)} × {order.item.quantity}
           </dd>
         </div>
         <div>

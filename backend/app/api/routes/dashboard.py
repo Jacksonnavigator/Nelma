@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import DashboardUser, DbSession
@@ -22,9 +22,11 @@ from app.schemas.dashboard import (
     DashboardSettingsPatch,
     DeliveryStatusInput,
     PriceInput,
+    ProductCreateInput,
+    ProductImageInput,
+    ProductUpdateInput,
 )
 from app.schemas.order import AssignDriverRequest, CreateOrderForCustomerRequest
-from app.schemas.settings import PricingUpdate
 from app.schemas.user import AccountUpdate, DriverCreate
 from app.services import dashboard_service as svc
 from app.services.account_service import account_service
@@ -32,7 +34,7 @@ from app.services.notification_service import notification_service
 from app.services.operations_service import operations_service
 from app.services.order_service import order_service
 from app.services.payment_service import payment_service
-from app.services.settings_service import settings_service
+from app.services.product_service import product_service
 
 router = APIRouter(prefix="/admin", tags=["Dashboard"])
 
@@ -273,9 +275,83 @@ def pricing(user: DashboardUser, db: DbSession):
 
 
 @router.patch("/pricing/{product}")
-def update_price(product: Literal["first_purchase", "refill"], data: PriceInput, user: DashboardUser, db: DbSession):
-    settings_service.update_pricing(db, user, PricingUpdate.model_validate({f"{product}_price": data.price}))
+def update_price(product: str, data: PriceInput, user: DashboardUser, db: DbSession):
+    authorize(user, Permission.PRICING_MANAGE)
+    target = product_service.get_by_code(db, product)
+    if target is None:
+        raise AppException("PRODUCT_NOT_FOUND", "Product not found.", 404)
+    product_service.update(db, user, target.id, {"price": data.price})
     return next(p for p in svc.prices(db) if p["product"] == product)
+
+
+@router.get("/products")
+def products(user: DashboardUser, db: DbSession):
+    authorize(user, Permission.PRICING_MANAGE)
+    counts = product_service.order_counts(db)
+    return [svc.product_dto(p, counts.get(p.code, 0)) for p in product_service.list(db)]
+
+
+@router.post("/products", status_code=201)
+def create_product(data: ProductCreateInput, user: DashboardUser, db: DbSession):
+    return svc.product_dto(product_service.create(db, user, data.model_dump()))
+
+
+@router.patch("/products/{product_id}")
+def update_product(product_id: str, data: ProductUpdateInput, user: DashboardUser, db: DbSession):
+    changes = data.model_dump(exclude_unset=True)
+    if changes.get("image_url") == "":
+        changes["image_url"] = None
+    for required in ("name", "price", "is_active", "sort_order"):
+        if required in changes and changes[required] is None:
+            changes.pop(required)
+    product = product_service.update(db, user, product_id, changes)
+    return svc.product_dto(product, product_service.order_counts(db).get(product.code, 0))
+
+
+@router.post("/products/{product_id}/image")
+def upload_product_image(product_id: str, data: ProductImageInput, user: DashboardUser, db: DbSession):
+    product = product_service.upload_image(db, user, product_id, data.content_type, data.data)
+    return svc.product_dto(product, product_service.order_counts(db).get(product.code, 0))
+
+
+@router.get("/users")
+def users(
+    user: DashboardUser,
+    db: DbSession,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    role: Literal["all", "USER", "DRIVER", "SALES_MANAGER", "SYSTEM_ADMIN"] = "all",
+    status: Literal["all", "active", "inactive"] = "all",
+    search: str = "",
+):
+    """Every account in the system (customers, drivers and staff), newest first."""
+    authorize(user, Permission.ADMIN_ACCOUNT_MANAGE)
+    query = select(User)
+    if role != "all":
+        query = query.where(User.role == Role(role))
+    if status != "all":
+        query = query.where(User.is_active.is_(status == "active"))
+    term = search.strip()
+    if term:
+        query = query.where(
+            or_(
+                User.full_name.icontains(term, autoescape=True),
+                User.phone.contains(term, autoescape=True),
+                User.email.icontains(term, autoescape=True),
+            )
+        )
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = list(db.scalars(query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)))
+    ids = [row.id for row in rows]
+    counts = {uid: n for uid, n in db.execute(select(Order.user_id, func.count(Order.id)).where(Order.user_id.in_(ids)).group_by(Order.user_id)).all()} if ids else {}
+    by_role = {key: n for key, n in db.execute(select(User.role, func.count(User.id)).group_by(User.role)).all()}
+    return {
+        "items": [svc.account_dto(row, counts.get(row.id, 0)) for row in rows],
+        "page": page,
+        "pageSize": page_size,
+        "total": total,
+        "roleCounts": {(key.value if hasattr(key, "value") else str(key)): value for key, value in by_role.items()},
+    }
 
 
 @router.get("/settings")

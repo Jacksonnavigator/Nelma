@@ -17,8 +17,8 @@ from app.models.order_item import OrderItem
 from app.models.user import User
 from app.schemas.dashboard import DashboardSettings, DashboardSettingsPatch
 from app.services.audit_service import audit_service
+from app.services.product_service import product_service
 from app.services.serializers import build_order_timeline, iso
-from app.services.settings_service import PRICE_KEYS, PRODUCT_NAMES, settings_service
 
 ZONE = ZoneInfo("Africa/Dar_es_Salaam")
 SETTINGS_KEY = "DASHBOARD_SETTINGS"
@@ -67,6 +67,7 @@ def order_dto(order):
         "customer": {"id": order.user_id, "fullName": order.user.full_name, "phone": order.user.phone},
         "item": {
             "product": item.product_type if item else "refill",
+            "productName": item.product_name if item else "",
             "quantity": sum(i.quantity for i in order.items),
             "unitPrice": item.unit_price if item else 0,
             "subtotal": order.subtotal,
@@ -237,21 +238,46 @@ def save_settings(db, actor, patch: DashboardSettingsPatch):
 
 
 def prices(db):
-    public = settings_service.public_settings(db)
-    result = []
-    for product, value in public.products.items():
-        entry = db.get(AppSetting, PRICE_KEYS[product])
-        result.append(
-            {
-                "product": product,
-                "label": PRODUCT_NAMES[product],
-                "price": value.unit_price,
-                "currency": public.currency,
-                "updatedAt": iso(entry.updated_at) if entry else None,
-                "updatedBy": "Server configuration",
-            }
-        )
-    return result
+    """Price list of orderable products, for the dashboard's order form."""
+    return [
+        {
+            "product": p.code,
+            "label": p.name,
+            "price": p.unit_price,
+            "currency": "TZS",
+            "updatedAt": iso(p.updated_at),
+            "updatedBy": "Dashboard",
+        }
+        for p in product_service.list(db, active_only=True)
+    ]
+
+
+def product_dto(product, order_count=0):
+    return {
+        "id": product.id,
+        "code": product.code,
+        "name": product.name,
+        "description": product.description or "",
+        "price": product.unit_price,
+        "imageUrl": product.image_url,
+        "isActive": product.is_active,
+        "sortOrder": product.sort_order,
+        "orderCount": order_count,
+        "updatedAt": iso(product.updated_at),
+    }
+
+
+def account_dto(user, order_count=0):
+    return {
+        "id": user.id,
+        "fullName": user.full_name,
+        "phone": user.phone,
+        "email": user.email,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "isActive": user.is_active,
+        "orderCount": order_count,
+        "createdAt": iso(user.created_at),
+    }
 
 
 def sales_timestamp(order):
@@ -337,12 +363,13 @@ def report(db, period, start=None, end=None):
         "records": records,
         "productMix": [
             {
-                "product": p,
-                "label": PRODUCT_NAMES[p],
-                "orders": sum(o["item"]["product"] == p for o in active),
-                "sales": sum(o["total"] for o in paid if o["item"]["product"] == p),
+                "product": p.code,
+                "label": p.name,
+                "orders": sum(o["item"]["product"] == p.code for o in active),
+                "sales": sum(o["total"] for o in paid if o["item"]["product"] == p.code),
             }
-            for p in PRODUCT_NAMES
+            for p in product_service.list(db)
+            if p.is_active or any(o["item"]["product"] == p.code for o in rows)
         ],
         "statusDistribution": [{"status": key, "count": value} for key, value in Counter(o["status"] for o in rows).items()],
         "paymentDistribution": [{"status": key, "count": value} for key, value in Counter(o["paymentStatus"] for o in rows).items()],

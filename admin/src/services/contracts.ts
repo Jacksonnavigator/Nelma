@@ -18,7 +18,9 @@ import type {
   PaymentMethod,
   PaymentStatus,
   PriceConfiguration,
+  Product,
   SalesReport,
+  UserAccountPage,
   SystemSettings,
 } from "@/types";
 
@@ -167,6 +169,35 @@ export interface PricingService {
   update(product: OrderType, price: number, actor: string): Promise<PriceConfiguration>;
 }
 
+export interface ProductInput {
+  name: string;
+  description?: string;
+  price: number;
+  imageUrl?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface ProductsService {
+  /** GET /admin/products — every product, including hidden ones. */
+  list(): Promise<Product[]>;
+  create(input: ProductInput): Promise<Product>;
+  update(id: string, input: Partial<ProductInput>): Promise<Product>;
+  /** POST /admin/products/{id}/image — stores the file in Supabase Storage. */
+  uploadImage(id: string, file: File): Promise<Product>;
+}
+
+export interface UserQuery extends PageQuery {
+  role?: "all" | "USER" | "DRIVER" | "SALES_MANAGER" | "SYSTEM_ADMIN";
+  status?: "all" | "active" | "inactive";
+  search?: string;
+}
+
+export interface UsersService {
+  /** GET /admin/users — customers, drivers and staff. */
+  list(query: UserQuery): Promise<UserAccountPage>;
+}
+
 export interface AdminAccountsService {
   list(): Promise<AdminAccount[]>;
   create(input: CreateAccountInput): Promise<AdminAccount>;
@@ -213,6 +244,8 @@ export interface ServiceRegistry {
   drivers: DriversService;
   sales: SalesService;
   pricing: PricingService;
+  products: ProductsService;
+  users: UsersService;
   adminAccounts: AdminAccountsService;
   settings: SettingsService;
   audit: AuditService;

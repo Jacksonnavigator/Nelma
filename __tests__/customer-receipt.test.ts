@@ -12,7 +12,7 @@ vi.mock("expo-router", async () => {
 });
 vi.mock("lucide-react-native", () => ({ CheckCircle2: () => null, MessageCircle: () => null, RefreshCw: () => null, Repeat: () => null, Send: () => null, XCircle: () => null }));
 vi.mock("react-native", () => ({
-  View: "view", Text: "text", StyleSheet: { create: (styles: unknown) => styles },
+  View: "view", Text: "text", Pressable: "pressable", StyleSheet: { create: (styles: unknown) => styles },
   Platform: { OS: "android", select: (styles: Record<string, unknown>) => styles.android ?? styles.default },
   AppState: { currentState: "active", addEventListener: () => ({ remove: vi.fn() }) }
 }));

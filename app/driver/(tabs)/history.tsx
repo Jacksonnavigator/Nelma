@@ -2,9 +2,9 @@ import { router, useFocusEffect } from "expo-router";
 import { Search } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
-import { DriverTitle, DropletArt, ErrorState, LedgerRow, Screen, Sheet, SkyBackdrop, WeekBars } from "../../../components";
+import { DriverTitle, DropletArt, ErrorState, HeaderBand, LedgerRow, Screen, Sheet, SkyBackdrop, WeekBars } from "../../../components";
 import { colors } from "../../../constants/colors";
-import { driverTheme, sheetShadow } from "../../../constants/driver-theme";
+import { driverTheme, liftShadow, sheetShadow } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
@@ -12,7 +12,7 @@ import { haptics } from "../../../services/haptics";
 import type { DriverSummary } from "../../../types/driver";
 import type { Order } from "../../../types/order";
 import { currentDateKey, filterDriverHistory, groupHistoryByDay } from "../../../utils/driver-deliveries";
-import { formatDayHeading } from "../../../utils/format";
+import { formatCurrency, formatDayHeading } from "../../../utils/format";
 
 const pageSize = 30;
 
@@ -117,13 +117,24 @@ export default function DriverHistoryScreen() {
             <View style={styles.header}>
               <DriverTitle title={t("History")} />
               {week.length ? (
-                <Sheet style={styles.weekSheet}>
+                <HeaderBand style={[styles.weekCard, liftShadow]}>
                   <View style={styles.weekTop}>
-                    <Text style={styles.weekTitle}>{t("Last 7 days")}</Text>
-                    <Text style={styles.weekTotal}>{weekTotal} {t(weekTotal === 1 ? "delivery" : "deliveries")}</Text>
+                    <View style={styles.weekLead}>
+                      <Text style={styles.weekEyebrow}>{t("Last 7 days")}</Text>
+                      <View style={styles.weekFigure}>
+                        <Text style={styles.weekTotal}>{weekTotal}</Text>
+                        <Text style={styles.weekUnit}>{t(weekTotal === 1 ? "delivery" : "deliveries")}</Text>
+                      </View>
+                    </View>
+                    {summary ? (
+                      <View style={styles.weekSide}>
+                        <Text numberOfLines={1} style={styles.weekValue}>{formatCurrency(summary.week.value)}</Text>
+                        <Text style={styles.weekEyebrow}>{summary.week.bottles} {t(summary.week.bottles === 1 ? "bottle" : "bottles")}</Text>
+                      </View>
+                    ) : null}
                   </View>
-                  <WeekBars days={week} />
-                </Sheet>
+                  <WeekBars days={week} tone="dark" />
+                </HeaderBand>
               ) : null}
               <View style={[styles.search, sheetShadow]}>
                 <Search color={colors.mutedText} size={18} />
@@ -145,8 +156,11 @@ export default function DriverHistoryScreen() {
           renderItem={({ item: day }) => (
             <View style={styles.day}>
               <View style={styles.dayHeader}>
-                <Text style={styles.dayTitle}>{day.title}</Text>
-                <Text style={styles.dayMeta}>{day.deliveries} {t(day.deliveries === 1 ? "delivery" : "deliveries")}  {"·"}  {day.bottles} {t(day.bottles === 1 ? "bottle" : "bottles")}</Text>
+                <View style={styles.dayCopy}>
+                  <Text style={styles.dayTitle}>{day.title}</Text>
+                  <Text style={styles.dayMeta}>{day.deliveries} {t(day.deliveries === 1 ? "delivery" : "deliveries")}  {"·"}  {day.bottles} {t(day.bottles === 1 ? "bottle" : "bottles")}</Text>
+                </View>
+                <Text style={styles.dayValue}>{formatCurrency(day.data.reduce((sum, order) => sum + (order.status === "cancelled" ? 0 : order.total), 0))}</Text>
               </View>
               <Sheet style={styles.daySheet}>
                 {day.data.map((order, index) => <LedgerRow key={order.id} order={order} last={index === day.data.length - 1} onPress={() => open(order)} />)}
@@ -178,18 +192,25 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
-  header: { gap: spacing.md },
-  weekSheet: { padding: spacing.md, gap: spacing.md },
-  weekTop: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
-  weekTitle: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 16, lineHeight: 22 },
-  weekTotal: { color: colors.primary, fontFamily: typography.fonts.bold, fontSize: 14, lineHeight: 20 },
+  header: { gap: spacing.sm },
+  weekCard: { borderRadius: radius.xl + 10, padding: spacing.md + 2, gap: spacing.sm },
+  weekTop: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.md },
+  weekLead: { gap: 2 },
+  weekEyebrow: { color: driverTheme.onDark, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 18 },
+  weekFigure: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  weekTotal: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 30, letterSpacing: -0.8, lineHeight: 36, fontVariant: ["tabular-nums"] },
+  weekUnit: { color: driverTheme.onDark, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 21 },
+  weekSide: { flexShrink: 1, alignItems: "flex-end", gap: 2, paddingBottom: 4 },
+  weekValue: { color: driverTheme.mintBright, fontFamily: typography.fonts.bold, fontSize: 16, lineHeight: 22, fontVariant: ["tabular-nums"] },
   search: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: radius.md + 4, backgroundColor: colors.white },
   searchInput: { flex: 1, color: colors.ink, fontFamily: typography.fonts.regular, fontSize: 15, minHeight: 48, paddingVertical: 0 },
   error: { color: colors.danger, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 19 },
-  day: { marginTop: spacing.lg },
-  dayHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm, marginBottom: spacing.xs, paddingHorizontal: spacing.xxs },
+  day: { marginTop: spacing.md },
+  dayHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.sm, marginBottom: spacing.xs, paddingHorizontal: spacing.xxs },
+  dayCopy: { flex: 1 },
   dayTitle: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 17, lineHeight: 24 },
   dayMeta: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
+  dayValue: { color: driverTheme.deep, fontFamily: typography.fonts.bold, fontSize: 15, lineHeight: 21, fontVariant: ["tabular-nums"] },
   daySheet: { borderRadius: radius.xl },
   empty: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xxl },
   emptyText: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 15, lineHeight: 22, textAlign: "center", maxWidth: 280 },

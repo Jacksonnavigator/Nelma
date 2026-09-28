@@ -15,7 +15,7 @@ import { deliveriesService, driversService, ordersService } from "@/services";
 import { ORDER_TRANSITIONS, TRANSITION_LABELS } from "@/lib/permissions";
 import {
   PAYMENT_METHOD_LABELS,
-  PRODUCT_LABELS,
+  productLabel,
   formatDate,
   formatDateTime,
   formatNumber,
@@ -130,7 +130,7 @@ function OrderDetailPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={`${o.customer.fullName} — ${PRODUCT_LABELS[o.item.product]}`}
+        title={`${o.customer.fullName} — ${productLabel(o.item.product, o.item.productName)}`}
         description={`Placed ${formatDateTime(o.createdAt)} · ${
           o.source === "USER_MOBILE" ? "Customer mobile app" : "Sales desk"
         }`}
@@ -164,7 +164,7 @@ function OrderDetailPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Panel title="Order summary">
-            <Row label="Product" value={PRODUCT_LABELS[o.item.product]} />
+            <Row label="Product" value={productLabel(o.item.product, o.item.productName)} />
             <Row label="Quantity" value={formatNumber(o.item.quantity)} />
             <Row label="Unit price" value={formatTZS(o.item.unitPrice)} />
             <Row label="Subtotal" value={formatTZS(o.item.subtotal)} />

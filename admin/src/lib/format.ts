@@ -112,15 +112,29 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   mobile_money: "Mobile money",
 };
 
-export const PRODUCT_LABELS: Record<OrderType, string> = {
+/** The two launch products. Products added later carry their own names. */
+export type BuiltInProduct = "first_purchase" | "refill";
+
+export const PRODUCT_LABELS: Record<BuiltInProduct, string> = {
   first_purchase: "New bottle purchase",
   refill: "20L Refill",
 };
 
-export const PRODUCT_SHORT_LABELS: Record<OrderType, string> = {
+export const PRODUCT_SHORT_LABELS: Record<BuiltInProduct, string> = {
   first_purchase: "First purchase",
   refill: "Refill",
 };
+
+/** Label for a product code, preferring the name saved on the order for catalog products. */
+export function productLabel(code: OrderType, name?: string): string {
+  return (
+    (PRODUCT_LABELS as Partial<Record<string, string>>)[code] ?? (name || code.replace(/_/g, " "))
+  );
+}
+
+export function shortProductLabel(code: OrderType): string {
+  return (PRODUCT_SHORT_LABELS as Partial<Record<string, string>>)[code] ?? code.replace(/_/g, " ");
+}
 
 export function initials(name: string): string {
   return name

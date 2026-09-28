@@ -53,8 +53,12 @@ vi.mock("../components", () => ({
   Ripples: () => null,
   DropletArt: () => null,
   LiveDot: () => null,
-  WaterProgress: () => null
+  WaterProgress: () => null,
+  HeaderBand: ({ children }: { children: import("react").ReactNode }) => createElement("band", null, children),
+  ProgressRing: ({ children }: { children: import("react").ReactNode }) => createElement("ring", null, children),
+  MapArt: () => null
 }));
+vi.mock("../hooks/use-light-status-bar", () => ({ useLightStatusBar: () => undefined }));
 
 import Detail from "../app/driver/delivery/[id]";
 import Deliveries from "../app/driver/(tabs)/deliveries";

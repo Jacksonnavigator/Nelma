@@ -21,7 +21,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { deliveriesService, driversService } from "@/services";
 import { isApiError } from "@/services/api";
-import { PRODUCT_SHORT_LABELS, formatDate } from "@/lib/format";
+import { shortProductLabel, formatDate } from "@/lib/format";
 import type { Delivery, DeliveryStatus } from "@/types";
 
 export const Route = createFileRoute("/_authenticated/deliveries")({
@@ -177,7 +177,7 @@ function DeliveriesPage() {
                         <p className="text-xs text-muted-foreground">{d.timeWindow}</p>
                       </TableCell>
                       <TableCell>
-                        {PRODUCT_SHORT_LABELS[d.product]} × {d.quantity}
+                        {shortProductLabel(d.product)} × {d.quantity}
                       </TableCell>
                       <TableCell>{driverName(d.driverId)}</TableCell>
                       <TableCell>

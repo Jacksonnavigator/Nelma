@@ -20,9 +20,11 @@ import { Route as AuthenticatedDeliveriesRouteImport } from './routes/_authentic
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
+import { Route as AuthenticatedProductsRouteImport } from './routes/_authenticated/products'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
 import { Route as AuthenticatedSystemSettingsRouteImport } from './routes/_authenticated/system-settings'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedDriversIndexRouteImport } from './routes/_authenticated/drivers.index'
 import { Route as AuthenticatedDriversIdRouteImport } from './routes/_authenticated/drivers.$id'
 import { Route as AuthenticatedOrdersIndexRouteImport } from './routes/_authenticated/orders.index'
@@ -85,6 +87,11 @@ const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedProductsRoute = AuthenticatedProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -101,6 +108,11 @@ const AuthenticatedSystemSettingsRoute =
     path: '/system-settings',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDriversIndexRoute =
   AuthenticatedDriversIndexRouteImport.update({
     id: '/drivers/',
@@ -135,9 +147,11 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/operations': typeof AuthenticatedOperationsRoute
   '/pricing': typeof AuthenticatedPricingRoute
+  '/products': typeof AuthenticatedProductsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/system-settings': typeof AuthenticatedSystemSettingsRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/drivers/$id': typeof AuthenticatedDriversIdRoute
   '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/drivers/': typeof AuthenticatedDriversIndexRoute
@@ -154,9 +168,11 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/operations': typeof AuthenticatedOperationsRoute
   '/pricing': typeof AuthenticatedPricingRoute
+  '/products': typeof AuthenticatedProductsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/system-settings': typeof AuthenticatedSystemSettingsRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/drivers/$id': typeof AuthenticatedDriversIdRoute
   '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/drivers': typeof AuthenticatedDriversIndexRoute
@@ -175,9 +191,11 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/operations': typeof AuthenticatedOperationsRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
+  '/_authenticated/products': typeof AuthenticatedProductsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/sales': typeof AuthenticatedSalesRoute
   '/_authenticated/system-settings': typeof AuthenticatedSystemSettingsRoute
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/drivers/$id': typeof AuthenticatedDriversIdRoute
   '/_authenticated/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/_authenticated/drivers/': typeof AuthenticatedDriversIndexRoute
@@ -196,9 +214,11 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/operations'
     | '/pricing'
+    | '/products'
     | '/profile'
     | '/sales'
     | '/system-settings'
+    | '/users'
     | '/drivers/$id'
     | '/orders/$id'
     | '/drivers/'
@@ -215,9 +235,11 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/operations'
     | '/pricing'
+    | '/products'
     | '/profile'
     | '/sales'
     | '/system-settings'
+    | '/users'
     | '/drivers/$id'
     | '/orders/$id'
     | '/drivers'
@@ -235,9 +257,11 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/operations'
     | '/_authenticated/pricing'
+    | '/_authenticated/products'
     | '/_authenticated/profile'
     | '/_authenticated/sales'
     | '/_authenticated/system-settings'
+    | '/_authenticated/users'
     | '/_authenticated/drivers/$id'
     | '/_authenticated/orders/$id'
     | '/_authenticated/drivers/'
@@ -329,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPricingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/products': {
+      id: '/_authenticated/products'
+      path: '/products'
+      fullPath: '/products'
+      preLoaderRoute: typeof AuthenticatedProductsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -348,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/system-settings'
       fullPath: '/system-settings'
       preLoaderRoute: typeof AuthenticatedSystemSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/drivers/': {
@@ -390,9 +428,11 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
+  AuthenticatedProductsRoute: typeof AuthenticatedProductsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSalesRoute: typeof AuthenticatedSalesRoute
   AuthenticatedSystemSettingsRoute: typeof AuthenticatedSystemSettingsRoute
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedDriversIdRoute: typeof AuthenticatedDriversIdRoute
   AuthenticatedOrdersIdRoute: typeof AuthenticatedOrdersIdRoute
   AuthenticatedDriversIndexRoute: typeof AuthenticatedDriversIndexRoute
@@ -408,9 +448,11 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
+  AuthenticatedProductsRoute: AuthenticatedProductsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSalesRoute: AuthenticatedSalesRoute,
   AuthenticatedSystemSettingsRoute: AuthenticatedSystemSettingsRoute,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedDriversIdRoute: AuthenticatedDriversIdRoute,
   AuthenticatedOrdersIdRoute: AuthenticatedOrdersIdRoute,
   AuthenticatedDriversIndexRoute: AuthenticatedDriversIndexRoute,

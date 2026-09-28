@@ -42,7 +42,8 @@ export interface DeliveryLocation {
   coordinates?: { lat: number; lng: number };
 }
 
-export type OrderType = "first_purchase" | "refill";
+/** A product code from the catalog: first_purchase, refill, or one added on the Products page. */
+export type OrderType = string;
 
 export type OrderStatus =
   | "pending"
@@ -61,6 +62,8 @@ export type OrderSource = "USER_MOBILE" | "SALES_MANAGER_DASHBOARD";
 
 export interface OrderItem {
   product: OrderType;
+  /** Name the product had when ordered. Missing on older backends. */
+  productName?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -198,6 +201,36 @@ export interface OperationsOverview {
   stalled: StalledAssignment[];
   /** Missing on backends older than the location release. */
   drivers?: DriverOnDuty[];
+}
+
+export interface Product {
+  id: string;
+  code: OrderType;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  orderCount: number;
+  updatedAt: string | null;
+}
+
+export type AccountRole = "USER" | "DRIVER" | "SALES_MANAGER" | "SYSTEM_ADMIN";
+
+export interface UserAccount {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  role: AccountRole;
+  isActive: boolean;
+  orderCount: number;
+  createdAt: string;
+}
+
+export interface UserAccountPage extends PaginatedResponse<UserAccount> {
+  roleCounts: Partial<Record<AccountRole, number>>;
 }
 
 export interface PriceConfiguration {

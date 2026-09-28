@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     expo_push_enabled: bool = False
     expo_push_access_token: str = Field("", repr=False)
     delivery_code_required: bool = True
+    # Product images uploaded from the dashboard go to a public Supabase Storage bucket,
+    # because Render's disk is wiped on every deploy.
+    supabase_url: str = ""
+    supabase_service_role_key: str = Field("", repr=False)
+    product_image_bucket: str = "product-images"
     auto_receive_hours: int = Field(24, ge=1, le=720)
     assignment_accept_minutes: int = Field(30, ge=5, le=1440)
 

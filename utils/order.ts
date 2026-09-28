@@ -1,4 +1,4 @@
-import { productCatalog, type ProductCatalog } from "../constants/pricing";
+import { catalogItem, productCatalog, type ProductCatalog } from "../constants/pricing";
 import type { Order, OrderCharge, OrderFilter, OrderStatus, OrderTimelineEvent, OrderType } from "../types/order";
 
 export type OrderPricing = {
@@ -24,7 +24,7 @@ export const calculateOrderPricing = (
   catalog: ProductCatalog = productCatalog
 ): OrderPricing => {
   const safeQuantity = ensurePositiveQuantity(quantity);
-  const unitPrice = catalog[orderType].unitPrice;
+  const unitPrice = catalogItem(catalog, orderType).unitPrice;
   const subtotal = unitPrice * safeQuantity;
   const chargeTotal = charges.reduce((sum, charge) => sum + charge.amount, 0);
 
@@ -38,9 +38,9 @@ export const calculateOrderPricing = (
   };
 };
 
-export const getOrderTypeLabel = (orderType: OrderType, catalog: ProductCatalog = productCatalog): string => catalog[orderType].label;
+export const getOrderTypeLabel = (orderType: OrderType, catalog: ProductCatalog = productCatalog): string => catalogItem(catalog, orderType).label;
 
-export const getOrderProductName = (orderType: OrderType, catalog: ProductCatalog = productCatalog): string => catalog[orderType].productName;
+export const getOrderProductName = (orderType: OrderType, catalog: ProductCatalog = productCatalog): string => catalogItem(catalog, orderType).productName;
 
 export const isActiveOrderStatus = (status: OrderStatus): boolean => {
   return ["pending", "confirmed", "processing", "out_for_delivery"].includes(status);

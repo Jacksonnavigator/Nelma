@@ -246,7 +246,7 @@ class OrderService:
         order.items.append(
             OrderItem(
                 product_type=data.order_type,
-                product_name=pricing_service.product_name(data.order_type),
+                product_name=pricing_service.product_name(db, data.order_type),
                 quantity=data.quantity,
                 unit_price=unit_price,
                 line_total=subtotal,

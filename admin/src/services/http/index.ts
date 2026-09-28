@@ -21,6 +21,8 @@ import type {
   OrderStatus,
   PaginatedResponse,
   PriceConfiguration,
+  Product,
+  UserAccountPage,
   SalesReport,
   SystemSettings,
 } from "@/types";
@@ -68,6 +70,16 @@ function acceptSession(session: ApiSession): AuthSession {
 function adminAccount(user: ApiUser): AdminAccount {
   return { ...dashboardUser(user), createdAt: user.createdAt, lastLoginAt: null };
 }
+/** Base64 contents of a picked file, without the data: URL prefix. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read the image."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export const httpServices: ServiceRegistry = {
   auth: {
     async login(identifier, password) {
@@ -201,6 +213,31 @@ export const httpServices: ServiceRegistry = {
       apiRequest<PriceConfiguration>(`admin/pricing/${product}`, {
         method: "PATCH",
         body: { price },
+      }),
+  },
+
+  products: {
+    list: () => apiRequest<Product[]>("admin/products"),
+    create: (input) => apiRequest<Product>("admin/products", { method: "POST", body: input }),
+    update: (id, input) =>
+      apiRequest<Product>(`admin/products/${id}`, { method: "PATCH", body: input }),
+    uploadImage: async (id, file) =>
+      apiRequest<Product>(`admin/products/${id}/image`, {
+        method: "POST",
+        body: { contentType: file.type, data: await fileToBase64(file) },
+      }),
+  },
+
+  users: {
+    list: (query) =>
+      apiRequest<UserAccountPage>("admin/users", {
+        query: {
+          page: query.page,
+          page_size: query.pageSize,
+          role: query.role,
+          status: query.status,
+          search: query.search,
+        },
       }),
   },
 

@@ -1,5 +1,5 @@
 import { appConfig } from "../../config/app";
-import { productCatalog } from "../../constants/pricing";
+import { catalogItem, productCatalog } from "../../constants/pricing";
 import { buildOrderTimeline, calculateOrderPricing } from "../../utils/order";
 import type { AppRepositories } from "../contracts";
 import { normalizeDeliveryAddress } from "../../utils/address";
@@ -385,7 +385,7 @@ export const mockRepositories: AppRepositories = {
         orderType: input.orderType,
         items: [
           {
-            productName: productCatalog[input.orderType].productName,
+            productName: catalogItem(productCatalog, input.orderType).productName,
             orderType: input.orderType,
             quantity: pricing.quantity,
             unitPrice: pricing.unitPrice,
@@ -636,16 +636,10 @@ export const mockRepositories: AppRepositories = {
       await latency();
       return {
         currency: appConfig.currency,
-        products: {
-          first_purchase: {
-            name: productCatalog.first_purchase.label,
-            unitPrice: productCatalog.first_purchase.unitPrice
-          },
-          refill: {
-            name: productCatalog.refill.label,
-            unitPrice: productCatalog.refill.unitPrice
-          }
-        }
+        products: Object.fromEntries(Object.values(productCatalog).map((product) => [
+          product.type,
+          { name: product.label, unitPrice: product.unitPrice, description: product.description, imageUrl: null, sortOrder: product.sortOrder }
+        ]))
       };
     }
   },

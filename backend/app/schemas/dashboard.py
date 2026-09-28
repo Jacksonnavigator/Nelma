@@ -20,7 +20,7 @@ class LocationInput(StrictModel):
 
 class DashboardOrderInput(StrictModel):
     customer_id: str
-    product: Literal["first_purchase", "refill"]
+    product: str = Field(min_length=2, max_length=32, pattern=r"^[a-z0-9_]+$")
     quantity: int = Field(ge=1)
     delivery_location: LocationInput
     delivery_date: date
@@ -30,6 +30,30 @@ class DashboardOrderInput(StrictModel):
 
 class PriceInput(StrictModel):
     price: int = Field(ge=1)
+
+
+class ProductCreateInput(StrictModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str | None = Field(None, max_length=300)
+    price: int = Field(ge=1, le=10_000_000)
+    image_url: str | None = Field(None, max_length=600, pattern=r"^https://\S+$")
+    is_active: bool = True
+    sort_order: int | None = Field(None, ge=0, le=1000)
+
+
+class ProductUpdateInput(StrictModel):
+    name: str | None = Field(None, min_length=2, max_length=120)
+    description: str | None = Field(None, max_length=300)
+    price: int | None = Field(None, ge=1, le=10_000_000)
+    image_url: str | None = Field(None, max_length=600, pattern=r"^(https://\S+)?$")
+    is_active: bool | None = None
+    sort_order: int | None = Field(None, ge=0, le=1000)
+
+
+class ProductImageInput(StrictModel):
+    content_type: Literal["image/jpeg", "image/png", "image/webp"]
+    # Base64 file contents (a data: URL prefix is accepted). 5 MB of image is about 7 MB of text.
+    data: str = Field(min_length=8, max_length=7_200_000)
 
 
 class DeliveryStatusInput(StrictModel):

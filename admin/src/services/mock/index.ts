@@ -27,11 +27,13 @@ import type {
   PaginatedResponse,
   PaymentStatus,
   PriceConfiguration,
+  Product,
   SalesRecord,
+  UserAccount,
   SalesReport,
   SystemSettings,
 } from "@/types";
-import { ORDER_LIFECYCLE, PRODUCT_LABELS } from "@/lib/format";
+import { ORDER_LIFECYCLE, productLabel } from "@/lib/format";
 import type {
   AuthSession,
   CreateAccountInput,
@@ -49,11 +51,33 @@ const db = {
   deliveries: seedDeliveries.map((d) => ({ ...d })),
   drivers: seedDrivers.map((d) => ({ ...d })),
   accounts: seedAccounts.map((a) => ({ ...a })),
-  pricing: seedPricing.map((p) => ({ ...p })),
+  products: seedPricing.map((p, index): Product => ({
+    id: `prd_${p.product}`,
+    code: p.product,
+    name: p.label,
+    description: "",
+    price: p.price,
+    imageUrl: null,
+    isActive: true,
+    sortOrder: index,
+    orderCount: seedOrders.filter((o) => o.item.product === p.product).length,
+    updatedAt: p.updatedAt,
+  })),
   notifications: seedNotifications.map((n) => ({ ...n })),
   audit: seedAudit.map((a) => ({ ...a })),
   settings: structuredClone(seedSettings) as SystemSettings,
 };
+
+function priceOf(p: Product): PriceConfiguration {
+  return {
+    product: p.code,
+    label: p.name,
+    price: p.price,
+    currency: "TZS",
+    updatedAt: p.updatedAt,
+    updatedBy: "Dashboard",
+  };
+}
 
 function paginate<T>(items: T[], page = 1, pageSize = 10): PaginatedResponse<T> {
   const start = (page - 1) * pageSize;
@@ -231,7 +255,7 @@ export const mockServices: ServiceRegistry = {
     async create(input: CreateOrderInput, actor): Promise<Order> {
       const customer = seedCustomers.find((c) => c.id === input.customerId);
       if (!customer) throw { status: 400, message: "Select a valid customer." };
-      const price = db.pricing.find((p) => p.product === input.product)?.price ?? 0;
+      const price = db.products.find((p) => p.code === input.product)?.price ?? 0;
       const subtotal = price * input.quantity;
       const order: Order = {
         id: `ord_${Date.now()}`,
@@ -261,7 +285,7 @@ export const mockServices: ServiceRegistry = {
         role: actor.role,
         action: "ORDER_CREATED",
         entity: "Order",
-        description: `Created a dashboard order for ${customer.fullName} (${input.quantity} × ${PRODUCT_LABELS[input.product]}).`,
+        description: `Created a dashboard order for ${customer.fullName} (${input.quantity} × ${productLabel(input.product, db.products.find((p) => p.code === input.product)?.name)}).`,
       });
       return delay(order, 600);
     },
@@ -473,12 +497,14 @@ export const mockServices: ServiceRegistry = {
           deliveryCharges: active.reduce((s, o) => s + o.deliveryCharge, 0),
         },
         trend: [...trendBuckets.entries()].map(([date, v]) => ({ date, ...v })),
-        productMix: (["first_purchase", "refill"] as OrderType[]).map((product) => ({
-          product,
-          label: PRODUCT_LABELS[product],
-          orders: byProduct(product).length,
-          sales: byProduct(product).reduce((s, o) => s + o.total, 0),
-        })),
+        productMix: db.products
+          .map((p) => p.code)
+          .map((product) => ({
+            product,
+            label: productLabel(product, db.products.find((p) => p.code === product)?.name),
+            orders: byProduct(product).length,
+            sales: byProduct(product).reduce((s, o) => s + o.total, 0),
+          })),
         statusDistribution: [...statusCounts.entries()].map(([status, count]) => ({
           status,
           count,
@@ -495,25 +521,115 @@ export const mockServices: ServiceRegistry = {
 
   pricing: {
     async list() {
-      return delay(db.pricing.map((p) => ({ ...p })));
+      return delay(db.products.filter((p) => p.isActive).map(priceOf));
     },
     async update(product, price, actor) {
-      const entry = db.pricing.find((p) => p.product === product);
+      const entry = db.products.find((p) => p.code === product);
       if (!entry) throw { status: 404, message: "Price configuration not found." };
       if (!Number.isFinite(price) || price <= 0) {
         throw { status: 400, message: "Enter a valid price greater than zero." };
       }
       entry.price = Math.round(price);
       entry.updatedAt = todayISO();
-      entry.updatedBy = actor;
       pushAudit({
         actor,
         role: "SALES_MANAGER",
         action: "PRICE_UPDATED",
         entity: "Pricing",
-        description: `Changed ${entry.label} price to TZS ${entry.price.toLocaleString("en-US")}.`,
+        description: `Changed ${entry.name} price to TZS ${entry.price.toLocaleString("en-US")}.`,
       });
-      return delay({ ...entry }, 450);
+      return delay(priceOf(entry), 450);
+    },
+  },
+
+  products: {
+    async list() {
+      return delay(db.products.map((p) => ({ ...p })));
+    },
+    async create(input) {
+      const base =
+        input.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_|_$/g, "")
+          .slice(0, 24) || "product";
+      let code = base;
+      for (let n = 2; db.products.some((p) => p.code === code); n++) code = `${base}_${n}`;
+      const product: Product = {
+        id: `prd_${Date.now()}`,
+        code,
+        name: input.name,
+        description: input.description ?? "",
+        price: input.price,
+        imageUrl: input.imageUrl ?? null,
+        isActive: input.isActive ?? true,
+        sortOrder: input.sortOrder ?? db.products.length,
+        orderCount: 0,
+        updatedAt: todayISO(),
+      };
+      db.products.push(product);
+      return delay({ ...product }, 400);
+    },
+    async update(id, input) {
+      const product = db.products.find((p) => p.id === id);
+      if (!product) throw { status: 404, message: "Product not found." };
+      Object.assign(product, input, { updatedAt: todayISO() });
+      return delay({ ...product }, 400);
+    },
+    async uploadImage(id, file) {
+      const product = db.products.find((p) => p.id === id);
+      if (!product) throw { status: 404, message: "Product not found." };
+      // Demo mode keeps the picture in memory only; it disappears on reload.
+      product.imageUrl = URL.createObjectURL(file);
+      product.updatedAt = todayISO();
+      return delay({ ...product }, 600);
+    },
+  },
+
+  users: {
+    async list(query) {
+      const everyone: UserAccount[] = [
+        ...seedCustomers.map((c, i): UserAccount => ({
+          id: c.id,
+          fullName: c.fullName,
+          phone: c.phone,
+          email: null,
+          role: "USER",
+          isActive: true,
+          orderCount: db.orders.filter((o) => o.customer.id === c.id).length,
+          createdAt: new Date(Date.now() - (i + 3) * 86_400_000).toISOString(),
+        })),
+        ...db.drivers.map((d, i): UserAccount => ({
+          id: d.id,
+          fullName: d.fullName,
+          phone: d.phone,
+          email: null,
+          role: "DRIVER",
+          isActive: d.status === "active",
+          orderCount: 0,
+          createdAt: new Date(Date.now() - (i + 20) * 86_400_000).toISOString(),
+        })),
+        ...db.accounts.map((a): UserAccount => ({
+          id: a.id,
+          fullName: a.fullName,
+          phone: a.phone,
+          email: a.email,
+          role: a.role,
+          isActive: a.status === "active",
+          orderCount: 0,
+          createdAt: a.createdAt,
+        })),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const roleCounts: Partial<Record<UserAccount["role"], number>> = {};
+      for (const u of everyone) roleCounts[u.role] = (roleCounts[u.role] ?? 0) + 1;
+      const term = (query.search ?? "").trim().toLowerCase();
+      const rows = everyone.filter(
+        (u) =>
+          (!query.role || query.role === "all" || u.role === query.role) &&
+          (!query.status || query.status === "all" || u.isActive === (query.status === "active")) &&
+          (!term || `${u.fullName} ${u.phone} ${u.email ?? ""}`.toLowerCase().includes(term)),
+      );
+      return delay({ ...paginate(rows, query.page, query.pageSize ?? 25), roleCounts });
     },
   },
 

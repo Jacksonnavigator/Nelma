@@ -3,12 +3,10 @@ import { router } from "expo-router";
 import {
   ArrowRight,
   MapPin,
-  Package,
 } from "lucide-react-native";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Animated,
-  Image,
   ImageBackground,
   Pressable,
   ScrollView,
@@ -16,13 +14,16 @@ import {
   Text,
   View,
 } from "react-native";
-import { AppTopBar, Screen } from "../../components";
+import { AppTopBar, ProductImage, Screen } from "../../components";
 import { colors } from "../../constants/colors";
-import { radius, spacing, typography } from "../../constants/theme";
+import { catalogItem, sortedProducts } from "../../constants/pricing";
+import { typography } from "../../constants/theme";
 import { useTranslation } from "../../hooks/use-translation";
 import { haptics } from "../../services/haptics";
 import { useOrders } from "../../store/order-context";
-import type { OrderType } from "../../types/order";
+import type { Order, OrderType } from "../../types/order";
+import { formatCurrency } from "../../utils/format";
+import { orderStatusLabel } from "../../utils/status";
 
 const jotformBlue = "#009FE3";
 
@@ -38,8 +39,15 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function HomeScreen() {
-  const { loadOrders, startOrder } = useOrders();
+  const { loadOrders, startOrder, reorder, orders, activeOrder, pricingCatalog } = useOrders();
   const { t } = useTranslation();
+  const products = useMemo(() => sortedProducts(pricingCatalog), [pricingCatalog]);
+  // Only offer "Order again" for something still on sale, so the tap never lands on a hidden product.
+  const lastOrder = useMemo(
+    () => orders.find((order) => order.id !== activeOrder?.id && order.status !== "cancelled" && Boolean(pricingCatalog[order.orderType])) ?? null,
+    [orders, activeOrder, pricingCatalog]
+  );
+  const orderLine = (order: Order) => `${order.quantity} × ${t(catalogItem(pricingCatalog, order.orderType).label)}`;
 
   // Gentle pulse on the "out for delivery" indicator so it reads as a live status, not static text.
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -67,9 +75,15 @@ export default function HomeScreen() {
     }
   };
 
-  const openOrders = () => {
+  const openOrder = (id: string) => {
     haptics.selection();
-    router.push("/(tabs)/orders");
+    router.push({ pathname: "/orders/[id]", params: { id } });
+  };
+
+  const orderAgain = (order: Order) => {
+    haptics.selection();
+    reorder(order);
+    router.push("/order/quantity");
   };
 
   return (
@@ -99,7 +113,8 @@ export default function HomeScreen() {
                 <Text style={styles.introSubtitle}>{t("Pure drinking water delivered across NM-AIST.")}</Text>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => beginOrder("first_purchase")}
+                  disabled={!products.length}
+                  onPress={() => beginOrder(products[0]?.type)}
                   style={({ pressed }) => [
                     styles.orderWaterButton,
                     { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
@@ -114,102 +129,80 @@ export default function HomeScreen() {
                 <SectionHeader title={t("What do you need?")} />
                 <Text style={styles.sectionSubtitle}>{t("Pick an option below to get started")}</Text>
                 <View style={styles.optionRow}>
+                  {products.map((product) => (
+                    <Pressable
+                      key={product.type}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(product.label)}
+                      onPress={() => beginOrder(product.type)}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        styles.optionCardWide,
+                        { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+                      ]}
+                    >
+                      <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.optionCardInner}>
+                        <View style={styles.optionImageWrap}>
+                          <ProductImage product={product} style={styles.productImage} />
+                        </View>
+                        <Text style={styles.optionLabel}>{t(product.label)}</Text>
+                        {product.description ? <Text style={styles.optionDescription}>{t(product.description)}</Text> : null}
+                        <Text style={styles.optionPrice}>{formatCurrency(product.unitPrice)}</Text>
+                        <View style={styles.optionAction}>
+                          <Text style={styles.optionActionText}>{t("ORDER")}</Text>
+                          <ArrowRight color={colors.white} size={12} strokeWidth={3} />
+                        </View>
+                      </LinearGradient>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {activeOrder ? (
+                <View style={[styles.sectionCard, styles.activeOrderCard]}>
+                  <Text style={styles.plainSectionTitle}>{t("Active order")}</Text>
+                  <Text style={styles.orderMeta}>{orderLine(activeOrder)}</Text>
+
+                  <View style={styles.statusNoteRow}>
+                    <Animated.View style={[styles.pulseDot, { opacity: pulseAnim }]} />
+                    <Text style={styles.statusNote}>{t(orderStatusLabel(activeOrder.status))}</Text>
+                  </View>
+
+                  <View style={styles.locationRow}>
+                    <MapPin color="#475569" size={13} strokeWidth={2.2} />
+                    <Text numberOfLines={1} style={styles.locationText}>{activeOrder.deliveryAddress.deliveryAddress}</Text>
+                  </View>
+
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => beginOrder("first_purchase")}
+                    onPress={() => openOrder(activeOrder.id)}
                     style={({ pressed }) => [
-                      styles.optionCard,
-                      styles.optionCardWide,
+                      styles.trackButton,
                       { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
                     ]}
                   >
-                    <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.optionCardInner}>
-                      <View style={styles.optionImageWrap}>
-                        <Image accessibilityLabel={t("New bottle")} source={require("../../assets/Bottle.jpeg")} style={styles.productImage} />
-                      </View>
-                      <Text style={styles.optionLabel}>{t("NEW BOTTLE")}</Text>
-                      <Text style={styles.optionPrice}>{t("TZS 18,000")}</Text>
-                      <View style={styles.optionAction}>
-                        <Text style={styles.optionActionText}>{t("ORDER")}</Text>
-                        <ArrowRight color={colors.white} size={12} strokeWidth={3} />
-                      </View>
-                    </LinearGradient>
+                    <Text style={styles.trackButtonText}>{t("TRACK ORDER")}</Text>
                   </Pressable>
+                </View>
+              ) : null}
 
+              {lastOrder ? (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.plainSectionTitle}>{t("Order again")}</Text>
+                  <Text style={styles.repeatTitle}>{orderLine(lastOrder)}</Text>
+                  <Text style={styles.repeatPrice}>{formatCurrency(lastOrder.total, lastOrder.currency)}</Text>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => beginOrder("refill")}
+                    onPress={() => orderAgain(lastOrder)}
                     style={({ pressed }) => [
-                      styles.optionCard,
-                      styles.optionCardWide,
+                      styles.reorderButton,
                       { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
                     ]}
                   >
-                    <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.optionCardInner}>
-                      <View style={styles.optionImageWrap}>
-                        <Image accessibilityLabel={t("20L refill")} source={require("../../assets/refill.jpg")} style={styles.productImage} />
-                      </View>
-                      <Text style={styles.optionLabel}>{t("20L REFILL")}</Text>
-                      <Text style={styles.optionPrice}>{t("TZS 4,000")}</Text>
-                      <View style={styles.optionAction}>
-                        <Text style={styles.optionActionText}>{t("REFILL")}</Text>
-                        <ArrowRight color={colors.white} size={12} strokeWidth={3} />
-                      </View>
-                    </LinearGradient>
+                    <Text style={styles.reorderButtonText}>{t("ORDER AGAIN")}</Text>
                   </Pressable>
                 </View>
-              </View>
-
-              <View style={[styles.sectionCard, styles.activeOrderCard]}>
-                <Text style={styles.plainSectionTitle}>{t("Active order")}</Text>
-                <Text style={styles.orderMeta}>{t("2 × 20L Refill")}</Text>
-
-                <View style={styles.statusRow}>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{t("Confirmed")}</Text>
-                  </View>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{t("Preparing")}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statusNoteRow}>
-                  <Animated.View style={[styles.pulseDot, { opacity: pulseAnim }]} />
-                  <Text style={styles.statusNote}>{t("Out for delivery")}</Text>
-                </View>
-
-                <View style={styles.locationRow}>
-                  <MapPin color="#475569" size={13} strokeWidth={2.2} />
-                  <Text style={styles.locationText}>{t("Hostel B • Room 204")}</Text>
-                </View>
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={openOrders}
-                  style={({ pressed }) => [
-                    styles.trackButton,
-                    { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-                  ]}
-                >
-                  <Text style={styles.trackButtonText}>{t("TRACK ORDER")}</Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.sectionCard}>
-                <Text style={styles.plainSectionTitle}>{t("Order again")}</Text>
-                <Text style={styles.repeatTitle}>{t("2 × 20L Refill")}</Text>
-                <Text style={styles.repeatPrice}>{t("TZS 8,000")}</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => beginOrder("refill")}
-                  style={({ pressed }) => [
-                    styles.reorderButton,
-                    { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-                  ]}
-                >
-                  <Text style={styles.reorderButtonText}>{t("ORDER AGAIN")}</Text>
-                </Pressable>
-              </View>
+              ) : null}
 
               <LinearGradient colors={["#E0F2FE", "#F0F9FF"]} style={styles.helpCard}>
                 <Text style={styles.helpText}>{t("Need help? Contact NELMA")}</Text>
@@ -485,6 +478,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginTop: 4,
     textTransform: "uppercase"
+  },
+  optionDescription: {
+    color: "#64748B",
+    fontFamily: typography.fonts.medium,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+    textAlign: "center"
   },
   optionPrice: {
     color: jotformBlue,

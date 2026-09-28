@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Info } from "lucide-react";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { customersService, ordersService, pricingService, settingsService } from "@/services";
-import { PRODUCT_LABELS, formatTZS, businessDate } from "@/lib/format";
+import { productLabel, formatTZS, businessDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Customer, DeliveryLocation, OrderType, PaymentMethod } from "@/types";
 
@@ -107,7 +107,13 @@ function CreateOrderPage() {
   });
 
   const windows = settings.data?.delivery.defaultTimeWindows ?? [];
-  const unitPrice = prices.data?.find((p) => p.product === product)?.price ?? 0;
+  const selected = prices.data?.find((p) => p.product === product);
+  const unitPrice = selected?.price ?? 0;
+  useEffect(() => {
+    // Refill may be hidden on the Products page; fall back to the first product on sale.
+    const first = prices.data?.[0];
+    if (first && !prices.data?.some((p) => p.product === product)) setProduct(first.product);
+  }, [prices.data, product]);
   const subtotal = unitPrice * quantity;
 
   const create = useMutation({
@@ -145,7 +151,7 @@ function CreateOrderPage() {
 
   const stepValid = useMemo(() => {
     if (step === 0) return !!customer;
-    if (step === 1) return Number.isInteger(quantity) && quantity > 0 && !!prices.data?.length;
+    if (step === 1) return Number.isInteger(quantity) && quantity > 0 && !!selected;
     if (step === 2)
       return (
         windows.length > 0 &&
@@ -154,7 +160,7 @@ function CreateOrderPage() {
         deliveryDate >= businessDate()
       );
     return true;
-  }, [step, customer, quantity, location, deliveryDate, prices.data, windows.length]);
+  }, [step, customer, quantity, location, deliveryDate, selected, windows.length]);
 
   return (
     <div className="space-y-5">
@@ -229,7 +235,7 @@ function CreateOrderPage() {
             onValueChange={(v) => setProduct(v as OrderType)}
             className="grid gap-3 sm:grid-cols-2"
           >
-            {(["refill", "first_purchase"] as OrderType[]).map((p) => (
+            {(prices.data ?? []).map(({ product: p, label, price }) => (
               <Label
                 key={p}
                 className={cn(
@@ -239,11 +245,9 @@ function CreateOrderPage() {
               >
                 <RadioGroupItem value={p} className="mt-1" />
                 <span>
-                  <span className="block text-sm font-medium text-foreground">
-                    {PRODUCT_LABELS[p]}
-                  </span>
+                  <span className="block text-sm font-medium text-foreground">{label}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {formatTZS(prices.data?.find((x) => x.product === p)?.price ?? 0)} per unit
+                    {formatTZS(price)} per unit
                   </span>
                 </span>
               </Label>
@@ -384,7 +388,7 @@ function CreateOrderPage() {
         <Panel title="Review and place order">
           <dl className="grid gap-2 sm:grid-cols-2">
             <Summary label="Customer" value={`${customer?.fullName} · ${customer?.phone}`} />
-            <Summary label="Product" value={PRODUCT_LABELS[product]} />
+            <Summary label="Product" value={selected?.label ?? productLabel(product)} />
             <Summary label="Quantity" value={String(quantity)} />
             <Summary label="Unit price" value={formatTZS(unitPrice)} />
             <Summary label="Subtotal" value={formatTZS(subtotal)} />

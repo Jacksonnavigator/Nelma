@@ -19,7 +19,7 @@ import { salesService } from "@/services";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
-  PRODUCT_SHORT_LABELS,
+  shortProductLabel,
   formatDate,
   formatNumber,
   formatTZS,
@@ -189,7 +189,7 @@ function SalesPage() {
                       <TableRow key={r.orderId}>
                         <TableCell className="whitespace-nowrap">{formatDate(r.date)}</TableCell>
                         <TableCell className="font-medium text-foreground">{r.customer}</TableCell>
-                        <TableCell>{PRODUCT_SHORT_LABELS[r.product]}</TableCell>
+                        <TableCell>{shortProductLabel(r.product)}</TableCell>
                         <TableCell>{r.quantity}</TableCell>
                         <TableCell>{PAYMENT_METHOD_LABELS[r.paymentMethod]}</TableCell>
                         <TableCell>

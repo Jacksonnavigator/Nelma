@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { StyleSheet, Text } from "react-native";
 import { Button, Header, ReceiptSummary, Screen } from "../../components";
 import { colors } from "../../constants/colors";
+import { catalogItem } from "../../constants/pricing";
 import { spacing, typography } from "../../constants/theme";
 import { useTranslation } from "../../hooks/use-translation";
 import { useNetwork } from "../../store/network-context";
@@ -36,7 +37,7 @@ export default function OrderSummaryScreen() {
     return <Redirect href="/order/payment" />;
   }
 
-  const product = pricingCatalog[draft.orderType];
+  const product = catalogItem(pricingCatalog, draft.orderType);
   const pricing = calculateOrderPricing(draft.orderType, draft.quantity, draft.charges ?? [], pricingCatalog);
 
   const placeOrder = async () => {

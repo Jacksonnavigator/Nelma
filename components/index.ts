@@ -12,6 +12,7 @@ export * from "./orders/ListFilterTabs";
 export * from "./orders/OrderCard";
 export * from "./orders/OrderTimeline";
 export * from "./orders/PaymentMethodCard";
+export * from "./orders/ProductImage";
 export * from "./orders/ProductOptionCard";
 export * from "./orders/QuantityStepper";
 export * from "./orders/ReceiptSummary";

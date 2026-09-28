@@ -1,8 +1,9 @@
 import { Redirect, router } from "expo-router";
 import { ArrowRight, X } from "lucide-react-native";
-import { Image, StyleSheet, Text, View } from "react-native";
-import { BottomActionBar, Button, CheckoutProgress, Header, PriceDisplay, QuantityStepper, Screen } from "../../components";
+import { StyleSheet, Text, View } from "react-native";
+import { BottomActionBar, Button, CheckoutProgress, Header, PriceDisplay, ProductImage, QuantityStepper, Screen } from "../../components";
 import { colors } from "../../constants/colors";
+import { catalogItem } from "../../constants/pricing";
 import { radius, spacing, typography } from "../../constants/theme";
 import { useTranslation } from "../../hooks/use-translation";
 import { useOrders } from "../../store/order-context";
@@ -16,23 +17,22 @@ export default function QuantityScreen() {
     return <Redirect href="/(tabs)/home" />;
   }
 
-  const product = pricingCatalog[draft.orderType];
-  const productImage = product.image === "new_bottle" ? require("../../assets/Bottle.jpeg") : require("../../assets/refill.jpg");
+  const product = catalogItem(pricingCatalog, draft.orderType);
   const pricing = calculateOrderPricing(draft.orderType, draft.quantity, [], pricingCatalog);
 
   return (
     <Screen padded={false} safeBottom={false} contentContainerStyle={styles.screen}>
       <View style={styles.body}>
         <CheckoutProgress current={2} />
-        <Header title="How many do you need?" subtitle="Select the number of 20L water units for this delivery." />
+        <Header title="How many do you need?" />
 
         <View style={styles.productPanel}>
           <View style={styles.artWrap}>
-            <Image source={productImage} resizeMode="contain" style={styles.productImage} />
+            <ProductImage product={product} style={styles.productImage} />
           </View>
           <View style={styles.productCopy}>
             <Text style={styles.productLabel}>{t(product.label)}</Text>
-            <Text style={styles.productName}>{t(product.productName)}</Text>
+            {product.description ? <Text style={styles.productName}>{t(product.description)}</Text> : null}
             <PriceDisplay amount={pricing.unitPrice} label="Unit price" />
           </View>
         </View>

@@ -16,8 +16,10 @@ export const usePushRegistration = (userId: string | undefined, role: "DRIVER" |
     let subscription: { remove: () => void } | undefined;
     void (async () => {
       try {
-        const [{ default: Constants }, Notifications, { pushNotifications }] = await Promise.all([
-          import("expo-constants"),
+        const { default: Constants, ExecutionEnvironment } = await import("expo-constants");
+        // Expo Go (SDK 53+) no longer ships remote push; loading expo-notifications there logs an error.
+        if (cancelled || Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return;
+        const [Notifications, { pushNotifications }] = await Promise.all([
           import("expo-notifications"),
           import("../services/push")
         ]);

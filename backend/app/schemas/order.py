@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AliasChoices, Field, field_validator, model_validator
 
@@ -6,7 +6,8 @@ from app.schemas.address import DeliveryAddressPayload
 from app.schemas.common import CamelModel
 from app.schemas.payment import PaymentRead, PaymentStatus
 
-OrderType = Literal["first_purchase", "refill"]
+# A product code from the catalog (first_purchase, refill, or one added in the dashboard).
+OrderType = Annotated[str, Field(min_length=2, max_length=32, pattern=r"^[a-z0-9_]+$")]
 OrderStatus = Literal["pending", "confirmed", "processing", "out_for_delivery", "delivered", "received", "cancelled"]
 OrderAction = Literal["cancel", "reorder", "contact_support", "mark_received", "message_nelma"]
 DeliverySlotId = Literal["asap", "morning", "afternoon", "evening"]

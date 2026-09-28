@@ -15,14 +15,14 @@ import type {
   PriceConfiguration,
   SystemSettings,
 } from "@/types";
-import { ORDER_LIFECYCLE, PRODUCT_LABELS } from "@/lib/format";
+import { ORDER_LIFECYCLE, PRODUCT_LABELS, type BuiltInProduct } from "@/lib/format";
 
 /**
  * Mock dataset for development/demo only.
  * Replaced wholesale by the FastAPI repositories — nothing here is persisted.
  */
 
-export const PRICES: Record<OrderType, number> = {
+export const PRICES: Record<BuiltInProduct, number> = {
   first_purchase: 18000,
   refill: 4000,
 };
@@ -254,7 +254,7 @@ function paymentFor(status: OrderStatus, i: number): PaymentStatus {
 export const orders: Order[] = Array.from({ length: 64 }, (_, i) => {
   const status = STATUS_PLAN[i % STATUS_PLAN.length]!;
   const customer = customers[i % customers.length]!;
-  const product: OrderType = i % 4 === 0 ? "first_purchase" : "refill";
+  const product: BuiltInProduct = i % 4 === 0 ? "first_purchase" : "refill";
   const quantity = product === "first_purchase" ? 1 + (i % 2) : 1 + (i % 5);
   const unitPrice = PRICES[product];
   const subtotal = unitPrice * quantity;

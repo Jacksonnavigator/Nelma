@@ -1,7 +1,8 @@
 import type { DeliveryAddress } from "./address";
 import type { Payment, PaymentStatus } from "./payment";
 
-export type OrderType = "first_purchase" | "refill";
+/** A product code from the catalog: first_purchase, refill, or one added in the dashboard. */
+export type OrderType = string;
 
 export type OrderStatus = "pending" | "confirmed" | "processing" | "out_for_delivery" | "delivered" | "received" | "cancelled";
 

@@ -2,7 +2,7 @@ import { CheckCircle2, PackagePlus, RefreshCw } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "../../hooks/use-translation";
 import { colors } from "../../constants/colors";
-import { productCatalog, type ProductCatalogItem } from "../../constants/pricing";
+import { catalogItem, productCatalog, type ProductCatalogItem } from "../../constants/pricing";
 import { radius, spacing, typography } from "../../constants/theme";
 import type { OrderType } from "../../types/order";
 import { PriceDisplay } from "../ui/PriceDisplay";
@@ -16,7 +16,7 @@ type ProductOptionCardProps = {
 
 export const ProductOptionCard = ({ orderType, product, selected, onPress }: ProductOptionCardProps) => {
   const { t } = useTranslation();
-  const item = product ?? productCatalog[orderType];
+  const item = product ?? catalogItem(productCatalog, orderType);
   const Icon = orderType === "first_purchase" ? PackagePlus : RefreshCw;
   const accent = orderType === "first_purchase" ? colors.primary : colors.green;
   return (

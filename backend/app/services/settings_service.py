@@ -6,16 +6,9 @@ from app.models.app_setting import AppSetting
 from app.models.user import User
 from app.schemas.settings import PricingUpdate, PublicProductSetting, PublicSettings, SystemSettingUpdate
 from app.services.audit_service import audit_service
+from app.services.product_service import product_service
 
-PRICE_KEYS = {
-    "first_purchase": "FIRST_PURCHASE_PRICE",
-    "refill": "REFILL_PRICE",
-}
-
-PRODUCT_NAMES = {
-    "first_purchase": "First-Time Purchase",
-    "refill": "Refill",
-}
+LEGACY_PRICE_FIELDS = {"first_purchase_price": "first_purchase", "refill_price": "refill"}
 
 
 class SettingsService:
@@ -31,6 +24,7 @@ class SettingsService:
             if setting is None:
                 db.add(AppSetting(key=key, value=value, is_public=True))
         db.commit()
+        product_service.seed_defaults(db, {"first_purchase": settings.first_purchase_price, "refill": settings.refill_price})
 
     def get_int(self, db: Session, key: str, fallback: int) -> int:
         setting = db.get(AppSetting, key)
@@ -42,24 +36,31 @@ class SettingsService:
             return fallback
 
     def public_settings(self, db: Session) -> PublicSettings:
-        settings = get_settings()
-        first_price = self.get_int(db, "FIRST_PURCHASE_PRICE", settings.first_purchase_price)
-        refill_price = self.get_int(db, "REFILL_PRICE", settings.refill_price)
+        # Every product customers can order right now, keyed by the code orders use as their type.
         return PublicSettings(
-            currency=settings.currency,
+            currency=get_settings().currency,
             products={
-                "first_purchase": PublicProductSetting(name=PRODUCT_NAMES["first_purchase"], unit_price=first_price),
-                "refill": PublicProductSetting(name=PRODUCT_NAMES["refill"], unit_price=refill_price),
+                product.code: PublicProductSetting(
+                    name=product.name,
+                    unit_price=product.unit_price,
+                    description=product.description,
+                    image_url=product.image_url,
+                    sort_order=product.sort_order,
+                )
+                for product in product_service.list(db, active_only=True)
             },
         )
 
     def update_pricing(self, db: Session, actor: User, data: PricingUpdate) -> PublicSettings:
+        """Older price-only endpoint for the two launch products; new clients edit products directly."""
         authorize(actor, Permission.PRICING_MANAGE)
         updates = data.model_dump(exclude_none=True)
-        if "first_purchase_price" in updates:
-            self._set(db, "FIRST_PURCHASE_PRICE", str(updates["first_purchase_price"]), True)
-        if "refill_price" in updates:
-            self._set(db, "REFILL_PRICE", str(updates["refill_price"]), True)
+        for field, code in LEGACY_PRICE_FIELDS.items():
+            if field in updates:
+                product = product_service.get_by_code(db, code)
+                if product is not None:
+                    product.unit_price = updates[field]
+                self._set(db, "FIRST_PURCHASE_PRICE" if code == "first_purchase" else "REFILL_PRICE", str(updates[field]), True)
         audit_service.record(db, actor=actor, event_type="PRICING_UPDATED", resource_type="app_settings", metadata=updates)
         db.commit()
         return self.public_settings(db)

@@ -68,18 +68,24 @@ const preferredPaymentMethod = (methods: PaymentMethod[]): PaymentMethod | undef
   return methods.find((method) => method.enabled && method.type === "cash") ?? methods.find((method) => method.enabled && method.type !== "mobile_money");
 };
 
-const catalogFromSettings = (settings: PublicSettings): ProductCatalog => ({
-  first_purchase: {
-    ...productCatalog.first_purchase,
-    label: settings.products.first_purchase.name || productCatalog.first_purchase.label,
-    unitPrice: settings.products.first_purchase.unitPrice
-  },
-  refill: {
-    ...productCatalog.refill,
-    label: settings.products.refill.name || productCatalog.refill.label,
-    unitPrice: settings.products.refill.unitPrice
-  }
-});
+// The backend lists exactly the products on sale; bundled pictures fill in for the launch products.
+const catalogFromSettings = (settings: PublicSettings): ProductCatalog => {
+  const entries = Object.entries(settings.products ?? {});
+  if (!entries.length) return productCatalog;
+  return Object.fromEntries(entries.map(([type, product], index) => {
+    const bundled = productCatalog[type];
+    return [type, {
+      type,
+      label: product.name || bundled?.label || type,
+      productName: product.name || bundled?.productName || type,
+      description: product.description ?? bundled?.description ?? "",
+      unitPrice: product.unitPrice,
+      image: bundled?.image,
+      imageUrl: product.imageUrl ?? null,
+      sortOrder: product.sortOrder ?? bundled?.sortOrder ?? index
+    }];
+  }));
+};
 
 export const OrderProvider = ({ children }: PropsWithChildren) => {
   const [orders, setOrders] = useState<Order[]>([]);

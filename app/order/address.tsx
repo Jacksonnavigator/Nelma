@@ -1,8 +1,8 @@
 import { Redirect, router } from "expo-router";
-import { ArrowRight, CalendarClock, Check, LocateFixed, MapPin, Save, X } from "lucide-react-native";
+import { ArrowRight, Check, LocateFixed, MapPin, Plus, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { BottomActionBar, Button, CheckoutProgress, DeliveryAddressCard, Header, Input, PriceDisplay, Screen, ServiceAreaMap } from "../../components";
+import { BottomActionBar, Button, CheckoutProgress, Header, Input, PriceDisplay, Screen, ServiceAreaMap } from "../../components";
 import { colors } from "../../constants/colors";
 import { radius, spacing, typography } from "../../constants/theme";
 import { useTranslation } from "../../hooks/use-translation";
@@ -14,6 +14,7 @@ import type { DeliveryAddress, UpsertSavedAddressInput } from "../../types/addre
 import type { DeliverySlotId } from "../../types/order";
 import { emptyDeliveryAddress, hasCoordinates, normalizeDeliveryAddress, savedAddressToDeliveryAddress } from "../../utils/address";
 import { buildDeliverySchedule, calculateDeliveryQuote, chargesForDeliveryQuote, deliverySlots, getDefaultDeliverySchedule, getDeliveryDateOptions } from "../../utils/delivery";
+import { formatCurrency } from "../../utils/format";
 import { calculateOrderPricing } from "../../utils/order";
 import type { FieldErrors } from "../../utils/validation";
 import { hasErrors, validateDeliveryAddress, validateSavedAddress } from "../../utils/validation";
@@ -25,6 +26,15 @@ type PickedCoordinate = {
   longitude: number;
 };
 
+// Short time labels so all four fit on one row of chips.
+const slotLabels: Record<DeliverySlotId, string> = { asap: "Soonest", morning: "Morning", afternoon: "Afternoon", evening: "Evening" };
+
+// A saved address needs a name; take it from the address itself so the customer is not asked for one.
+const labelFor = (address: DeliveryAddress): string => {
+  const first = address.deliveryAddress.split(",").map((part) => part.trim()).find((part) => part.length >= 2);
+  return (first ?? "My location").slice(0, 40);
+};
+
 export default function DeliveryAddressScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -32,7 +42,6 @@ export default function DeliveryAddressScreen() {
     draft,
     clearDraft,
     savedAddresses,
-    addressesLoading,
     pricingCatalog,
     loadSavedAddresses,
     setDeliveryAddress,
@@ -44,19 +53,38 @@ export default function DeliveryAddressScreen() {
   const [form, setForm] = useState<DeliveryAddress>(draft.deliveryAddress ?? emptyDeliveryAddress(user?.phone ?? ""));
   const [errors, setErrors] = useState<FieldErrors<DeliveryAddress>>({});
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
   const [saveForLater, setSaveForLater] = useState(false);
-  const [addressLabel, setAddressLabel] = useState("My location");
-  const [labelError, setLabelError] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [deliveryDate, setDeliveryDate] = useState(draft.deliverySchedule?.date ?? getDefaultDeliverySchedule().date);
   const [deliverySlot, setDeliverySlot] = useState<DeliverySlotId>(draft.deliverySchedule?.slot ?? "asap");
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(Boolean(draft.deliveryAddress?.deliveryInstructions));
 
   useEffect(() => {
     loadSavedAddresses();
   }, [loadSavedAddresses]);
+
+  const showSaved = savedAddresses.length > 0 && !addingNew;
+
+  // Pick a saved address up front, so a returning customer only has to tap Continue:
+  // the one this order already uses, otherwise the first. An unsaved address already on
+  // the order opens the form with it filled in instead.
+  useEffect(() => {
+    if (!showSaved || selectedAddressId) return;
+    const current = draft.deliveryAddress;
+    const match = current ? savedAddresses.find((address) => address.deliveryAddress.trim() === current.deliveryAddress.trim()) : undefined;
+    if (current?.deliveryAddress.trim() && !match) {
+      setAddingNew(true);
+      return;
+    }
+    const pick = match ?? savedAddresses[0];
+    setSelectedAddressId(pick.id);
+    setForm(current && match ? { ...savedAddressToDeliveryAddress(match), deliveryInstructions: current.deliveryInstructions ?? match.deliveryInstructions } : savedAddressToDeliveryAddress(pick));
+  }, [showSaved, selectedAddressId, savedAddresses, draft.deliveryAddress]);
 
   if (!draft.orderType) {
     return <Redirect href="/(tabs)/home" />;
@@ -67,36 +95,46 @@ export default function DeliveryAddressScreen() {
   const pricing = calculateOrderPricing(draft.orderType, draft.quantity, charges, pricingCatalog);
   const dateOptions = getDeliveryDateOptions();
   const deliverySchedule = buildDeliverySchedule(deliveryDate, deliverySlot);
+  const phone = form.phone || user?.phone || "";
+  const phoneOpen = editingPhone || !phone || Boolean(errors.phone);
+  const pinned = hasCoordinates(form);
 
   const setField = (key: AddressTextField) => (value: string) => {
-    setSelectedAddressId(null);
     setErrors((current) => ({ ...current, [key]: undefined }));
     setForm((current) => ({ ...current, [key]: value }));
   };
 
   const selectSavedAddress = (id: string) => {
     const saved = savedAddresses.find((address) => address.id === id);
-    if (!saved) {
-      return;
-    }
+    if (!saved) return;
     haptics.selection();
     setSelectedAddressId(id);
-    setSaveForLater(false);
-    setLabelError(null);
     setErrors({});
-    setLocationMessage(hasCoordinates(saved) ? "Precise location attached" : null);
     setForm(savedAddressToDeliveryAddress(saved));
+  };
+
+  const startNewAddress = () => {
+    haptics.selection();
+    setAddingNew(true);
+    setSelectedAddressId(null);
+    setErrors({});
+    setLocationMessage(null);
+    setNoteOpen(false);
+    setForm(emptyDeliveryAddress(user?.phone ?? ""));
+  };
+
+  const backToSaved = () => {
+    haptics.selection();
+    setAddingNew(false);
+    setSelectedAddressId(null);
+    setSaveForLater(false);
+    setErrors({});
   };
 
   const dropManualPin = (coordinate: PickedCoordinate) => {
     haptics.selection();
-    setSelectedAddressId(null);
-    setForm((current) => ({
-      ...current,
-      latitude: coordinate.latitude,
-      longitude: coordinate.longitude
-    }));
-    setLocationMessage("Manual pin added. You can still edit the written address details.");
+    setForm((current) => ({ ...current, latitude: coordinate.latitude, longitude: coordinate.longitude }));
+    setLocationMessage(null);
   };
 
   const useCurrentLocation = async () => {
@@ -105,14 +143,14 @@ export default function DeliveryAddressScreen() {
     try {
       const result = await locationService.getCurrentCoordinates();
       if (result.status === "granted") {
-        setSelectedAddressId(null);
         setForm((current) => ({
           ...current,
           latitude: result.coordinates.latitude,
           longitude: result.coordinates.longitude,
           ...(result.address ?? {})
         }));
-        setLocationMessage(result.address ? "Current location and address details attached." : "Location attached. Add the written address if your device could not resolve it.");
+        setErrors((current) => ({ ...current, deliveryAddress: undefined }));
+        setLocationMessage(result.address ? null : "Location found. Add the building or room below.");
         haptics.success();
       } else {
         setLocationMessage(result.message);
@@ -123,42 +161,27 @@ export default function DeliveryAddressScreen() {
     }
   };
 
-  const chooseDate = (date: string) => {
-    haptics.selection();
-    setDeliveryDate(date);
-  };
-
-  const chooseSlot = (slot: DeliverySlotId) => {
-    haptics.selection();
-    setDeliverySlot(slot);
-  };
-
   const continueToPayment = async () => {
-    const normalized = normalizeDeliveryAddress({ ...form, area: form.area || "Arusha" });
+    const normalized = normalizeDeliveryAddress({ ...form, phone, area: form.area || "Arusha" });
     const nextErrors = validateDeliveryAddress(normalized);
     setErrors(nextErrors);
-    setLabelError(null);
     if (hasErrors(nextErrors)) {
+      if (showSaved) setAddingNew(true); // Only happens if a saved address is incomplete; show the form so it can be fixed.
       haptics.light();
       return;
     }
 
-    if (saveForLater) {
-      const savedInput: UpsertSavedAddressInput = {
-        ...normalized,
-        label: addressLabel
-      };
-      const savedErrors = validateSavedAddress(savedInput);
-      if (savedErrors.label) {
-        setLabelError(savedErrors.label);
-        haptics.light();
-        return;
-      }
-      setSaving(true);
-      try {
-        await createSavedAddress(savedInput);
-      } finally {
-        setSaving(false);
+    if (saveForLater && !showSaved) {
+      const savedInput: UpsertSavedAddressInput = { ...normalized, label: labelFor(normalized) };
+      if (!hasErrors(validateSavedAddress(savedInput))) {
+        setSaving(true);
+        try {
+          await createSavedAddress(savedInput);
+        } catch {
+          // Saving for next time is a convenience; never block the order on it.
+        } finally {
+          setSaving(false);
+        }
       }
     }
 
@@ -175,100 +198,103 @@ export default function DeliveryAddressScreen() {
     <Screen padded={false} safeBottom={false} contentContainerStyle={styles.screen}>
       <View style={styles.body}>
         <CheckoutProgress current={3} />
-        <Header title="Delivery address" subtitle="Choose where and when your water should arrive." />
+        <Header title="Where should we deliver?" />
 
-        {savedAddresses.length ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t("My addresses")}</Text>
-              {addressesLoading ? <Text style={styles.helper}>{t("Loading...")}</Text> : null}
-            </View>
-            {savedAddresses.map((address) => (
-              <DeliveryAddressCard key={address.id} address={address} selected={selectedAddressId === address.id} onPress={() => selectSavedAddress(address.id)} />
-            ))}
+        {showSaved ? (
+          <View style={styles.list}>
+            {savedAddresses.map((address, index) => {
+              const selected = selectedAddressId === address.id;
+              return (
+                <Pressable
+                  key={address.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  onPress={() => selectSavedAddress(address.id)}
+                  style={({ pressed }) => [styles.option, index > 0 ? styles.optionDivider : null, selected ? styles.optionSelected : null, pressed ? styles.pressed : null]}
+                >
+                  <View style={[styles.radio, selected ? styles.radioOn : null]}>{selected ? <Check color={colors.white} size={13} strokeWidth={3} /> : null}</View>
+                  <View style={styles.optionCopy}>
+                    <Text style={styles.optionLabel}>{t(address.label)}</Text>
+                    <Text numberOfLines={1} style={styles.optionAddress}>{address.deliveryAddress}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+            <Pressable accessibilityRole="button" onPress={startNewAddress} style={({ pressed }) => [styles.option, styles.optionDivider, pressed ? styles.pressed : null]}>
+              <View style={styles.plus}><Plus color={colors.primary} size={15} strokeWidth={2.6} /></View>
+              <Text style={styles.linkText}>{t("Use a different address")}</Text>
+            </Pressable>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.group}>
+            <Button title={pinned ? "Location added" : "Use my current location"} icon={pinned ? Check : LocateFixed} variant="secondary" onPress={useCurrentLocation} loading={locating} />
+            {locationMessage ? <Text style={styles.helper}>{t(locationMessage)}</Text> : null}
+            <Pressable accessibilityRole="button" onPress={() => setShowMap((current) => !current)} style={styles.inlineLink}>
+              <MapPin color={colors.primary} size={15} />
+              <Text style={styles.linkSmall}>{t(showMap ? "Hide map" : pinned ? "Adjust pin on map" : "Or pick on the map")}</Text>
+            </Pressable>
+            {showMap ? (
+              <ServiceAreaMap latitude={form.latitude} longitude={form.longitude} pickable onPickCoordinate={dropManualPin} title="Delivery pin" subtitle="Tap where the water should go." />
+            ) : null}
 
-        <View style={styles.formPanel}>
-          <View style={styles.formTitleRow}>
-            <View style={styles.formIcon}>
-              <MapPin color={colors.primary} size={20} />
-            </View>
-            <View style={styles.formTitleCopy}>
-              <Text style={styles.sectionTitle}>{t("Address details")}</Text>
-              <Text style={styles.helper}>{t("Use an Arusha address; NM-AIST campus locations are prioritized.")}</Text>
-            </View>
-          </View>
-          <Pressable accessibilityRole="button" onPress={() => setShowMap((current) => !current)} style={({ pressed }) => [styles.mapToggle, { opacity: pressed ? 0.75 : 1 }]}>
-            <MapPin color={colors.primary} size={18} strokeWidth={2.3} />
-            <Text style={styles.mapToggleText}>{t(showMap ? "Hide map" : hasCoordinates(form) ? "Adjust map pin" : "Add precise map pin")}</Text>
-          </Pressable>
-          {showMap ? <ServiceAreaMap
-            latitude={form.latitude}
-            longitude={form.longitude}
-            pickable
-            onPickCoordinate={dropManualPin}
-            subtitle="Tap the map only when a precise pin is helpful."
-            title="Delivery pin"
-          /> : null}
-          <Button title={hasCoordinates(form) ? "Update Current Location" : "Use My Current Location"} icon={LocateFixed} variant="secondary" onPress={useCurrentLocation} loading={locating} />
-          {locationMessage ? <Text style={hasCoordinates(form) ? styles.successText : styles.helper}>{t(locationMessage)}</Text> : null}
-          {hasCoordinates(form) ? <Text style={styles.locationChip}>{t("Pin attached")}</Text> : null}
-          <Input label="Delivery location" value={form.deliveryAddress} onChangeText={setField("deliveryAddress")} error={errors.deliveryAddress} helper="Include campus, building, and room details." placeholder="NM-AIST, Hostel B, Room 204" />
-          <Input label="Phone Number" value={form.phone || user?.phone || ""} onChangeText={setField("phone")} keyboardType="phone-pad" error={errors.phone} />
-          <Input label="Delivery Instructions" value={form.deliveryInstructions ?? ""} onChangeText={setField("deliveryInstructions")} helper="Optional: gate access or arrival notes." multiline style={styles.instructionsInput} />
+            <Input label="Address" value={form.deliveryAddress} onChangeText={setField("deliveryAddress")} error={errors.deliveryAddress} placeholder="NM-AIST, Hostel B, Room 204" />
 
-          <View style={styles.feeCard}>
-            <View style={styles.feeCopy}>
-              <Text style={styles.feeTitle}>{t(deliveryQuote.zoneName)}</Text>
-              <Text style={styles.helper}>{t(deliveryQuote.helper)}</Text>
-            </View>
-            <PriceDisplay amount={deliveryQuote.charge.amount} label="Delivery fee" align="right" />
-          </View>
-
-          <View style={styles.schedulePanel}>
-            <View style={styles.formTitleRow}>
-              <View style={styles.formIcon}>
-                <CalendarClock color={colors.primary} size={20} />
+            {phoneOpen ? (
+              <Input label="Phone number" value={phone} onChangeText={setField("phone")} keyboardType="phone-pad" error={errors.phone} />
+            ) : (
+              <View style={styles.phoneRow}>
+                <Text style={styles.helper}>{t("Driver will call")} <Text style={styles.phone}>{phone}</Text></Text>
+                <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setEditingPhone(true)}>
+                  <Text style={styles.linkSmall}>{t("Change")}</Text>
+                </Pressable>
               </View>
-              <View style={styles.formTitleCopy}>
-                <Text style={styles.sectionTitle}>{t("Delivery time")}</Text>
-                <Text style={styles.helper}>{t("Pick the day and delivery window that works for you.")}</Text>
-              </View>
-            </View>
-            <View style={styles.optionRow}>
-              {dateOptions.map((option) => {
-                const selected = deliveryDate === option.date;
-                return (
-                  <Pressable key={option.date} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => chooseDate(option.date)} style={({ pressed }) => [styles.optionPill, selected ? styles.optionSelected : null, { opacity: pressed ? 0.78 : 1 }]}>
-                    <Text style={styles.optionTitle}>{t(option.label)}</Text>
-                    <Text style={styles.optionSubtitle}>{option.helper}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.slotGrid}>
-              {deliverySlots.map((slot) => {
-                const selected = deliverySlot === slot.id;
-                return (
-                  <Pressable key={slot.id} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => chooseSlot(slot.id)} style={({ pressed }) => [styles.slotCard, selected ? styles.optionSelected : null, { opacity: pressed ? 0.78 : 1 }]}>
-                    <Text style={styles.optionTitle}>{t(slot.label)}</Text>
-                    <Text style={styles.optionSubtitle}>{t(slot.window)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
+            )}
 
-          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: saveForLater }} onPress={() => setSaveForLater((current) => !current)} style={({ pressed }) => [styles.checkboxRow, { opacity: pressed ? 0.72 : 1 }]}>
-            <View style={[styles.checkbox, saveForLater ? styles.checkboxChecked : null]}>{saveForLater ? <Check color={colors.white} size={15} strokeWidth={3} /> : null}</View>
-            <View style={styles.checkboxCopy}>
-              <Text style={styles.checkboxText}>{t("Save this location")}</Text>
-              <Text style={styles.helper}>{t("Use it faster next time.")}</Text>
-            </View>
-            <Save color={colors.mutedText} size={18} />
-          </Pressable>
-          {saveForLater ? <Input label="Location label" value={addressLabel} onChangeText={setAddressLabel} error={labelError ?? undefined} /> : null}
+            {noteOpen ? (
+              <Input label="Note for the driver" value={form.deliveryInstructions ?? ""} onChangeText={setField("deliveryInstructions")} placeholder="Gate code, landmark, call on arrival" multiline style={styles.noteInput} />
+            ) : (
+              <Pressable accessibilityRole="button" onPress={() => setNoteOpen(true)} style={styles.inlineLink}>
+                <Plus color={colors.primary} size={15} strokeWidth={2.6} />
+                <Text style={styles.linkSmall}>{t("Add a note for the driver")}</Text>
+              </Pressable>
+            )}
+
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: saveForLater }} onPress={() => setSaveForLater((current) => !current)} style={styles.inlineLink}>
+              <View style={[styles.box, saveForLater ? styles.boxOn : null]}>{saveForLater ? <Check color={colors.white} size={12} strokeWidth={3} /> : null}</View>
+              <Text style={styles.checkText}>{t("Save this address for next time")}</Text>
+            </Pressable>
+
+            {savedAddresses.length ? (
+              <Pressable accessibilityRole="button" onPress={backToSaved} style={styles.inlineLink}>
+                <Text style={styles.linkSmall}>{t("Back to my saved addresses")}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
+
+        <View style={styles.group}>
+          <Text style={styles.sectionTitle}>{t("When?")}</Text>
+          <View style={styles.chips}>
+            {dateOptions.map((option) => {
+              const selected = deliveryDate === option.date;
+              return (
+                <Pressable key={option.date} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => { haptics.selection(); setDeliveryDate(option.date); }} style={[styles.chip, selected ? styles.chipOn : null]}>
+                  <Text style={[styles.chipText, selected ? styles.chipTextOn : null]}>{t(option.label === "Next day" ? option.helper : option.label)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.chips}>
+            {deliverySlots.map((slot) => {
+              const selected = deliverySlot === slot.id;
+              return (
+                <Pressable key={slot.id} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={t(slot.label)} onPress={() => { haptics.selection(); setDeliverySlot(slot.id); }} style={[styles.chip, selected ? styles.chipOn : null]}>
+                  <Text style={[styles.chipText, selected ? styles.chipTextOn : null]}>{t(slotLabels[slot.id])}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.helper}>{t(deliverySlots.find((slot) => slot.id === deliverySlot)?.window ?? "")}</Text>
         </View>
       </View>
 
@@ -280,200 +306,44 @@ export default function DeliveryAddressScreen() {
         loading={saving}
       >
         <PriceDisplay amount={pricing.total} label="Total" emphasize align="center" />
+        <Text style={styles.fee}>
+          {deliveryQuote.charge.amount > 0 ? t("Includes delivery") + " " + formatCurrency(deliveryQuote.charge.amount) : t("Free delivery")}
+        </Text>
       </BottomActionBar>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    gap: 0,
-    justifyContent: "space-between"
-  },
-  body: {
-    gap: spacing.lg,
-    padding: spacing.xl
-  },
-  section: {
-    gap: spacing.md
-  },
-  sectionHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.h3,
-    lineHeight: typography.lineHeight.h3
-  },
-  helper: {
-    color: colors.mutedText,
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  formPanel: {
-    backgroundColor: colors.white,
-    borderColor: colors.line,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  formTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md
-  },
-  formIcon: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceBlue,
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    width: 44
-  },
-  formTitleCopy: {
-    flex: 1,
-    gap: 2
-  },
-  instructionsInput: {
-    minHeight: 94,
-    textAlignVertical: "top"
-  },
-  mapToggle: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    gap: spacing.xs,
-    paddingVertical: spacing.xs
-  },
-  mapToggleText: {
-    color: colors.primary,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  successText: {
-    color: colors.success,
-    fontFamily: typography.fonts.semibold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  locationChip: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.surfaceMint,
-    borderRadius: radius.pill,
-    color: colors.success,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.tiny,
-    lineHeight: typography.lineHeight.tiny,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    textTransform: "uppercase"
-  },
-  feeCard: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.lg,
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-    padding: spacing.md
-  },
-  feeCopy: {
-    flex: 1,
-    gap: 2
-  },
-  feeTitle: {
-    color: colors.text,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body
-  },
-  schedulePanel: {
-    gap: spacing.md
-  },
-  optionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  optionPill: {
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 68,
-    minWidth: 96,
-    padding: spacing.sm
-  },
-  slotGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  slotCard: {
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    minHeight: 70,
-    padding: spacing.sm,
-    width: "48%"
-  },
-  optionSelected: {
-    backgroundColor: colors.surfaceBlue,
-    borderColor: colors.primary,
-    borderWidth: 2
-  },
-  optionTitle: {
-    color: colors.text,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.small,
-    lineHeight: typography.lineHeight.small
-  },
-  optionSubtitle: {
-    color: colors.mutedText,
-    fontFamily: typography.fonts.regular,
-    fontSize: typography.tiny,
-    lineHeight: typography.lineHeight.tiny,
-    marginTop: 2
-  },
-  checkboxRow: {
-    alignItems: "center",
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.md,
-    minHeight: 62,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm
-  },
-  checkbox: {
-    alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    height: 26,
-    justifyContent: "center",
-    width: 26
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  checkboxCopy: {
-    flex: 1,
-    gap: 2
-  },
-  checkboxText: {
-    color: colors.text,
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body
-  }
+  screen: { gap: 0, justifyContent: "space-between" },
+  body: { gap: spacing.xl, padding: spacing.xl },
+  group: { gap: spacing.md },
+  list: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, overflow: "hidden" },
+  option: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  optionDivider: { borderTopWidth: 1, borderTopColor: colors.line },
+  optionSelected: { backgroundColor: colors.surfaceBlue },
+  pressed: { opacity: 0.8 },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  radioOn: { borderColor: colors.primary, backgroundColor: colors.primary },
+  optionCopy: { flex: 1, gap: 1 },
+  optionLabel: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: typography.body, lineHeight: typography.lineHeight.body },
+  optionAddress: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: typography.small, lineHeight: typography.lineHeight.small },
+  plus: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceBlue },
+  linkText: { color: colors.primary, fontFamily: typography.fonts.semibold, fontSize: typography.body, lineHeight: typography.lineHeight.body },
+  inlineLink: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: spacing.xs, minHeight: 32 },
+  linkSmall: { color: colors.primary, fontFamily: typography.fonts.semibold, fontSize: typography.small, lineHeight: typography.lineHeight.small },
+  helper: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: typography.small, lineHeight: typography.lineHeight.small },
+  phoneRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+  phone: { color: colors.text, fontFamily: typography.fonts.semibold },
+  noteInput: { minHeight: 80, textAlignVertical: "top" },
+  box: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  boxOn: { borderColor: colors.primary, backgroundColor: colors.primary },
+  checkText: { color: colors.text, fontFamily: typography.fonts.medium, fontSize: typography.small, lineHeight: typography.lineHeight.small },
+  sectionTitle: { color: colors.text, fontFamily: typography.fonts.bold, fontSize: typography.h3, lineHeight: typography.lineHeight.h3 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  chip: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xxs, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  chipOn: { borderColor: colors.primary, backgroundColor: colors.primary },
+  chipText: { color: colors.text, fontFamily: typography.fonts.semibold, fontSize: typography.small, lineHeight: typography.lineHeight.small },
+  chipTextOn: { color: colors.white },
+  fee: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: typography.tiny, lineHeight: typography.lineHeight.tiny, textAlign: "center" }
 });

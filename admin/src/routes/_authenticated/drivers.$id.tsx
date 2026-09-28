@@ -22,7 +22,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { deliveriesService, driversService } from "@/services";
 import type { Delivery } from "@/types";
-import { PRODUCT_SHORT_LABELS, formatDate } from "@/lib/format";
+import { shortProductLabel, formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/drivers/$id")({
   head: () => ({
@@ -222,7 +222,7 @@ function DriverDetailPage() {
                       <p className="text-xs text-muted-foreground">{item.timeWindow}</p>
                     </TableCell>
                     <TableCell>
-                      {PRODUCT_SHORT_LABELS[item.product]} × {item.quantity}
+                      {shortProductLabel(item.product)} × {item.quantity}
                     </TableCell>
                     <TableCell>
                       <StatusBadge kind="delivery" status={item.status} />

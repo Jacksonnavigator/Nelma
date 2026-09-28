@@ -1,11 +1,12 @@
 import { router, useFocusEffect } from "expo-router";
-import { Bell, ChevronRight, KeyRound, LifeBuoy, LogOut, UserRound } from "lucide-react-native";
+import { Bell, ChevronRight, KeyRound, LifeBuoy, LogOut, Truck, UserRound } from "lucide-react-native";
 import { type ComponentType, useCallback, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Screen, Sheet, SkyBackdrop } from "../../../components";
+import { HeaderBand, Screen, Sheet, WaveEdge } from "../../../components";
 import { colors } from "../../../constants/colors";
-import { driverTheme, sheetShadow } from "../../../constants/driver-theme";
+import { driverTheme, liftShadow, sheetShadow } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
+import { useLightStatusBar } from "../../../hooks/use-light-status-bar";
 import { useTranslation } from "../../../hooks/use-translation";
 import { repositories } from "../../../repositories";
 import { haptics } from "../../../services/haptics";
@@ -24,13 +25,23 @@ const periods: Array<{ value: SummaryPeriod; label: string }> = [
   { value: "allTime", label: "All time" }
 ];
 
-type Row = { label: string; icon: ComponentType<{ color?: string; size?: number }>; route: Parameters<typeof router.push>[0]; badge?: boolean };
+type Row = { label: string; hint: string; icon: ComponentType<{ color?: string; size?: number }>; tint: string; ink: string; route: Parameters<typeof router.push>[0]; badge?: boolean };
 
-const rows: Row[] = [
-  { label: "Personal Info", icon: UserRound, route: "/driver/profile/edit" },
-  { label: "Notifications", icon: Bell, route: "/driver/(tabs)/notifications", badge: true },
-  { label: "Security", icon: KeyRound, route: "/driver/profile/security" },
-  { label: "Help & Support", icon: LifeBuoy, route: "/support" }
+const groups: Array<{ title: string; rows: Row[] }> = [
+  {
+    title: "Your account",
+    rows: [
+      { label: "Personal Info", hint: "Name, phone and email", icon: UserRound, tint: driverTheme.aqua, ink: colors.primary, route: "/driver/profile/edit" },
+      { label: "Security", hint: "Change your password", icon: KeyRound, tint: driverTheme.mintBg, ink: driverTheme.mintText, route: "/driver/profile/security" }
+    ]
+  },
+  {
+    title: "Updates and help",
+    rows: [
+      { label: "Notifications", hint: "New stops and schedule changes", icon: Bell, tint: driverTheme.amberBg, ink: driverTheme.amberText, route: "/driver/(tabs)/notifications", badge: true },
+      { label: "Help & Support", hint: "Talk to the NELMA team", icon: LifeBuoy, tint: "#EAE8FD", ink: "#4B45B8", route: "/support" }
+    ]
+  }
 ];
 
 export default function DriverProfileScreen() {
@@ -41,6 +52,8 @@ export default function DriverProfileScreen() {
   const [period, setPeriod] = useState<SummaryPeriod>("week");
   const stats = summary?.[period];
   const unread = useMemo(() => notifications.filter((item) => isDriverNotification(item) && !item.read).length, [notifications]);
+  const memberSince = useMemo(() => (user?.createdAt ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(user.createdAt)) : null), [user?.createdAt]);
+  useLightStatusBar();
 
   useFocusEffect(useCallback(() => {
     let cancelled = false;
@@ -57,20 +70,31 @@ export default function DriverProfileScreen() {
 
   return (
     <Screen safeBottom={false} contentContainerStyle={styles.screen} keyboard={false} padded={false} scroll={false} style={styles.safe}>
-      <SkyBackdrop />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.identity}>
-          {user?.avatarUrl ? (
-            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarText}>{initialsFromName(user?.fullName ?? "N").slice(0, 2)}</Text></View>
-          )}
-          <Text numberOfLines={1} style={styles.name}>{user?.fullName ?? t("NELMA Driver")}</Text>
-          <Text numberOfLines={1} style={styles.contact}>{user?.phone || user?.email}</Text>
-        </View>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <HeaderBand style={styles.band}>
+          <View style={styles.identity}>
+            <View style={styles.avatarRing}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarText}>{initialsFromName(user?.fullName ?? "N").slice(0, 2)}</Text></View>
+              )}
+            </View>
+            <View style={styles.identityCopy}>
+              <Text numberOfLines={1} style={styles.name}>{user?.fullName ?? t("NELMA Driver")}</Text>
+              <Text numberOfLines={1} style={styles.contact}>{user?.phone || user?.email}</Text>
+              <View style={styles.roleRow}>
+                <View style={styles.role}><Truck color={driverTheme.mintBright} size={13} /><Text style={styles.roleText}>{t("NELMA Driver")}</Text></View>
+                {memberSince ? <Text style={styles.since}>{t("Since")} {memberSince}</Text> : null}
+              </View>
+            </View>
+          </View>
+          <WaveEdge />
+        </HeaderBand>
 
+        <View style={styles.body}>
         {summary ? (
-          <Sheet style={styles.performance}>
+          <Sheet style={[styles.performance, liftShadow]}>
             <View style={styles.segments}>
               {periods.map((item) => {
                 const active = period === item.value;
@@ -99,60 +123,83 @@ export default function DriverProfileScreen() {
           </Sheet>
         ) : null}
 
-        <Sheet style={styles.menu}>
-          {rows.map((row, index) => {
-            const Icon = row.icon;
-            return (
-              <Pressable key={row.label} accessibilityRole="button" onPress={() => router.push(row.route)} style={({ pressed }) => [styles.row, index < rows.length - 1 ? styles.rowDivider : null, pressed ? styles.rowPressed : null]}>
-                <View style={styles.rowIcon}><Icon color={colors.primary} size={18} /></View>
-                <Text style={styles.rowLabel}>{t(row.label)}</Text>
-                {row.badge && unread > 0 ? <Text style={styles.unread}>{unread}</Text> : null}
-                <ChevronRight color={colors.subtleText} size={18} />
-              </Pressable>
-            );
-          })}
-        </Sheet>
+        {groups.map((group) => (
+          <View key={group.title} style={styles.group}>
+            <Text style={styles.groupTitle}>{t(group.title)}</Text>
+            <Sheet style={styles.menu}>
+              {group.rows.map((row, index) => {
+                const Icon = row.icon;
+                return (
+                  <Pressable key={row.label} accessibilityRole="button" onPress={() => router.push(row.route)} style={({ pressed }) => [styles.row, index < group.rows.length - 1 ? styles.rowDivider : null, pressed ? styles.rowPressed : null]}>
+                    <View style={[styles.rowIcon, { backgroundColor: row.tint }]}><Icon color={row.ink} size={18} /></View>
+                    <View style={styles.rowCopy}>
+                      <Text style={styles.rowLabel}>{t(row.label)}</Text>
+                      <Text style={styles.rowHint}>{t(row.hint)}</Text>
+                    </View>
+                    {row.badge && unread > 0 ? <Text style={styles.unread}>{unread}</Text> : null}
+                    <ChevronRight color={colors.subtleText} size={18} />
+                  </Pressable>
+                );
+              })}
+            </Sheet>
+          </View>
+        ))}
 
-        <Pressable accessibilityRole="button" onPress={signOut} style={({ pressed }) => [styles.signOut, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable accessibilityRole="button" onPress={signOut} style={({ pressed }) => [styles.signOut, pressed ? styles.signOutPressed : null]}>
           <LogOut color={colors.danger} size={18} />
           <Text style={styles.signOutText}>{t("Sign Out")}</Text>
         </Pressable>
+        </View>
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: driverTheme.pageBg },
+  safe: { backgroundColor: driverTheme.night },
   screen: { flex: 1 },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.md },
-  identity: { alignItems: "center", gap: 2, paddingBottom: spacing.sm },
-  avatar: { width: 84, height: 84, borderRadius: 42, borderWidth: 4, borderColor: colors.white, marginBottom: spacing.xs },
-  avatarFallback: { alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.deep },
-  avatarText: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 28, lineHeight: 34 },
-  name: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 26, letterSpacing: -0.4, lineHeight: 32 },
-  contact: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
-  performance: { padding: spacing.md, gap: spacing.md },
+  scroll: { backgroundColor: driverTheme.pageBg },
+  content: { paddingBottom: spacing.xxxl },
+  band: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxxl + spacing.sm },
+  identity: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  avatarRing: { padding: 3, borderRadius: 38, borderWidth: 2, borderColor: driverTheme.mintBright },
+  avatar: { width: 62, height: 62, borderRadius: 31 },
+  avatarFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.white },
+  avatarText: { color: driverTheme.deep, fontFamily: typography.fonts.bold, fontSize: 22, lineHeight: 28 },
+  identityCopy: { flex: 1, gap: 2 },
+  name: { color: colors.white, fontFamily: typography.fonts.bold, fontSize: 21, letterSpacing: -0.3, lineHeight: 26 },
+  contact: { color: driverTheme.onDark, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] },
+  roleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.xxs },
+  role: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: driverTheme.glass, borderWidth: 1, borderColor: driverTheme.glassLine },
+  roleText: { color: colors.white, fontFamily: typography.fonts.semibold, fontSize: 12, lineHeight: 16 },
+  since: { color: driverTheme.onDark, fontFamily: typography.fonts.regular, fontSize: 12, lineHeight: 16 },
+  body: { paddingHorizontal: spacing.lg, marginTop: -spacing.xxl, gap: spacing.sm },
+  performance: { padding: spacing.sm, gap: spacing.sm, borderRadius: radius.xl + 10 },
   segments: { flexDirection: "row", backgroundColor: driverTheme.aqua, borderRadius: radius.md, padding: 4 },
   segment: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 36, borderRadius: radius.sm },
   segmentActive: { backgroundColor: colors.white },
   segmentText: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 13, lineHeight: 18 },
   segmentTextActive: { color: colors.ink, fontFamily: typography.fonts.bold },
-  big: { alignItems: "center", paddingVertical: spacing.xs },
-  bigNumber: { color: driverTheme.deep, fontFamily: typography.fonts.bold, fontSize: 56, letterSpacing: -1.5, lineHeight: 62, fontVariant: ["tabular-nums"] },
+  big: { alignItems: "center" },
+  bigNumber: { color: driverTheme.deep, fontFamily: typography.fonts.bold, fontSize: 40, letterSpacing: -1, lineHeight: 46, fontVariant: ["tabular-nums"] },
   bigLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 14, lineHeight: 20 },
-  pair: { flexDirection: "row", alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: driverTheme.aquaLine, paddingTop: spacing.md },
+  pair: { flexDirection: "row", alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: driverTheme.aquaLine, paddingTop: spacing.sm, paddingBottom: spacing.xxs },
   pairCell: { flex: 1, alignItems: "center", gap: 2, paddingHorizontal: spacing.xs },
   pairRule: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: driverTheme.aquaLine },
   pairValue: { color: colors.ink, fontFamily: typography.fonts.bold, fontSize: 20, lineHeight: 26, fontVariant: ["tabular-nums"] },
   pairLabel: { color: colors.mutedText, fontFamily: typography.fonts.medium, fontSize: 12, lineHeight: 18 },
-  menu: { borderRadius: radius.xl },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 60, paddingHorizontal: spacing.md },
+  group: { gap: spacing.xs, marginTop: spacing.xxs },
+  groupTitle: { color: colors.mutedText, fontFamily: typography.fonts.semibold, fontSize: 12, letterSpacing: 0.6, lineHeight: 17, textTransform: "uppercase", paddingHorizontal: spacing.xxs },
+  menu: { borderRadius: radius.xl + 6 },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 60, paddingHorizontal: spacing.md },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: driverTheme.aquaLine },
   rowPressed: { backgroundColor: driverTheme.pageBg },
-  rowIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: driverTheme.aqua },
-  rowLabel: { flex: 1, color: colors.ink, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 21 },
-  unread: { minWidth: 22, paddingHorizontal: 6, borderRadius: 11, overflow: "hidden", textAlign: "center", color: colors.white, backgroundColor: colors.primary, fontFamily: typography.fonts.bold, fontSize: 12, lineHeight: 22 },
-  signOut: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, minHeight: 52, marginTop: spacing.xs },
+  rowIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  rowCopy: { flex: 1, gap: 1 },
+  rowLabel: { color: colors.ink, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 21 },
+  rowHint: { color: colors.mutedText, fontFamily: typography.fonts.regular, fontSize: 12, lineHeight: 17 },
+  unread: { minWidth: 22, paddingHorizontal: 6, borderRadius: 11, overflow: "hidden", textAlign: "center", color: colors.white, backgroundColor: colors.danger, fontFamily: typography.fonts.bold, fontSize: 12, lineHeight: 22 },
+  signOut: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, minHeight: 50, marginTop: spacing.xs, borderRadius: radius.xl + 6, borderWidth: 1, borderColor: "rgba(227,93,106,0.28)", backgroundColor: colors.white },
+  signOutPressed: { backgroundColor: colors.dangerBg },
   signOutText: { color: colors.danger, fontFamily: typography.fonts.semibold, fontSize: 15, lineHeight: 21 }
 });

@@ -11,7 +11,7 @@ import {
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   PAYMENT_METHOD_LABELS,
-  PRODUCT_LABELS,
+  productLabel,
   formatDate,
   formatDateTime,
   formatTZS,
@@ -76,7 +76,7 @@ export function OrderTable({
               </TableCell>
               <TableCell className="whitespace-nowrap">{order.customer.phone}</TableCell>
               <TableCell className="whitespace-nowrap">
-                {PRODUCT_LABELS[order.item.product]}
+                {productLabel(order.item.product, order.item.productName)}
               </TableCell>
               <TableCell className="text-right tabular-nums">{order.item.quantity}</TableCell>
               <TableCell className="whitespace-nowrap">{formatDateTime(order.createdAt)}</TableCell>
