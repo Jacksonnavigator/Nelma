@@ -20,6 +20,7 @@ import type {
   PriceConfiguration,
   Product,
   SalesReport,
+  UserAccount,
   UserAccountPage,
   SystemSettings,
 } from "@/types";
@@ -131,6 +132,9 @@ export interface OrdersService {
   collectCash(id: string, amount: number): Promise<Order>;
   confirm(id: string): Promise<Order>;
   process(id: string): Promise<Order>;
+  /** Staff reply shown to the customer in the app. */
+  reply(id: string, body: string): Promise<Order>;
+  cancel(id: string, reason: string): Promise<Order>;
   statusCounts(): Promise<{ status: OrderStatus; count: number }[]>;
 }
 
@@ -196,6 +200,9 @@ export interface UserQuery extends PageQuery {
 export interface UsersService {
   /** GET /admin/users — customers, drivers and staff. */
   list(query: UserQuery): Promise<UserAccountPage>;
+  setActive(id: string, active: boolean): Promise<UserAccount>;
+  /** Sets a new password and signs the person out everywhere. */
+  setPassword(id: string, password: string): Promise<void>;
 }
 
 export interface AdminAccountsService {

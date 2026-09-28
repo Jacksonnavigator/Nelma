@@ -85,6 +85,10 @@ class ResetPasswordRequest(CamelModel):
         return self
 
 
+class DeleteAccountRequest(CamelModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
 class ChangePasswordRequest(CamelModel):
     current_password: str = Field(min_length=8, max_length=128, validation_alias=AliasChoices("currentPassword", "current_password"))
     new_password: str = Field(min_length=8, max_length=128, validation_alias=AliasChoices("newPassword", "new_password"))

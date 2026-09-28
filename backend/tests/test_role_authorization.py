@@ -371,20 +371,22 @@ def test_audit_system_settings_and_pricing_permissions(client):
     _, sales_headers = _dashboard_login(client, "0712000002")
     _, admin_headers = _dashboard_login(client, "0712000003")
 
-    pricing = client.patch("/api/v1/settings/pricing", headers=sales_headers, json={"refillPrice": 2500})
+    pricing = client.patch("/api/v1/admin/pricing/refill", headers=sales_headers, json={"price": 2500})
     assert pricing.status_code == 200, pricing.text
-    assert pricing.json()["products"]["refill"]["unitPrice"] == 2500
+    assert client.get("/api/v1/settings/public").json()["products"]["refill"]["unitPrice"] == 2500
 
-    sales_system = client.patch("/api/v1/settings/system", headers=sales_headers, json={"key": "SUPPORT_PHONE", "value": "+255700000000", "isPublic": True})
+    business = {"name": "NELMA", "supportPhone": "+255700000000", "supportEmail": "help@nelma.co.tz", "address": "Arusha", "operatingHours": "07:00 - 20:00"}
+    sales_system = client.patch("/api/v1/admin/settings", headers=sales_headers, json={"business": business})
     assert sales_system.status_code == 403
 
-    admin_system = client.patch("/api/v1/settings/system", headers=admin_headers, json={"key": "SUPPORT_PHONE", "value": "+255700000000", "isPublic": True})
-    assert admin_system.status_code == 200
+    admin_system = client.patch("/api/v1/admin/settings", headers=admin_headers, json={"business": business})
+    assert admin_system.status_code == 200, admin_system.text
+    assert client.get("/api/v1/settings/public").json()["support"]["email"] == "help@nelma.co.tz"
 
     sales_audit = client.get("/api/v1/audit-logs", headers=sales_headers)
     assert sales_audit.status_code == 403
 
     admin_audit = client.get("/api/v1/audit-logs", headers=admin_headers)
     assert admin_audit.status_code == 200
-    assert {entry["eventType"] for entry in admin_audit.json()} >= {"PRICING_UPDATED", "SYSTEM_SETTING_UPDATED"}
+    assert {entry["eventType"] for entry in admin_audit.json()} >= {"PRODUCT_UPDATED", "SYSTEM_SETTING_UPDATED"}
 

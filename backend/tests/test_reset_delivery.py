@@ -166,7 +166,7 @@ def test_cash_only_methods_and_initialization(client, monkeypatch):
     _, customer = register_customer(client)
     monkeypatch.setattr(get_settings(), "payment_provider", "cash")
     methods = client.get("/api/v1/payments/methods").json()
-    assert next(m for m in methods if m["id"] == "mobile_money")["enabled"] is False
+    assert [m["id"] for m in methods] == ["cash"]
     order = create_order(client, customer, paymentMethodId="cash")
     response = client.post("/api/v1/payments/initialize", headers=customer, json={"orderId": order["id"], "methodId": "cash"})
     assert response.status_code == 201, response.text

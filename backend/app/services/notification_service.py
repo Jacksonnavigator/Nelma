@@ -28,6 +28,9 @@ EVENT_COPY = {
     "order_delivered": ("Delivered", "Your NELMA water order has been delivered."),
     "order_customer_received": ("Order received", "Thank you for confirming your delivery."),
     "order_message": ("Order message", "A message was added to your NELMA order."),
+    "order_message_reply": ("Message from NELMA", "NELMA replied about your order. Open it to read the message."),
+    "staff_order_message": ("Customer message", "A customer sent a message about an order. Open the order to reply."),
+    "driver_delivery_cancelled": ("Delivery cancelled", "NELMA cancelled a delivery assigned to you. It is off your route."),
     "payment_successful": ("Payment successful", "Your payment has been received."),
     "payment_failed": ("Payment failed", "Your payment could not be completed."),
     "payment_cancelled": ("Payment cancelled", "Your payment was cancelled."),
@@ -47,6 +50,10 @@ EVENT_COPY = {
 }
 
 
+# Event prefix -> the customer's notification switch that controls its phone alert.
+PUSH_PREFERENCE_FOR = {"order": "orderUpdates", "payment": "paymentUpdates"}
+
+
 class NotificationService:
     def create_for_event(self, db: Session, *, user_id: str, event_type: str, order_id: str | None = None) -> Notification:
         title, body = EVENT_COPY.get(event_type, ("NELMA update", "You have a new NELMA update."))
@@ -58,7 +65,8 @@ class NotificationService:
             related_order_id=order_id,
         )
         repo.add(db, notification)
-        push_service.queue_push(db, user_id=user_id, title=title, body=body, data={"type": event_type, "orderId": order_id})
+        if self._wants_push(db, user_id, event_type):
+            push_service.queue_push(db, user_id=user_id, title=title, body=body, data={"type": event_type, "orderId": order_id})
         alert_key = (
             "newOrderAlerts"
             if event_type == "order_received"
@@ -86,6 +94,17 @@ class NotificationService:
                         ),
                     )
         return notification
+
+    @staticmethod
+    def _wants_push(db: Session, user_id: str, event_type: str) -> bool:
+        """Customers can switch order and payment alerts off in the app; the inbox copy is always kept."""
+        preference = PUSH_PREFERENCE_FOR.get(event_type.split("_", 1)[0])
+        if preference is None:
+            return True
+        user = db.get(User, user_id)
+        if user is None or user.role != Role.USER:
+            return True
+        return bool((user.notification_preferences or {}).get(preference, True))
 
     def notify_staff(self, db: Session, *, event_type: str, order_id: str | None = None) -> None:
         title, body = EVENT_COPY[event_type]

@@ -574,8 +574,18 @@ export const systemSettings: SystemSettings = {
   payments: { cashEnabled: true, mobileMoneyEnabled: false },
   notifications: { newOrderAlerts: true, deliveryAlerts: true, paymentAlerts: true },
   delivery: {
-    feeRuleSource: "Server-defined (FastAPI)",
     defaultTimeWindows: WINDOWS,
+    zones: [
+      {
+        id: "nmaist",
+        name: "NM-AIST campus",
+        fee: 0,
+        keywords: ["nm-aist", "nmaist", "nelson mandela"],
+      },
+      { id: "tengeru", name: "Tengeru", fee: 1000, keywords: ["tengeru"] },
+    ],
+    defaultZoneName: "Arusha",
+    defaultFee: 1500,
   },
 };
 

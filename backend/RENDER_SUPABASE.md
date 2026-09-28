@@ -118,6 +118,21 @@ SUPABASE_SERVICE_ROLE_KEY=the-service_role-key
 
 The first upload creates a public bucket named `product-images` (change it with `PRODUCT_IMAGE_BUCKET`). The service role key bypasses Supabase security, so only ever put it in Render, never in the mobile or admin apps. Without these variables, uploads are refused with a clear message and you can paste an `https://` picture link instead.
 
+### Phone notifications
+
+Order alerts to phones are off until you turn them on. After the mobile app is linked to Expo (`npx eas init`) and built with EAS, add:
+
+```env
+EXPO_PUSH_ENABLED=true
+EXPO_PUSH_ACCESS_TOKEN=
+```
+
+The access token is optional; set it only if you enabled "enhanced push security" in your Expo account. Customers can still switch order and payment alerts off in the app.
+
+### Business contacts, delivery fees and times
+
+These are not environment variables. After the first deploy, sign in to the dashboard as an administrator and open **System Settings** to set the support phone and email, delivery zones with their fees, the standard fee, and the delivery time windows. The mobile app reads them automatically.
+
 ## 4. Deploy And Migrate
 
 Trigger a Render deploy. The deploy should:

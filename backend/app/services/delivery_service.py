@@ -1,86 +1,65 @@
-﻿from datetime import UTC, datetime
+"""Delivery fees and time slots, driven by the settings staff edit on the dashboard.
 
+The mobile app shows the same quote from the public settings, but the server's result is the one
+charged: the fee is always recomputed here from the address saved on the order.
+"""
+
+import re
+from datetime import UTC, datetime
+
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import AppException
+from app.core.http_status import HTTP_422_UNPROCESSABLE_CONTENT
 from app.schemas.order import DeliveryScheduleRead
+from app.services.business_settings import read_settings
 
-ARUSHA_BOUNDS = {
-    "north": -3.28,
-    "south": -3.48,
-    "west": 36.56,
-    "east": 36.90,
-}
-
-DELIVERY_SLOTS = {
-    "asap": ("As soon as possible", "Next available delivery"),
-    "morning": ("Morning", "09:00 - 12:00"),
-    "afternoon": ("Afternoon", "12:00 - 16:00"),
-    "evening": ("Evening", "16:00 - 19:00"),
-}
+ASAP = ("As soon as possible", "Next available delivery")
 
 
 def default_delivery_schedule() -> dict[str, str]:
     today = datetime.now(UTC).date().isoformat()
-    label, window = DELIVERY_SLOTS["asap"]
-    return {
-        "date": today,
-        "slot": "asap",
-        "label": f"Today, {label}",
-        "window": window,
-    }
+    label, window = ASAP
+    return {"date": today, "slot": "asap", "label": f"Today, {label}", "window": window}
 
 
-def schedule_snapshot(schedule: DeliveryScheduleRead | None) -> dict[str, str]:
+def schedule_snapshot(db: Session, schedule: DeliveryScheduleRead | None) -> dict[str, str]:
     if schedule is None:
         return default_delivery_schedule()
+    if schedule.slot != "asap":
+        windows = read_settings(db)["delivery"]["defaultTimeWindows"]
+        if schedule.window not in windows:
+            raise AppException(
+                "INVALID_DELIVERY_WINDOW",
+                "That delivery time is no longer offered. Choose another time.",
+                HTTP_422_UNPROCESSABLE_CONTENT,
+            )
     return schedule.model_dump(by_alias=True)
 
 
-def _text_from_snapshot(snapshot: dict) -> str:
-    values = [
-        snapshot.get("area"),
-        snapshot.get("full_address"),
-        snapshot.get("fullAddress"),
-        snapshot.get("deliveryAddress"),
-    ]
+def _address_text(snapshot: dict) -> str:
+    values = [snapshot.get("area"), snapshot.get("full_address"), snapshot.get("fullAddress"), snapshot.get("deliveryAddress")]
     return " ".join(str(value) for value in values if value).lower()
 
 
-def _inside_arusha_bounds(snapshot: dict) -> bool:
-    latitude = snapshot.get("latitude")
-    longitude = snapshot.get("longitude")
-    if not isinstance(latitude, int | float) or not isinstance(longitude, int | float):
-        return False
-    return (
-        latitude <= ARUSHA_BOUNDS["north"]
-        and latitude >= ARUSHA_BOUNDS["south"]
-        and longitude >= ARUSHA_BOUNDS["west"]
-        and longitude <= ARUSHA_BOUNDS["east"]
-    )
+def _mentions(text: str, keyword: str) -> bool:
+    # Whole words only, so "tengeru" matches "Tengeru market" but a keyword never matches inside another word.
+    return re.search(r"(?<![a-z0-9])" + re.escape(keyword) + r"(?![a-z0-9])", text) is not None
 
 
-def delivery_quote(snapshot: dict) -> dict:
-    text = _text_from_snapshot(snapshot)
-    if any(keyword in text for keyword in ["nm-aist", "nmaist", "nelson mandela", "campus", "hostel", "phd"]):
-        return {
-            "zoneId": "nmaist",
-            "zoneName": "NM-AIST campus",
-            "charge": {"id": "delivery_nmaist", "label": "Delivery fee - NM-AIST campus", "amount": 0},
-            "helper": "Free delivery for the current NM-AIST priority area.",
-        }
-    if "tengeru" in text:
-        return {
-            "zoneId": "tengeru",
-            "zoneName": "Tengeru nearby area",
-            "charge": {"id": "delivery_tengeru", "label": "Delivery fee - Tengeru", "amount": 1000},
-            "helper": "Nearby Arusha delivery fee for Tengeru locations.",
-        }
-    return {
-        "zoneId": "arusha",
-        "zoneName": "Arusha mapped area" if _inside_arusha_bounds(snapshot) else "Arusha standard area",
-        "charge": {"id": "delivery_arusha", "label": "Delivery fee - Arusha", "amount": 1500},
-        "helper": "Standard Arusha delivery fee. NELMA currently serves Arusha and NM-AIST first.",
-    }
+def delivery_quote(delivery: dict, snapshot: dict) -> dict:
+    text = _address_text(snapshot)
+    for zone in delivery["zones"]:
+        if any(_mentions(text, keyword) for keyword in zone["keywords"]):
+            return {"zoneId": zone["id"], "zoneName": zone["name"], "charge": _charge(zone["id"], zone["name"], zone["fee"])}
+    name = delivery["defaultZoneName"]
+    return {"zoneId": "default", "zoneName": name, "charge": _charge("default", name, delivery["defaultFee"])}
 
 
-def charges_for_snapshot(snapshot: dict) -> list[dict]:
-    charge = delivery_quote(snapshot)["charge"]
+def _charge(zone_id: str, zone_name: str, amount: int) -> dict:
+    return {"id": f"delivery_{zone_id}", "label": f"Delivery fee - {zone_name}", "amount": amount}
+
+
+def charges_for_snapshot(db: Session, snapshot: dict) -> list[dict]:
+    charge = delivery_quote(read_settings(db)["delivery"], snapshot)["charge"]
     return [charge] if charge["amount"] > 0 else []

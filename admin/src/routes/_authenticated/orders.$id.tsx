@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Truck } from "lucide-react";
+import { ArrowLeft, Send, Truck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -10,7 +10,18 @@ import { ErrorState, LoadingSkeleton } from "@/components/common/states";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { AssignmentModal } from "@/components/deliveries/AssignmentModal";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import type { Order, OrderMessage } from "@/types";
 import { deliveriesService, driversService, ordersService } from "@/services";
 import { ORDER_TRANSITIONS, TRANSITION_LABELS } from "@/lib/permissions";
 import {
@@ -58,6 +69,84 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+const errorMessage = (error: unknown, fallback: string) =>
+  error && typeof error === "object" && "message" in error ? String(error.message) : fallback;
+
+const SENDER_LABEL: Record<OrderMessage["sender"], string> = {
+  customer: "Customer",
+  nelma: "NELMA",
+  system: "Update",
+};
+
+// The customer's delivery note and chat, with a reply box that sends straight to their app.
+function Conversation({ order, canReply }: { order: Order; canReply: boolean }) {
+  const qc = useQueryClient();
+  const [body, setBody] = useState("");
+  const messages = order.messages ?? [];
+  const reply = useMutation({
+    mutationFn: (text: string) => ordersService.reply(order.id, text),
+    onSuccess: (updated) => {
+      setBody("");
+      qc.setQueryData(["order", order.id], updated);
+      toast.success("Reply sent to the customer");
+    },
+    onError: (error) => toast.error(errorMessage(error, "Could not send the reply")),
+  });
+  return (
+    <Panel title="Messages">
+      {messages.length === 0 ? (
+        <p className="py-2 text-sm text-muted-foreground">No messages about this order yet.</p>
+      ) : (
+        <ul className="max-h-80 space-y-2 overflow-y-auto py-1">
+          {messages.map((m) => (
+            <li
+              key={m.id}
+              className={
+                m.sender === "nelma"
+                  ? "ml-6 rounded-lg bg-primary/10 px-3 py-2"
+                  : m.sender === "system"
+                    ? "rounded-lg border border-dashed px-3 py-2"
+                    : "mr-6 rounded-lg bg-muted px-3 py-2"
+              }
+            >
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className="font-medium">{SENDER_LABEL[m.sender]}</span>
+                <span>{formatDateTime(m.createdAt)}</span>
+              </div>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{m.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {canReply ? (
+        <form
+          className="mt-3 space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (body.trim() && !reply.isPending) reply.mutate(body.trim());
+          }}
+        >
+          <Label htmlFor="order-reply" className="sr-only">
+            Reply to the customer
+          </Label>
+          <Textarea
+            id="order-reply"
+            value={body}
+            maxLength={1200}
+            rows={2}
+            placeholder="Reply to the customer"
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={!body.trim() || reply.isPending}>
+            <Send className="mr-2 size-4" />
+            {reply.isPending ? "Sending…" : "Send reply"}
+          </Button>
+        </form>
+      ) : null}
+    </Panel>
+  );
+}
+
 function OrderDetailPage() {
   const { id } = Route.useParams();
   const { can } = useAuth();
@@ -65,6 +154,8 @@ function OrderDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [reason, setReason] = useState("");
 
   const order = useQuery({ queryKey: ["order", id], queryFn: () => ordersService.get(id) });
   const deliveries = useQuery({
@@ -101,6 +192,17 @@ function OrderDetailPage() {
     onError: () => toast.error("Could not assign this driver"),
   });
 
+  const cancel = useMutation({
+    mutationFn: (why: string) => ordersService.cancel(id, why),
+    onSuccess: () => {
+      toast.success("Order cancelled");
+      setCancelOpen(false);
+      setReason("");
+      void qc.invalidateQueries();
+    },
+    onError: (error) => toast.error(errorMessage(error, "Could not cancel this order")),
+  });
+
   const collectCash = useMutation({
     mutationFn: () => ordersService.collectCash(id, order.data!.total),
     onSuccess: () => {
@@ -126,6 +228,8 @@ function OrderDetailPage() {
   const o = order.data;
   const next = ORDER_TRANSITIONS[o.status];
   const canAdvance = can("orders.process") && !!next;
+  const canCancel =
+    can("orders.process") && !["delivered", "customer_received", "cancelled"].includes(o.status);
 
   return (
     <div className="space-y-5">
@@ -147,6 +251,15 @@ function OrderDetailPage() {
               <Button variant="outline" onClick={() => setAssignOpen(true)}>
                 <Truck className="mr-2 size-4" />
                 {delivery.driverId ? "Reassign driver" : "Assign driver"}
+              </Button>
+            ) : null}
+            {canCancel ? (
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setCancelOpen(true)}
+              >
+                <XCircle className="mr-2 size-4" /> Cancel order
               </Button>
             ) : null}
             {canAdvance ? (
@@ -219,6 +332,7 @@ function OrderDetailPage() {
         </div>
 
         <div className="space-y-4">
+          <Conversation order={o} canReply={can("orders.process")} />
           <Panel title="Order lifecycle">
             <OrderTimeline order={o} />
           </Panel>
@@ -238,11 +352,51 @@ function OrderDetailPage() {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={TRANSITION_LABELS[o.status] ?? "Update order"}
-        description={`This moves the order to "${next}". The backend remains the source of truth.`}
+        description={`This moves the order to "${next?.replace(/_/g, " ")}" and lets the customer know.`}
         confirmLabel={TRANSITION_LABELS[o.status] ?? "Confirm"}
         loading={advance.isPending}
         onConfirm={() => advance.mutate()}
       />
+
+      <Dialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          setCancelOpen(open);
+          if (!open) setReason("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this order?</DialogTitle>
+            <DialogDescription>
+              The customer is told it was cancelled, with your reason.
+              {delivery?.driverId ? " The driver gets an alert and it leaves their route." : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="cancel-reason">Reason</Label>
+            <Textarea
+              id="cancel-reason"
+              value={reason}
+              maxLength={300}
+              placeholder="For example: customer asked by phone, out of stock"
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>
+              Keep order
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={reason.trim().length < 3 || cancel.isPending}
+              onClick={() => cancel.mutate(reason.trim())}
+            >
+              {cancel.isPending ? "Cancelling…" : "Cancel order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {delivery ? (
         <AssignmentModal

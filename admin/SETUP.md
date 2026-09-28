@@ -49,6 +49,4 @@ python -m ruff check app tests
 python -m pytest -q
 ```
 
-See VERIFICATION.md for coverage and known limits. `scripts/serve_verification.py` runs a development-only fixture API on port 8011 with an isolated database under `admin/output`; do not deploy it. To use it, create `admin/output`, run the script from the repository root, and start Vite with `VITE_API_URL=http://127.0.0.1:8011/api/v1` in that terminal environment.
-
-Sales managers can record cash received on delivered orders. See PAYMENTS-AND-RESET.md for collection and production setup. Mobile money remains disabled. Email and SMS password-reset delivery are implemented using SMTP and Twilio; configure their credentials in backend/.env. Development reset codes are for local testing. Account last-login timestamps are not tracked and display as unavailable.
+Sales managers can record cash received on delivered orders. See PAYMENTS-AND-RESET.md for collection and production setup. Mobile money is not connected yet; customers pay cash on delivery. Email and SMS password-reset delivery are implemented using SMTP and Twilio; configure their credentials in backend/.env. Development reset codes are for local testing. Account last-login timestamps are not tracked and display as unavailable.

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from app.api.dependencies import CurrentUser, DbSession
-from app.schemas.auth import ChangePasswordRequest
+from app.schemas.auth import ChangePasswordRequest, DeleteAccountRequest
 from app.schemas.user import PushTokenCreate, PushTokenRead, UserRead, UserUpdate
 from app.services.user_service import user_service
 
@@ -21,6 +21,12 @@ def update_me(data: UserUpdate, user: CurrentUser, db: DbSession) -> UserRead:
 @router.patch("/me/security", status_code=status.HTTP_204_NO_CONTENT, summary="Change current customer password")
 def change_password(data: ChangePasswordRequest, user: CurrentUser, db: DbSession) -> Response:
     user_service.change_password(db, user, data)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/me/delete-account", status_code=status.HTTP_204_NO_CONTENT, summary="Permanently close the current customer account")
+def delete_account(data: DeleteAccountRequest, user: CurrentUser, db: DbSession) -> Response:
+    user_service.delete_account(db, user, data.password)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

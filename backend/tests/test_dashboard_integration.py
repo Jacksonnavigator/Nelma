@@ -206,7 +206,7 @@ def test_dashboard_validation_filters_and_missing_records(client):
         response = client.patch(
             "/api/v1/admin/settings",
             headers=admin,
-            json={"delivery": {"feeRuleSource": "Server-defined (FastAPI)", "defaultTimeWindows": windows}},
+            json={"delivery": {"defaultTimeWindows": windows}},
         )
         assert response.status_code == 422
     assert (

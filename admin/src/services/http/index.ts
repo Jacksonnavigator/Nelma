@@ -22,6 +22,7 @@ import type {
   PaginatedResponse,
   PriceConfiguration,
   Product,
+  UserAccount,
   UserAccountPage,
   SalesReport,
   SystemSettings,
@@ -142,6 +143,10 @@ export const httpServices: ServiceRegistry = {
       apiRequest<Order>(`admin/orders/${id}/collect-cash`, { method: "POST", body: { amount } }),
     confirm: (id) => apiRequest<Order>(`admin/orders/${id}/confirm`, { method: "POST" }),
     process: (id) => apiRequest<Order>(`admin/orders/${id}/process`, { method: "POST" }),
+    reply: (id, body) =>
+      apiRequest<Order>(`admin/orders/${id}/messages`, { method: "POST", body: { body } }),
+    cancel: (id, reason) =>
+      apiRequest<Order>(`admin/orders/${id}/cancel`, { method: "POST", body: { reason } }),
     statusCounts: () =>
       apiRequest<{ status: OrderStatus; count: number }[]>("admin/orders/status-counts"),
   },
@@ -239,6 +244,10 @@ export const httpServices: ServiceRegistry = {
           search: query.search,
         },
       }),
+    setActive: (id, active) =>
+      apiRequest<UserAccount>(`admin/users/${id}/status`, { method: "POST", body: { active } }),
+    setPassword: (id, password) =>
+      apiRequest<void>(`admin/users/${id}/password`, { method: "POST", body: { password } }),
   },
 
   adminAccounts: {

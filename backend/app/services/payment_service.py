@@ -138,7 +138,9 @@ class PaymentService:
         return expected
 
     def methods(self) -> list[PaymentMethodRead]:
-        return [PaymentMethodRead.model_validate(get_payment_method(method["id"])) for method in PAYMENT_METHODS]
+        # Only offer what can actually be used right now; mobile money stays hidden until a provider is connected.
+        methods = [get_payment_method(method["id"]) for method in PAYMENT_METHODS]
+        return [PaymentMethodRead.model_validate(method) for method in methods if method and method["enabled"]]
 
     def get(self, db: Session, user: User, payment_id: str) -> PaymentRead:
         authorize(user, Permission.PAYMENT_MANAGE_SELF)

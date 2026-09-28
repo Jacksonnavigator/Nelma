@@ -310,6 +310,34 @@ export const mockServices: ServiceRegistry = {
     async process(id) {
       return advance(id, "confirmed", "processing");
     },
+    async reply(id, body) {
+      const order = db.orders.find((o) => o.id === id);
+      if (!order) throw { status: 404, message: "Order not found." };
+      order.messages = [
+        ...(order.messages ?? []),
+        { id: `msg_${Date.now()}`, sender: "nelma", body, createdAt: new Date().toISOString() },
+      ];
+      return delay(structuredClone(order), 300);
+    },
+    async cancel(id, reason) {
+      const order = db.orders.find((o) => o.id === id);
+      if (!order) throw { status: 404, message: "Order not found." };
+      if (["delivered", "customer_received", "cancelled"].includes(order.status)) {
+        throw { status: 409, message: "Delivered or cancelled orders cannot be cancelled." };
+      }
+      order.status = "cancelled";
+      if (order.paymentStatus === "pending") order.paymentStatus = "cancelled";
+      order.messages = [
+        ...(order.messages ?? []),
+        {
+          id: `msg_${Date.now()}`,
+          sender: "system",
+          body: `Cancelled by NELMA: ${reason}`,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      return delay(structuredClone(order), 400);
+    },
     async statusCounts() {
       const counts = new Map<OrderStatus, number>();
       for (const o of db.orders) counts.set(o.status, (counts.get(o.status) ?? 0) + 1);
@@ -630,6 +658,19 @@ export const mockServices: ServiceRegistry = {
           (!term || `${u.fullName} ${u.phone} ${u.email ?? ""}`.toLowerCase().includes(term)),
       );
       return delay({ ...paginate(rows, query.page, query.pageSize ?? 25), roleCounts });
+    },
+    async setActive(id, active) {
+      const page = await mockServices.users.list({ page: 1, pageSize: 500 });
+      const account = page.items.find((u) => u.id === id);
+      if (!account) throw { status: 404, message: "Account not found." };
+      const driver = db.drivers.find((d) => d.id === id);
+      if (driver) driver.status = active ? "active" : "inactive";
+      const staff = db.accounts.find((a) => a.id === id);
+      if (staff) staff.status = active ? "active" : "inactive";
+      return delay({ ...account, isActive: active }, 300);
+    },
+    async setPassword() {
+      return delay(undefined, 300);
     },
   },
 

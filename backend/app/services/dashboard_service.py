@@ -1,6 +1,5 @@
 """Dashboard DTOs over the existing customer, order and settings models."""
 
-import json
 from collections import Counter
 from datetime import timedelta
 from zoneinfo import ZoneInfo
@@ -11,17 +10,16 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import AppException
 from app.core.roles import Role
 from app.core.security import ensure_aware, utc_now
-from app.models.app_setting import AppSetting
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.user import User
-from app.schemas.dashboard import DashboardSettings, DashboardSettingsPatch
+from app.schemas.dashboard import DashboardSettingsPatch
 from app.services.audit_service import audit_service
+from app.services.business_settings import SETTINGS_KEY, read_settings, write_settings
 from app.services.product_service import product_service
 from app.services.serializers import build_order_timeline, iso
 
 ZONE = ZoneInfo("Africa/Dar_es_Salaam")
-SETTINGS_KEY = "DASHBOARD_SETTINGS"
 ACTIVE = {"pending", "confirmed", "processing", "out_for_delivery"}
 
 
@@ -88,6 +86,24 @@ def order_dto(order):
         else None,
         "assignedDriverId": order.assigned_driver_id,
         "timeline": [{"status": status_name(e.status), "at": e.completed_at} for e in build_order_timeline(order)],
+    }
+
+
+def order_detail_dto(order):
+    """One order with the customer's note and the conversation, for the order page."""
+    return {
+        **order_dto(order),
+        "orderNumber": order.order_number,
+        "customerRemarks": order.customer_remarks,
+        "messages": [
+            {
+                "id": m.id,
+                "sender": m.sender,
+                "body": m.body,
+                "createdAt": iso(m.created_at),
+            }
+            for m in sorted(order.messages, key=lambda m: m.created_at)
+        ],
     }
 
 
@@ -201,37 +217,12 @@ def customer_dto(customer):
     }
 
 
-def read_settings(db):
-    entry = db.get(AppSetting, SETTINGS_KEY)
-    if entry:
-        return DashboardSettings.model_validate_json(entry.value).model_dump(by_alias=True)
-    return DashboardSettings.model_validate(
-        {
-            "business": {
-                "name": "NELMA Drinking Water",
-                "supportPhone": "+255700000000",
-                "supportEmail": "support@example.com",
-                "address": "Set business address",
-                "operatingHours": "Set operating hours",
-            },
-            "payments": {"cashEnabled": True, "mobileMoneyEnabled": False},
-            "notifications": {"newOrderAlerts": True, "deliveryAlerts": True, "paymentAlerts": True},
-            "delivery": {
-                "feeRuleSource": "Server-defined (FastAPI)",
-                "defaultTimeWindows": ["09:00 - 12:00", "12:00 - 16:00", "16:00 - 19:00"],
-            },
-        }
-    ).model_dump(by_alias=True)
-
-
 def save_settings(db, actor, patch: DashboardSettingsPatch):
-    value = {**read_settings(db), **patch.model_dump(by_alias=True, exclude_none=True)}
-    value = DashboardSettings.model_validate(value).model_dump(by_alias=True)
-    entry = db.get(AppSetting, SETTINGS_KEY)
-    if entry is None:
-        db.add(AppSetting(key=SETTINGS_KEY, value=json.dumps(value), is_public=False))
-    else:
-        entry.value = json.dumps(value)
+    # Merge field by field, so saving only the delivery windows keeps the delivery zones as they were.
+    current = read_settings(db)
+    for section, fields in patch.model_dump(by_alias=True, exclude_unset=True, exclude_none=True).items():
+        current[section] = {**current[section], **fields}
+    value = write_settings(db, current)
     audit_service.record(db, actor=actor, event_type="SYSTEM_SETTING_UPDATED", resource_type="app_settings", resource_id=SETTINGS_KEY)
     db.commit()
     return value

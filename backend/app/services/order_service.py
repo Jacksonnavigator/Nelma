@@ -224,7 +224,7 @@ class OrderService:
         else:
             raise AppException("ADDRESS_REQUIRED", "Delivery address is required.", HTTP_422_UNPROCESSABLE_CONTENT)
 
-        charges = charges_for_snapshot(snapshot)
+        charges = charges_for_snapshot(db, snapshot)
         total = subtotal + sum(int(charge.get("amount", 0)) for charge in charges)
         remarks = (data.customer_remarks or "").strip() or None
         order = Order(
@@ -240,7 +240,7 @@ class OrderService:
             payment_method=data.payment_method_id,
             delivery_address_snapshot=snapshot,
             charges_snapshot=charges,
-            delivery_schedule_snapshot=schedule_snapshot(data.delivery_schedule),
+            delivery_schedule_snapshot=schedule_snapshot(db, data.delivery_schedule),
             customer_remarks=remarks,
         )
         order.items.append(
@@ -289,11 +289,15 @@ class OrderService:
                     db, user_id=order.assigned_driver_id, event_type="driver_customer_received", order_id=order.id
                 )
         elif next_status == "cancelled":
-            order.cancelled_at = now
-            if order.payment_status in {"pending", "processing"}:
-                order.payment_status = "cancelled"
-            notification_service.create_for_event(db, user_id=order.user_id, event_type="order_cancelled", order_id=order.id)
+            self._apply_cancel(db, order)
         return order
+
+    def _apply_cancel(self, db: Session, order: Order) -> None:
+        order.status = "cancelled"
+        order.cancelled_at = utc_now()
+        if order.payment_status in {"pending", "processing"}:
+            order.payment_status = "cancelled"
+        notification_service.create_for_event(db, user_id=order.user_id, event_type="order_cancelled", order_id=order.id)
 
     def transition_internal(self, db: Session, order_id: str, next_status: str) -> OrderRead:
         order = self.get_any_model(db, order_id)
@@ -559,10 +563,44 @@ class OrderService:
         authorize(user, Permission.ORDER_VIEW_SELF)
         order = self.get_model(db, user, order_id)
         order.messages.append(OrderMessage(user_id=user.id, sender="customer", body=data.body.strip()))
-        notification_service.create_for_event(db, user_id=user.id, event_type="order_message", order_id=order.id)
+        # The customer wrote it, so it is NELMA's staff who need to hear about it.
+        notification_service.notify_staff(db, event_type="staff_order_message", order_id=order.id)
         db.commit()
         db.refresh(order)
         return order_to_read(self.get_model(db, user, order.id))
+
+    def reply_as_staff(self, db: Session, actor: User, order_id: str, data: CreateOrderMessageRequest) -> OrderRead:
+        authorize(actor, Permission.ORDER_PROCESS)
+        order = self.get_any_model(db, order_id)
+        order.messages.append(OrderMessage(user_id=actor.id, sender="nelma", body=data.body.strip()))
+        notification_service.create_for_event(db, user_id=order.user_id, event_type="order_message_reply", order_id=order.id)
+        audit_service.record(db, actor=actor, event_type="ORDER_MESSAGE_SENT", resource_type="order", resource_id=order.id)
+        db.commit()
+        db.refresh(order)
+        return order_to_read(self.get_any_model(db, order.id))
+
+    def cancel_by_staff(self, db: Session, actor: User, order_id: str, reason: str) -> OrderRead:
+        """Staff can stop any order that has not been handed over yet, including one already on the road."""
+        authorize(actor, Permission.ORDER_PROCESS)
+        order = self.get_any_model(db, order_id)
+        if order.status not in ACTIVE_STATUSES:
+            raise AppException("ORDER_NOT_CANCELLABLE", "Delivered or cancelled orders cannot be cancelled.", status.HTTP_409_CONFLICT)
+        previous_status = order.status
+        self._apply_cancel(db, order)
+        order.messages.append(OrderMessage(user_id=actor.id, sender="system", body=f"Cancelled by NELMA: {reason}"))
+        if order.assigned_driver_id:
+            notification_service.create_for_event(db, user_id=order.assigned_driver_id, event_type="driver_delivery_cancelled", order_id=order.id)
+        audit_service.record(
+            db,
+            actor=actor,
+            event_type="ORDER_CANCELLED_BY_STAFF",
+            resource_type="order",
+            resource_id=order.id,
+            metadata={"previousStatus": previous_status, "reason": reason},
+        )
+        db.commit()
+        db.refresh(order)
+        return order_to_read(self.get_any_model(db, order.id))
 
 
 order_service = OrderService()

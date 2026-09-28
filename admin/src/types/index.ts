@@ -93,6 +93,17 @@ export interface Order {
   createdBy: { id: string; fullName: string; role: DashboardRole } | null;
   assignedDriverId: string | null;
   timeline: OrderTimelineEntry[];
+  /** Only on the single-order read. */
+  orderNumber?: string;
+  customerRemarks?: string | null;
+  messages?: OrderMessage[];
+}
+
+export interface OrderMessage {
+  id: string;
+  sender: "customer" | "nelma" | "system";
+  body: string;
+  createdAt: string;
 }
 
 export type DeliveryStatus =
@@ -328,10 +339,19 @@ export interface SystemSettings {
     paymentAlerts: boolean;
   };
   delivery: {
-    /** Server-defined. The dashboard never invents delivery pricing rules. */
-    feeRuleSource: string;
     defaultTimeWindows: string[];
+    /** Matched against the customer's address, first match wins. */
+    zones: DeliveryZone[];
+    defaultZoneName: string;
+    defaultFee: number;
   };
+}
+
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  fee: number;
+  keywords: string[];
 }
 
 export interface DashboardMetrics {

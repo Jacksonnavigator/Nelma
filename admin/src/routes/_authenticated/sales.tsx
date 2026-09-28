@@ -15,10 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { salesService } from "@/services";
+import type { SalesRecord } from "@/types";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
+  productLabel,
   shortProductLabel,
   formatDate,
   formatNumber,
@@ -44,6 +48,44 @@ export const Route = createFileRoute("/_authenticated/sales")({
   component: SalesPage,
 });
 
+const csvCell = (value: string | number) => {
+  const text = String(value);
+  // Quote everything and neutralise leading formula characters so Excel never runs cell content.
+  const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safe.replace(/"/g, '""')}"`;
+};
+
+// Every order in the chosen period, ready to open in Excel or Google Sheets.
+function downloadCsv(records: SalesRecord[], period: SalesPeriod, from: string, to: string) {
+  const header = [
+    "Date",
+    "Order",
+    "Customer",
+    "Product",
+    "Quantity",
+    "Payment method",
+    "Payment status",
+    "Total (TZS)",
+  ];
+  const rows = records.map((r) => [
+    r.date,
+    r.orderId,
+    r.customer,
+    productLabel(r.product),
+    r.quantity,
+    PAYMENT_METHOD_LABELS[r.paymentMethod] ?? r.paymentMethod,
+    r.paymentStatus,
+    r.total,
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `nelma-sales-${period === "custom" ? `${from}_to_${to}` : period}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function SalesPage() {
   const [period, setPeriod] = useState<SalesPeriod>("week");
   const [from, setFrom] = useState("");
@@ -68,6 +110,15 @@ function SalesPage() {
       <PageHeader
         title="Sales Reports"
         description="Paid sales use the payment date. Unpaid orders use the order date."
+        actions={
+          <Button
+            variant="outline"
+            disabled={!data?.records.length}
+            onClick={() => data && downloadCsv(data.records, period, from, to)}
+          >
+            <Download className="mr-2 size-4" /> Download CSV
+          </Button>
+        }
       />
 
       <FilterBar

@@ -56,6 +56,18 @@ class ProductImageInput(StrictModel):
     data: str = Field(min_length=8, max_length=7_200_000)
 
 
+class AccountStatusInput(StrictModel):
+    active: bool
+
+
+class AccountPasswordInput(StrictModel):
+    password: str = Field(min_length=8, max_length=128)
+
+
+class StaffCancelInput(StrictModel):
+    reason: str = Field(min_length=3, max_length=300)
+
+
 class DeliveryStatusInput(StrictModel):
     status: Literal["out_for_delivery", "delivered"]
 
@@ -79,9 +91,26 @@ class AlertSettings(StrictModel):
     payment_alerts: bool = True
 
 
+class DeliveryZone(StrictModel):
+    id: str = Field(min_length=2, max_length=40, pattern=r"^[a-z0-9_]+$")
+    name: str = Field(min_length=2, max_length=80)
+    fee: int = Field(ge=0, le=1_000_000)
+    keywords: list[str] = Field(min_length=1, max_length=20)
+
+    @field_validator("keywords")
+    @classmethod
+    def clean_keywords(cls, value: list[str]) -> list[str]:
+        cleaned = list(dict.fromkeys(keyword.strip().lower() for keyword in value if keyword.strip()))
+        if not cleaned or any(len(keyword) < 3 or len(keyword) > 60 for keyword in cleaned):
+            raise ValueError("Each place name must be 3 to 60 characters")
+        return cleaned
+
+
 class DeliverySettings(StrictModel):
-    fee_rule_source: Literal["Server-defined (FastAPI)"] = "Server-defined (FastAPI)"
-    default_time_windows: list[str] = Field(min_length=1, max_length=20)
+    default_time_windows: list[str] = Field(min_length=1, max_length=12)
+    zones: list[DeliveryZone] = Field(default_factory=list, max_length=20)
+    default_zone_name: str = Field("Arusha", min_length=2, max_length=80)
+    default_fee: int = Field(1500, ge=0, le=1_000_000)
 
     @field_validator("default_time_windows")
     @classmethod
@@ -89,6 +118,13 @@ class DeliverySettings(StrictModel):
         if any(not window.strip() or len(window) > 100 for window in value):
             raise ValueError("Enter non-empty delivery windows of at most 100 characters")
         return list(dict.fromkeys(window.strip() for window in value))
+
+    @field_validator("zones")
+    @classmethod
+    def unique_zones(cls, value: list[DeliveryZone]) -> list[DeliveryZone]:
+        if len({zone.id for zone in value}) != len(value):
+            raise ValueError("Each delivery zone needs a different name")
+        return value
 
 
 class DashboardSettings(StrictModel):

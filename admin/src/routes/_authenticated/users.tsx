@@ -1,6 +1,21 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyRound } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PermissionGate } from "@/components/common/PermissionGate";
 import { SearchInput } from "@/components/common/SearchInput";
@@ -20,7 +35,7 @@ import { usersService } from "@/services";
 import type { UserQuery } from "@/services/contracts";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { AccountRole } from "@/types";
+import type { AccountRole, UserAccount } from "@/types";
 
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({ meta: [{ title: "NELMA | Users" }] }),
@@ -52,6 +67,36 @@ function UsersPage() {
     queryKey: ["users", query],
     queryFn: () => usersService.list(query),
     placeholderData: keepPreviousData,
+  });
+  const qc = useQueryClient();
+  const { user: me } = useAuth();
+  const [toggling, setToggling] = useState<UserAccount | null>(null);
+  const [resetting, setResetting] = useState<UserAccount | null>(null);
+  const [password, setPassword] = useState("");
+  const failed = (error: unknown, fallback: string) =>
+    toast.error(
+      error && typeof error === "object" && "message" in error ? String(error.message) : fallback,
+    );
+  const toggle = useMutation({
+    mutationFn: (u: UserAccount) => usersService.setActive(u.id, !u.isActive),
+    onSuccess: (u) => {
+      toast.success(
+        u.isActive ? `${u.fullName} can sign in again` : `${u.fullName} is signed out and blocked`,
+      );
+      setToggling(null);
+      void qc.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error) => failed(error, "Could not change this account"),
+  });
+  const reset = useMutation({
+    mutationFn: ({ id, value }: { id: string; value: string }) =>
+      usersService.setPassword(id, value),
+    onSuccess: () => {
+      toast.success("New password set. Share it with them privately.");
+      setResetting(null);
+      setPassword("");
+    },
+    onError: (error) => failed(error, "Could not set the password"),
   });
   const counts = users.data?.roleCounts ?? {};
   const everyone = Object.values(counts).reduce((sum, n) => sum + (n ?? 0), 0);
@@ -141,6 +186,7 @@ function UsersPage() {
                   <TableHead className="text-right">Orders</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,6 +220,27 @@ function UsersPage() {
                       </span>
                     </TableCell>
                     <TableCell>{formatDate(u.createdAt)}</TableCell>
+                    <TableCell className="text-right">
+                      {u.id === me?.id || u.phone.startsWith("deleted-") ? (
+                        <span className="text-xs text-muted-foreground">
+                          {u.id === me?.id ? "You" : "Deleted by customer"}
+                        </span>
+                      ) : (
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => setResetting(u)}>
+                            <KeyRound className="mr-1 size-3.5" /> Password
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={u.isActive ? "text-destructive hover:text-destructive" : ""}
+                            onClick={() => setToggling(u)}
+                          >
+                            {u.isActive ? "Deactivate" : "Activate"}
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -187,6 +254,76 @@ function UsersPage() {
           />
         </>
       )}
+
+      <ConfirmDialog
+        open={!!toggling}
+        onOpenChange={(open) => !open && setToggling(null)}
+        title={
+          toggling?.isActive
+            ? `Deactivate ${toggling.fullName}?`
+            : `Activate ${toggling?.fullName ?? ""}?`
+        }
+        description={
+          toggling?.isActive
+            ? "They are signed out straight away and cannot sign in until you activate them again. Their orders stay."
+            : "They will be able to sign in again with their current password."
+        }
+        confirmLabel={toggling?.isActive ? "Deactivate" : "Activate"}
+        destructive={!!toggling?.isActive}
+        loading={toggle.isPending}
+        onConfirm={() => toggling && toggle.mutate(toggling)}
+      />
+
+      <Dialog
+        open={!!resetting}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetting(null);
+            setPassword("");
+          }
+        }}
+      >
+        <DialogContent>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (resetting && password.length >= 8)
+                reset.mutate({ id: resetting.id, value: password });
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Set a new password for {resetting?.fullName}</DialogTitle>
+              <DialogDescription>
+                For someone who cannot use "Forgot password". They are signed out on every device
+                and sign in with this password.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password">New password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={128}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setResetting(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={password.length < 8 || reset.isPending}>
+                {reset.isPending ? "Saving…" : "Set password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

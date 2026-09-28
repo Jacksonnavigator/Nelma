@@ -4,18 +4,22 @@ from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import DashboardUser, DbSession
 from app.core.exceptions import AppException
 from app.core.permissions import Permission, authorize
 from app.core.roles import Role
+from app.core.security import hash_password
 from app.models.audit_log import AuditLog
 from app.models.notification import Notification
 from app.models.order import Order
+from app.models.refresh_session import RefreshSession
 from app.models.user import User
 from app.schemas.dashboard import (
+    AccountPasswordInput,
+    AccountStatusInput,
     CashCollectionInput,
     CashHandInInput,
     DashboardOrderInput,
@@ -25,11 +29,13 @@ from app.schemas.dashboard import (
     ProductCreateInput,
     ProductImageInput,
     ProductUpdateInput,
+    StaffCancelInput,
 )
-from app.schemas.order import AssignDriverRequest, CreateOrderForCustomerRequest
+from app.schemas.order import AssignDriverRequest, CreateOrderForCustomerRequest, CreateOrderMessageRequest
 from app.schemas.user import AccountUpdate, DriverCreate
 from app.services import dashboard_service as svc
 from app.services.account_service import account_service
+from app.services.audit_service import audit_service
 from app.services.notification_service import notification_service
 from app.services.operations_service import operations_service
 from app.services.order_service import order_service
@@ -99,7 +105,19 @@ def orders(
 @router.get("/orders/{order_id}")
 def order(order_id: str, user: DashboardUser, db: DbSession):
     authorize(user, Permission.ORDER_VIEW_ALL)
-    return svc.order_dto(svc.get_order(db, order_id))
+    return svc.order_detail_dto(svc.get_order(db, order_id))
+
+
+@router.post("/orders/{order_id}/messages")
+def reply_to_order(order_id: str, data: CreateOrderMessageRequest, user: DashboardUser, db: DbSession):
+    order_service.reply_as_staff(db, user, order_id, data)
+    return svc.order_detail_dto(svc.get_order(db, order_id))
+
+
+@router.post("/orders/{order_id}/cancel")
+def cancel_order(order_id: str, data: StaffCancelInput, user: DashboardUser, db: DbSession):
+    order_service.cancel_by_staff(db, user, order_id, data.reason)
+    return svc.order_detail_dto(svc.get_order(db, order_id))
 
 
 @router.post("/orders", status_code=201)
@@ -352,6 +370,47 @@ def users(
         "total": total,
         "roleCounts": {(key.value if hasattr(key, "value") else str(key)): value for key, value in by_role.items()},
     }
+
+
+def _managed_account(db, actor: User, account_id: str) -> User:
+    authorize(actor, Permission.ADMIN_ACCOUNT_MANAGE)
+    account = db.get(User, account_id)
+    if account is None:
+        raise AppException("USER_NOT_FOUND", "Account not found.", 404)
+    if account.id == actor.id:
+        raise AppException("SELF_CHANGE_FORBIDDEN", "Use your own Profile page to change your account.", 409)
+    return account
+
+
+@router.post("/users/{account_id}/status")
+def set_user_status(account_id: str, data: AccountStatusInput, user: DashboardUser, db: DbSession):
+    account = _managed_account(db, user, account_id)
+    if data.active and account.phone.startswith("deleted-"):
+        raise AppException("ACCOUNT_DELETED", "This customer deleted their account. It cannot be reopened.", 409)
+    account.is_active = data.active
+    if not data.active:
+        db.execute(delete(RefreshSession).where(RefreshSession.user_id == account.id))
+    audit_service.record(
+        db,
+        actor=user,
+        event_type="ACCOUNT_ACTIVATED" if data.active else "ACCOUNT_DEACTIVATED",
+        resource_type="user",
+        resource_id=account.id,
+    )
+    db.commit()
+    count = db.scalar(select(func.count(Order.id)).where(Order.user_id == account.id)) or 0
+    return svc.account_dto(account, count)
+
+
+@router.post("/users/{account_id}/password", status_code=204)
+def set_user_password(account_id: str, data: AccountPasswordInput, user: DashboardUser, db: DbSession):
+    """For people who cannot use the forgot-password flow; they are signed out everywhere."""
+    account = _managed_account(db, user, account_id)
+    account.password_hash = hash_password(data.password)
+    db.execute(delete(RefreshSession).where(RefreshSession.user_id == account.id))
+    audit_service.record(db, actor=user, event_type="ACCOUNT_PASSWORD_RESET", resource_type="user", resource_id=account.id)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/settings")
