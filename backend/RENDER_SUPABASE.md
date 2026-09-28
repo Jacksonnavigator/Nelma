@@ -107,6 +107,17 @@ If you use a Twilio Messaging Service instead of a sender number, set `TWILIO_ME
 
 For `CORS_ORIGINS`, include only browser origins such as the admin web app domain. Expo native mobile calls do not use browser CORS, but Expo Web and admin dashboards do.
 
+### Product pictures
+
+Pictures uploaded on the dashboard **Products** page are stored in Supabase Storage, because Render's disk is wiped on every deploy. Add these two variables (Supabase Dashboard > Project Settings > API):
+
+```env
+SUPABASE_URL=https://PROJECTREF.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=the-service_role-key
+```
+
+The first upload creates a public bucket named `product-images` (change it with `PRODUCT_IMAGE_BUCKET`). The service role key bypasses Supabase security, so only ever put it in Render, never in the mobile or admin apps. Without these variables, uploads are refused with a clear message and you can paste an `https://` picture link instead.
+
 ## 4. Deploy And Migrate
 
 Trigger a Render deploy. The deploy should:

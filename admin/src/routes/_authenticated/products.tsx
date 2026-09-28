@@ -159,22 +159,42 @@ function ProductsPage() {
   );
 }
 
+// The phone app ships these two pictures and shows them until a new one is uploaded.
+const BUILT_IN_PICTURES: Partial<Record<string, string>> = {
+  first_purchase: "/products/first_purchase.jpg",
+  refill: "/products/refill.jpg",
+};
+
 function ProductImage({
   product,
   className,
 }: {
-  product: Pick<Product, "imageUrl" | "name">;
+  product: Pick<Product, "imageUrl" | "name"> & { code?: string | undefined };
   className?: string;
 }) {
+  const builtIn = !product.imageUrl && product.code ? BUILT_IN_PICTURES[product.code] : undefined;
+  const src = product.imageUrl ?? builtIn;
   return (
-    <div className={cn("flex aspect-[4/3] items-center justify-center bg-muted/60", className)}>
-      {product.imageUrl ? (
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="size-full object-contain"
-          loading="lazy"
-        />
+    <div
+      className={cn(
+        "relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-muted/60",
+        className,
+      )}
+    >
+      {src ? (
+        <>
+          <img
+            src={src}
+            alt={product.name}
+            className="absolute inset-0 size-full object-contain"
+            loading="lazy"
+          />
+          {builtIn ? (
+            <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[11px] text-muted-foreground">
+              Built-in picture
+            </span>
+          ) : null}
+        </>
       ) : (
         <div className="flex flex-col items-center gap-1 text-muted-foreground">
           <Package className="size-8" />
@@ -296,7 +316,7 @@ function ProductEditor({
               className="group relative block w-full overflow-hidden rounded-lg border border-dashed border-border"
             >
               <ProductImage
-                product={{ imageUrl: shown, name: name || "Product" }}
+                product={{ imageUrl: shown, name: name || "Product", code: product?.code }}
                 className="aspect-[16/9]"
               />
               <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-background/85 py-2 text-sm font-medium text-foreground opacity-90 group-hover:opacity-100">
