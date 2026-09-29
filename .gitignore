@@ -59,6 +59,10 @@ admin/.output/
 admin/.nitro/
 admin/.tanstack/
 
+# App builds are published as GitHub release files, not committed (they exceed GitHub's 100 MB limit)
+*.apk
+*.aab
+
 # Tool output
 output/
 .playwright-cli/

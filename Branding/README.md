@@ -13,12 +13,17 @@ Everything lives in `public/` so the site works on any host (not only on Lovable
 
 ## App download buttons
 
-The "Get the NELMA app" buttons read two settings (see `.env.example`):
+"Download App" downloads the Android app directly. The APK is too big for the repository (GitHub's 100 MB file limit), so it is published as a GitHub release file, and the site links to:
 
-- `VITE_ANDROID_DOWNLOAD_URL`: defaults to the Play Store listing `https://play.google.com/store/apps/details?id=com.nelma.drinkingwater`. Before the app is published there, set it to the APK link from `npx eas build -p android --profile preview` (run in `Nelma-app/`); the button then says "Download for Android" and downloads the file.
-- `VITE_IOS_DOWNLOAD_URL`: the App Store button only appears once this is set.
+`https://github.com/Jacksonnavigator/Nelma/releases/latest/download/nelma.apk`
 
-These are read at build time, so rebuild after changing them.
+To publish a new version of the app:
+
+1. Build it: in `Nelma-app/`, run `npx eas build -p android --profile preview` and download the APK.
+2. Rename the file to exactly `nelma.apk`.
+3. On GitHub, open the repository > Releases > Draft a new release. Create a tag such as `app-v1.0.1`, attach `nelma.apk`, and publish.
+
+The site picks up the newest release straight away; no redeploy is needed. Once the app is on the Play Store, set `VITE_ANDROID_DOWNLOAD_URL` to the listing (see `.env.example`) and redeploy. `VITE_IOS_DOWNLOAD_URL` shows the App Store button once an iPhone build exists.
 
 ## Run and deploy
 
@@ -28,4 +33,4 @@ npm run dev
 npm run build
 ```
 
-On Render: Node web service with root directory `Branding`, build `npm install --package-lock=false && npm run build`, start `node .output/server/index.mjs`, environment `NITRO_PRESET=node-server`, `NODE_VERSION=22`, plus the download URL above.
+On Render: Node web service with root directory `Branding`, build `bun install && bun run build`, start `node .output/server/index.mjs`, environment `NITRO_PRESET=node-server` and `NODE_VERSION=22` (the same setup as the admin dashboard).

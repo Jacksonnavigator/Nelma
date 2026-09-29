@@ -20,6 +20,7 @@ button { cursor: pointer; }
 .header > a { margin-right: auto; }.header img { width: 130px; height: 56px; object-fit:contain; display:block; border-radius:6px; }
 .app-cta { margin-left:auto; display:inline-flex; align-items:center; gap:9px; border:0; border-radius:2px; text-transform:uppercase; font-size:13px; font-weight:600; padding:12px 22px; color:var(--primary-foreground); background:linear-gradient(90deg,var(--secondary),var(--primary)); }
 .app-cta:hover { transform:translateY(-2px); filter:brightness(1.12); }
+.install-hint { margin-top:10px; max-width:460px; font-size:13px; line-height:1.5; opacity:.75; }
 .hero-actions { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
 .ghost-button { display:inline-flex; align-items:center; gap:9px; background:transparent; border:1px solid oklch(1 0 0 / .5); color:var(--primary-foreground); border-radius:2px; text-transform:uppercase; font-size:13px; padding:14px 25px; }
 .ghost-button:hover { background:oklch(1 0 0 / .12); }

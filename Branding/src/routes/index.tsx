@@ -17,10 +17,12 @@ const productImageAsset = { url: "/media/nelma-branded-single-bottle.png" };
 const logo = "/brand/nelma-logo.png";
 const officialIcon = "/brand/nelma-drop.png";
 
-// Where the "Get the app" buttons go. Until the Play Store listing is live, set VITE_ANDROID_DOWNLOAD_URL
-// to the APK link from an EAS build. The App Store button only shows once an iPhone build exists.
+// Where the download buttons go. By default the Android app (APK) attached to the newest GitHub release,
+// named nelma.apk: the APK is too big to live in the repository (GitHub's 100 MB file limit), and this link
+// always follows the latest release. Once the app is on the Play Store, set VITE_ANDROID_DOWNLOAD_URL to the
+// listing instead. The App Store button only shows once an iPhone build exists.
 const androidDownloadUrl =
-  import.meta.env.VITE_ANDROID_DOWNLOAD_URL || "https://play.google.com/store/apps/details?id=com.nelma.drinkingwater";
+  import.meta.env.VITE_ANDROID_DOWNLOAD_URL || "https://github.com/Jacksonnavigator/Nelma/releases/latest/download/nelma.apk";
 const androidIsApk = /\.apk(\?|$)/i.test(androidDownloadUrl) || androidDownloadUrl.includes("expo.dev/artifacts");
 const iosDownloadUrl = import.meta.env.VITE_IOS_DOWNLOAD_URL || "";
 const heroBottle = heroBottleAsset.url;
@@ -81,7 +83,11 @@ function Nelma() {
     <section id="home" className="hero">
       <header className="header site-width">
         <a href="#home"><img src={logo} alt="NELMA Drinking Water"/></a>
-        <button className="app-cta" onClick={() => scrollTo("app")}><Download size={17}/> Download App</button>
+        {androidIsApk ? (
+          <a className="app-cta" href={androidDownloadUrl} download="NELMA.apk"><Download size={17}/> Download App</a>
+        ) : (
+          <a className="app-cta" href={androidDownloadUrl} target="_blank" rel="noreferrer"><Download size={17}/> Download App</a>
+        )}
       </header>
       <div className="hero-content site-width">
         <div className="hero-copy">
@@ -161,7 +167,7 @@ function Nelma() {
           <div className="app-feature-list">{appFeatures.map(([Icon, title, text]) => <article key={title}><Icon aria-hidden="true"/><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
           <div className="store-buttons">
             {androidIsApk ? (
-              <a href={androidDownloadUrl} download rel="noreferrer"><Download size={22}/><span><small>Download for</small>Android</span></a>
+              <a href={androidDownloadUrl} download="NELMA.apk"><Download size={22}/><span><small>Download for</small>Android</span></a>
             ) : (
               <a href={androidDownloadUrl} target="_blank" rel="noreferrer"><Smartphone size={22}/><span><small>Get it on</small>Google Play</span></a>
             )}
@@ -169,6 +175,9 @@ function Nelma() {
               <a href={iosDownloadUrl} target="_blank" rel="noreferrer"><Apple size={22}/><span><small>Download on the</small>App Store</span></a>
             ) : null}
           </div>
+          {androidIsApk ? (
+            <p className="install-hint">After downloading, open the file. If Android asks, allow installing apps from your browser, then tap Install.</p>
+          ) : null}
            <div className="app-contact-row"><a className="app-call" href="tel:+255719081401"><Phone size={16}/> Call 0719 081 401</a><a className="app-call" href="https://wa.me/255762307425" target="_blank" rel="noreferrer"><MessageCircle size={16}/> WhatsApp 0762 307 425</a></div>
         </div>
         <img src={productImage} alt="NELMA mobile app on a phone next to a water bottle"/>
