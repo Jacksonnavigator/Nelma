@@ -13,7 +13,7 @@ from app.core.security import ensure_aware, utc_now
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.user import User
-from app.schemas.dashboard import DashboardSettingsPatch
+from app.schemas.dashboard import DashboardSettingsPatch, DeliveryFeesInput
 from app.services.audit_service import audit_service
 from app.services.business_settings import SETTINGS_KEY, read_settings, write_settings
 from app.services.product_service import product_service
@@ -215,6 +215,27 @@ def customer_dto(customer):
             for a in sorted(customer.addresses, key=lambda a: not a.is_default)
         ],
     }
+
+
+def delivery_fees(config):
+    delivery = config["delivery"]
+    return {"zones": delivery["zones"], "defaultZoneName": delivery["defaultZoneName"], "defaultFee": delivery["defaultFee"]}
+
+
+def save_delivery_fees(db, actor, data: DeliveryFeesInput):
+    current = read_settings(db)
+    current["delivery"] = {**current["delivery"], **data.model_dump(by_alias=True)}
+    value = write_settings(db, current)
+    audit_service.record(
+        db,
+        actor=actor,
+        event_type="DELIVERY_FEES_UPDATED",
+        resource_type="app_settings",
+        resource_id=SETTINGS_KEY,
+        metadata={"defaultFee": data.default_fee, "zones": {zone.name: zone.fee for zone in data.zones}},
+    )
+    db.commit()
+    return delivery_fees(value)
 
 
 def save_settings(db, actor, patch: DashboardSettingsPatch):

@@ -25,6 +25,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
 import { Route as AuthenticatedSystemSettingsRouteImport } from './routes/_authenticated/system-settings'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedWebsiteRequestsRouteImport } from './routes/_authenticated/website-requests'
 import { Route as AuthenticatedDriversIndexRouteImport } from './routes/_authenticated/drivers.index'
 import { Route as AuthenticatedDriversIdRouteImport } from './routes/_authenticated/drivers.$id'
 import { Route as AuthenticatedOrdersIndexRouteImport } from './routes/_authenticated/orders.index'
@@ -113,6 +114,12 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedWebsiteRequestsRoute =
+  AuthenticatedWebsiteRequestsRouteImport.update({
+    id: '/website-requests',
+    path: '/website-requests',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDriversIndexRoute =
   AuthenticatedDriversIndexRouteImport.update({
     id: '/drivers/',
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/sales': typeof AuthenticatedSalesRoute
   '/system-settings': typeof AuthenticatedSystemSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/website-requests': typeof AuthenticatedWebsiteRequestsRoute
   '/drivers/$id': typeof AuthenticatedDriversIdRoute
   '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/drivers/': typeof AuthenticatedDriversIndexRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/sales': typeof AuthenticatedSalesRoute
   '/system-settings': typeof AuthenticatedSystemSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/website-requests': typeof AuthenticatedWebsiteRequestsRoute
   '/drivers/$id': typeof AuthenticatedDriversIdRoute
   '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/drivers': typeof AuthenticatedDriversIndexRoute
@@ -196,6 +205,7 @@ export interface FileRoutesById {
   '/_authenticated/sales': typeof AuthenticatedSalesRoute
   '/_authenticated/system-settings': typeof AuthenticatedSystemSettingsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/_authenticated/website-requests': typeof AuthenticatedWebsiteRequestsRoute
   '/_authenticated/drivers/$id': typeof AuthenticatedDriversIdRoute
   '/_authenticated/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/_authenticated/drivers/': typeof AuthenticatedDriversIndexRoute
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/sales'
     | '/system-settings'
     | '/users'
+    | '/website-requests'
     | '/drivers/$id'
     | '/orders/$id'
     | '/drivers/'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/sales'
     | '/system-settings'
     | '/users'
+    | '/website-requests'
     | '/drivers/$id'
     | '/orders/$id'
     | '/drivers'
@@ -262,6 +274,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sales'
     | '/_authenticated/system-settings'
     | '/_authenticated/users'
+    | '/_authenticated/website-requests'
     | '/_authenticated/drivers/$id'
     | '/_authenticated/orders/$id'
     | '/_authenticated/drivers/'
@@ -388,6 +401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/website-requests': {
+      id: '/_authenticated/website-requests'
+      path: '/website-requests'
+      fullPath: '/website-requests'
+      preLoaderRoute: typeof AuthenticatedWebsiteRequestsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/drivers/': {
       id: '/_authenticated/drivers/'
       path: '/drivers'
@@ -433,6 +453,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSalesRoute: typeof AuthenticatedSalesRoute
   AuthenticatedSystemSettingsRoute: typeof AuthenticatedSystemSettingsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
+  AuthenticatedWebsiteRequestsRoute: typeof AuthenticatedWebsiteRequestsRoute
   AuthenticatedDriversIdRoute: typeof AuthenticatedDriversIdRoute
   AuthenticatedOrdersIdRoute: typeof AuthenticatedOrdersIdRoute
   AuthenticatedDriversIndexRoute: typeof AuthenticatedDriversIndexRoute
@@ -453,6 +474,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSalesRoute: AuthenticatedSalesRoute,
   AuthenticatedSystemSettingsRoute: AuthenticatedSystemSettingsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
+  AuthenticatedWebsiteRequestsRoute: AuthenticatedWebsiteRequestsRoute,
   AuthenticatedDriversIdRoute: AuthenticatedDriversIdRoute,
   AuthenticatedOrdersIdRoute: AuthenticatedOrdersIdRoute,
   AuthenticatedDriversIndexRoute: AuthenticatedDriversIndexRoute,

@@ -1,4 +1,5 @@
 import type {
+  DeliveryFees,
   ActivityEvent,
   AdminAccount,
   AppNotification,
@@ -22,6 +23,8 @@ import type {
   SalesReport,
   UserAccount,
   UserAccountPage,
+  WebsiteRequest,
+  WebsiteRequestPage,
   SystemSettings,
 } from "@/types";
 
@@ -189,6 +192,9 @@ export interface ProductsService {
   update(id: string, input: Partial<ProductInput>): Promise<Product>;
   /** POST /admin/products/{id}/image — stores the file in Supabase Storage. */
   uploadImage(id: string, file: File): Promise<Product>;
+  /** GET /admin/delivery-fees — sales managers and admins. */
+  deliveryFees(): Promise<DeliveryFees>;
+  saveDeliveryFees(input: DeliveryFees): Promise<DeliveryFees>;
 }
 
 export interface UserQuery extends PageQuery {
@@ -243,6 +249,19 @@ export interface OperationsService {
   reviewFlag(id: string): Promise<void>;
 }
 
+export interface WebsiteRequestQuery {
+  kind?: "all" | "order" | "contact";
+  status?: "all" | "new" | "handled";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface WebsiteRequestsService {
+  /** GET /admin/website-requests */
+  list(query: WebsiteRequestQuery): Promise<WebsiteRequestPage>;
+  setStatus(id: string, status: WebsiteRequest["status"]): Promise<WebsiteRequest>;
+}
+
 export interface ServiceRegistry {
   auth: AuthService;
   orders: OrdersService;
@@ -258,4 +277,5 @@ export interface ServiceRegistry {
   audit: AuditService;
   notifications: NotificationsService;
   operations: OperationsService;
+  websiteRequests: WebsiteRequestsService;
 }

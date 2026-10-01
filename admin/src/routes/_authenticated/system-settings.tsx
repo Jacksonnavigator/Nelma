@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -12,8 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { settingsService } from "@/services";
 import { isApiError } from "@/services/api";
-import type { DeliveryZone, SystemSettings } from "@/types";
-import { Plus, Trash2 } from "lucide-react";
+import type { SystemSettings } from "@/types";
 
 export const Route = createFileRoute("/_authenticated/system-settings")({
   head: () => ({ meta: [{ title: "NELMA | System Settings" }] }),
@@ -23,148 +22,6 @@ export const Route = createFileRoute("/_authenticated/system-settings")({
     </PermissionGate>
   ),
 });
-const zoneId = (name: string, taken: string[]) => {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 30) || "zone";
-  let id = base.length >= 2 ? base : `zone_${base}`;
-  for (let n = 2; taken.includes(id); n += 1) id = `${base}_${n}`;
-  return id;
-};
-
-// Places with their own delivery fee. The app picks the first zone whose place name appears in
-// the customer's address; everything else pays the standard fee.
-function DeliveryZonesEditor({
-  delivery,
-  onChange,
-}: {
-  delivery: SystemSettings["delivery"];
-  onChange: (delivery: SystemSettings["delivery"]) => void;
-}) {
-  const zones = delivery.zones;
-  const setZone = (index: number, zone: DeliveryZone) =>
-    onChange({ ...delivery, zones: zones.map((z, i) => (i === index ? zone : z)) });
-  return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-sm font-medium">Delivery fees</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          A zone applies when one of its place names appears in the customer's address. Use specific
-          names (such as "Tengeru"), not general words like "hostel".
-        </p>
-      </div>
-      {zones.map((zone, index) => (
-        <div
-          key={zone.id}
-          className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_120px_auto]"
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor={`zone-name-${zone.id}`}>Zone name</Label>
-            <Input
-              id={`zone-name-${zone.id}`}
-              required
-              minLength={2}
-              value={zone.name}
-              onChange={(e) => setZone(index, { ...zone, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`zone-fee-${zone.id}`}>Fee (TZS)</Label>
-            <Input
-              id={`zone-fee-${zone.id}`}
-              type="number"
-              min={0}
-              required
-              value={zone.fee}
-              onChange={(e) =>
-                setZone(index, { ...zone, fee: Math.max(0, Number(e.target.value) || 0) })
-              }
-            />
-          </div>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Remove ${zone.name}`}
-              onClick={() => onChange({ ...delivery, zones: zones.filter((_, i) => i !== index) })}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
-          <div className="space-y-1.5 sm:col-span-3">
-            <Label htmlFor={`zone-keywords-${zone.id}`}>Place names (comma separated)</Label>
-            <Input
-              id={`zone-keywords-${zone.id}`}
-              required
-              value={zone.keywords.join(", ")}
-              onChange={(e) =>
-                setZone(index, {
-                  ...zone,
-                  keywords: e.target.value.split(",").map((k) => k.trimStart()),
-                })
-              }
-            />
-          </div>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={zones.length >= 20}
-        onClick={() =>
-          onChange({
-            ...delivery,
-            zones: [
-              ...zones,
-              {
-                id: zoneId(
-                  `zone ${zones.length + 1}`,
-                  zones.map((z) => z.id),
-                ),
-                name: "",
-                fee: 0,
-                keywords: [],
-              },
-            ],
-          })
-        }
-      >
-        <Plus className="mr-2 size-4" /> Add zone
-      </Button>
-      <div className="grid gap-3 rounded-lg bg-muted/50 p-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="default-zone">Everywhere else is called</Label>
-          <Input
-            id="default-zone"
-            required
-            minLength={2}
-            value={delivery.defaultZoneName}
-            onChange={(e) => onChange({ ...delivery, defaultZoneName: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="default-fee">Standard fee (TZS)</Label>
-          <Input
-            id="default-fee"
-            type="number"
-            min={0}
-            required
-            value={delivery.defaultFee}
-            onChange={(e) =>
-              onChange({ ...delivery, defaultFee: Math.max(0, Number(e.target.value) || 0) })
-            }
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SettingsPage() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => settingsService.get() });
@@ -209,20 +66,15 @@ function SettingsPage() {
                   address: value.business.address.trim(),
                   operatingHours: value.business.operatingHours.trim(),
                 },
+                // Only the time windows: delivery fees are saved from Prices & delivery, and sending
+                // them here could overwrite a change a sales manager just made.
                 delivery: {
-                  ...value.delivery,
                   defaultTimeWindows: [
                     ...new Set(
                       value.delivery.defaultTimeWindows.map((w) => w.trim()).filter(Boolean),
                     ),
                   ],
-                  defaultZoneName: value.delivery.defaultZoneName.trim(),
-                  zones: value.delivery.zones.map((zone) => ({
-                    ...zone,
-                    name: zone.name.trim(),
-                    keywords: zone.keywords.map((k) => k.trim()).filter(Boolean),
-                  })),
-                },
+                } as SystemSettings["delivery"],
               });
           }}
         >
@@ -313,10 +165,13 @@ function SettingsPage() {
             </section>
             <section className="space-y-4 rounded-xl border bg-card p-6 shadow-card">
               <h2 className="font-semibold">Delivery</h2>
-              <DeliveryZonesEditor
-                delivery={value.delivery}
-                onChange={(delivery) => setDraft({ ...value, delivery })}
-              />
+              <p className="text-sm text-muted-foreground">
+                Delivery fees are set on{" "}
+                <Link to="/products" className="font-medium text-primary hover:underline">
+                  Prices &amp; delivery
+                </Link>
+                , where sales managers can change them too.
+              </p>
               <div className="space-y-1.5">
                 <Label htmlFor="time-windows">Default delivery time windows</Label>
                 <Textarea

@@ -9,7 +9,7 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 import {
   Animated,
-  ImageBackground,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,8 +29,9 @@ import { orderStatusLabel } from "../../utils/status";
 
 const jotformBlue = "#009FE3";
 
-// Shipped with the app so the banner shows instantly, even offline (photo: Unsplash).
-const heroImage = require("../../assets/hero.jpg");
+// NELMA's own bottles on brand blue, shipped with the app so the banner shows instantly, even offline.
+// The bottles sit on the right, so the headline is set on the left.
+const heroBottles = require("../../assets/hero-bottles.png");
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -94,18 +95,21 @@ export default function HomeScreen() {
         <AppTopBar />
 
         <ScrollView bounces={false} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} style={styles.scroll}>
-          <ImageBackground resizeMode="cover" source={heroImage} style={styles.hero}>
+          <View style={styles.hero}>
             <LinearGradient
-              colors={["rgba(15,23,42,0.15)", "rgba(15,23,42,0.55)"]}
+              colors={["#061C40", "#0A4F96", "#0B76C8"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.heroShade}
             />
+            <Image accessibilityIgnoresInvertColors resizeMode="contain" source={heroBottles} style={styles.heroBottles} />
             <View style={styles.heroTopCut} />
             <View style={styles.heroCut} />
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>{t("NELMA Water Delivery")}</Text>
               <Text style={styles.heroSubtitle}>{t("Fresh 20L drinking water delivered around the current service area.")}</Text>
             </View>
-          </ImageBackground>
+          </View>
 
           <View style={styles.content}>
             <View style={styles.featureSection}>
@@ -260,6 +264,15 @@ const styles = StyleSheet.create({
   heroShade: {
     ...StyleSheet.absoluteFill
   },
+  // Kept clear of the curved bottom edge so both bottles stay fully visible.
+  heroBottles: {
+    position: "absolute",
+    right: -16,
+    top: 62,
+    width: 186,
+    height: 150,
+    zIndex: 1
+  },
   heroTopCut: {
     position: "absolute",
     left: -30,
@@ -281,27 +294,29 @@ const styles = StyleSheet.create({
     zIndex: 2
   },
   heroContent: {
-    alignItems: "center",
+    zIndex: 3,
+    alignItems: "flex-start",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     paddingVertical: 10
   },
   heroTitle: {
     color: colors.white,
     fontFamily: typography.fonts.bold,
-    fontSize: 26,
+    fontSize: 23,
     letterSpacing: 0,
-    lineHeight: 30,
-    textAlign: "center"
+    lineHeight: 27,
+    maxWidth: 170,
+    textAlign: "left"
   },
   heroSubtitle: {
     color: colors.white,
     fontFamily: typography.fonts.medium,
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 17,
-    marginTop: 4,
-    maxWidth: 260,
-    textAlign: "center"
+    marginTop: 6,
+    maxWidth: 165,
+    textAlign: "left"
   },
   content: {
     backgroundColor: colors.white,

@@ -31,3 +31,4 @@ export const operationsService = services.operations;
 
 export { DATA_MODE };
 export type { ServiceRegistry };
+export const websiteRequestsService = services.websiteRequests;

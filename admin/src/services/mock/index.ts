@@ -32,6 +32,7 @@ import type {
   UserAccount,
   SalesReport,
   SystemSettings,
+  WebsiteRequest,
 } from "@/types";
 import { ORDER_LIFECYCLE, productLabel } from "@/lib/format";
 import type {
@@ -46,7 +47,50 @@ import type {
  * the browser session and are discarded on reload. No backend, no database.
  */
 
+// Two example requests, as if sent from the public website's Order Now and Contact Us forms.
+const seedWebsiteRequests: WebsiteRequest[] = [
+  {
+    id: "web_1",
+    kind: "order",
+    status: "new",
+    name: "Grace Mollel",
+    email: "grace@example.com",
+    phone: "+255754220011",
+    company: "Njiro Dental Clinic",
+    customerType: "new",
+    city: "Arusha",
+    area: "Njiro",
+    productCode: "refill",
+    productName: "20L Refill",
+    quantity: 20,
+    address: "Njiro complex, block B",
+    message: "Weekly delivery on Mondays, please.",
+    createdAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    handledAt: null,
+  },
+  {
+    id: "web_2",
+    kind: "contact",
+    status: "new",
+    name: "Baraka Mushi",
+    email: "baraka@example.com",
+    phone: null,
+    company: null,
+    customerType: null,
+    city: null,
+    area: null,
+    productCode: null,
+    productName: null,
+    quantity: null,
+    address: null,
+    message: "Do you deliver to Usa River?",
+    createdAt: new Date(Date.now() - 26 * 3_600_000).toISOString(),
+    handledAt: null,
+  },
+];
+
 const db = {
+  websiteRequests: seedWebsiteRequests.map((r) => ({ ...r })),
   orders: seedOrders.map((o) => ({ ...o })),
   deliveries: seedDeliveries.map((d) => ({ ...d })),
   drivers: seedDrivers.map((d) => ({ ...d })),
@@ -612,6 +656,17 @@ export const mockServices: ServiceRegistry = {
       product.updatedAt = todayISO();
       return delay({ ...product }, 600);
     },
+    async deliveryFees() {
+      const { zones, defaultZoneName, defaultFee } = db.settings.delivery;
+      return delay(structuredClone({ zones, defaultZoneName, defaultFee }));
+    },
+    async saveDeliveryFees(input) {
+      db.settings = {
+        ...db.settings,
+        delivery: { ...db.settings.delivery, ...structuredClone(input) },
+      };
+      return delay(structuredClone(input), 350);
+    },
   },
 
   users: {
@@ -717,7 +772,12 @@ export const mockServices: ServiceRegistry = {
       return delay(structuredClone(db.settings));
     },
     async update(patch) {
-      db.settings = { ...db.settings, ...patch } as SystemSettings;
+      // Merge the delivery section field by field, like the server, so saving windows keeps the fees.
+      db.settings = {
+        ...db.settings,
+        ...patch,
+        delivery: { ...db.settings.delivery, ...patch.delivery },
+      } as SystemSettings;
       pushAudit({
         actor: "System Admin",
         role: "SYSTEM_ADMIN",
@@ -792,6 +852,33 @@ export const mockServices: ServiceRegistry = {
     async reviewFlag(id) {
       operations.flags = operations.flags.filter((f) => f.id !== id);
       await delay(null, 200);
+    },
+  },
+
+  websiteRequests: {
+    async list(query) {
+      const rows = db.websiteRequests
+        .filter(
+          (r) =>
+            (!query.kind || query.kind === "all" || r.kind === query.kind) &&
+            (!query.status || query.status === "all" || r.status === query.status),
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const fresh = db.websiteRequests.filter((r) => r.status === "new");
+      return delay({
+        ...paginate(rows, query.page, query.pageSize ?? 20),
+        newCounts: {
+          order: fresh.filter((r) => r.kind === "order").length,
+          contact: fresh.filter((r) => r.kind === "contact").length,
+        },
+      });
+    },
+    async setStatus(id, status) {
+      const request = db.websiteRequests.find((r) => r.id === id);
+      if (!request) throw { status: 404, message: "Request not found." };
+      request.status = status;
+      request.handledAt = status === "handled" ? new Date().toISOString() : null;
+      return delay({ ...request }, 300);
     },
   },
 };

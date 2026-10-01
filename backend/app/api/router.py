@@ -16,6 +16,7 @@ from app.api.routes import (
     payments,
     settings,
     users,
+    website,
 )
 
 api_router = APIRouter()
@@ -33,5 +34,6 @@ api_router.include_router(admin_accounts.router)
 api_router.include_router(audit_logs.router)
 api_router.include_router(internal.router)
 api_router.include_router(health.router)
+api_router.include_router(website.router)
 
 api_router.include_router(dashboard.router)

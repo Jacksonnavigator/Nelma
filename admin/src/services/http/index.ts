@@ -22,8 +22,11 @@ import type {
   PaginatedResponse,
   PriceConfiguration,
   Product,
+  DeliveryFees,
   UserAccount,
   UserAccountPage,
+  WebsiteRequest,
+  WebsiteRequestPage,
   SalesReport,
   SystemSettings,
 } from "@/types";
@@ -231,6 +234,9 @@ export const httpServices: ServiceRegistry = {
         method: "POST",
         body: { contentType: file.type, data: await fileToBase64(file) },
       }),
+    deliveryFees: () => apiRequest<DeliveryFees>("admin/delivery-fees"),
+    saveDeliveryFees: (input) =>
+      apiRequest<DeliveryFees>("admin/delivery-fees", { method: "PUT", body: input }),
   },
 
   users: {
@@ -312,5 +318,22 @@ export const httpServices: ServiceRegistry = {
         body: { paymentIds, amountReceived },
       }),
     reviewFlag: (id) => apiRequest<void>(`admin/operations/flags/${id}/review`, { method: "POST" }),
+  },
+
+  websiteRequests: {
+    list: (query) =>
+      apiRequest<WebsiteRequestPage>("admin/website-requests", {
+        query: {
+          kind: query.kind,
+          status: query.status,
+          page: query.page,
+          page_size: query.pageSize,
+        },
+      }),
+    setStatus: (id, status) =>
+      apiRequest<WebsiteRequest>(`admin/website-requests/${id}/status`, {
+        method: "POST",
+        body: { status },
+      }),
   },
 };

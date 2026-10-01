@@ -29,6 +29,8 @@ EVENT_COPY = {
     "order_customer_received": ("Order received", "Thank you for confirming your delivery."),
     "order_message": ("Order message", "A message was added to your NELMA order."),
     "order_message_reply": ("Message from NELMA", "NELMA replied about your order. Open it to read the message."),
+    "staff_website_order": ("Website order request", "Someone asked to order from the website. Open Website requests to call them back."),
+    "staff_website_message": ("Website message", "Someone sent a message from the website contact form."),
     "staff_order_message": ("Customer message", "A customer sent a message about an order. Open the order to reply."),
     "driver_delivery_cancelled": ("Delivery cancelled", "NELMA cancelled a delivery assigned to you. It is off your route."),
     "payment_successful": ("Payment successful", "Your payment has been received."),

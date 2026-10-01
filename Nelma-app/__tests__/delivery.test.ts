@@ -20,26 +20,21 @@ describe("delivery scheduling and charges", () => {
     expect(chargesForDeliveryQuote(quote)).toEqual([]);
   });
 
-  it("charges the nearby Tengeru zone", () => {
-    const quote = calculateDeliveryQuote(address("Tengeru"));
-
-    expect(quote.zoneId).toBe("tengeru");
-    expect(quote.charge.amount).toBe(1000);
-    expect(chargesForDeliveryQuote(quote)).toHaveLength(1);
-  });
-
-  it("uses the standard Arusha fee outside named priority zones", () => {
-    const quote = calculateDeliveryQuote(address("Sakina"));
-
-    expect(quote.zoneId).toBe("default");
-    expect(quote.zoneName).toBe("Arusha");
-    expect(quote.charge.amount).toBe(1500);
+  it("delivers free everywhere until staff set fees", () => {
+    const tengeru = calculateDeliveryQuote(address("Tengeru"));
+    expect(tengeru.zoneId).toBe("tengeru");
+    expect(tengeru.charge.amount).toBe(0);
+    const town = calculateDeliveryQuote(address("Sakina"));
+    expect(town.zoneId).toBe("default");
+    expect(town.zoneName).toBe("Arusha");
+    expect(town.charge.amount).toBe(0);
+    expect(chargesForDeliveryQuote(town)).toEqual([]);
   });
 
   it("does not give the campus rate to any address that says hostel", () => {
-    expect(calculateDeliveryQuote(address("Arusha", "Kijenge hostel block C")).charge.amount).toBe(1500);
+    const config = { timeWindows: ["09:00 - 12:00"], zones: [{ id: "nmaist", name: "NM-AIST campus", fee: 0, keywords: ["nm-aist"] }], defaultZoneName: "Arusha", defaultFee: 1500 };
+    expect(calculateDeliveryQuote(address("Arusha", "Kijenge hostel block C"), config).charge.amount).toBe(1500);
   });
-
   it("uses the zones and fees set in the dashboard", () => {
     const config = { timeWindows: ["08:00 - 10:00"], zones: [{ id: "njiro", name: "Njiro", fee: 700, keywords: ["njiro"] }], defaultZoneName: "Town", defaultFee: 2000 };
     expect(calculateDeliveryQuote(address("Arusha", "Njiro complex 4A"), config).charge).toEqual({ id: "delivery_njiro", label: "Delivery fee - Njiro", amount: 700 });

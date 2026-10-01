@@ -60,15 +60,22 @@ def test_staff_can_cancel_an_order_even_on_the_road(client):
 
 
 def test_delivery_fees_and_times_come_from_dashboard_settings(client):
-    _, _, _, _, admin, _ = staff(client)
+    _, _, _, _, admin, sales = staff(client)
     public = client.get("/api/v1/settings/public").json()
-    assert public["delivery"]["defaultFee"] == 1500
+    # Delivery is free until staff set fees.
+    assert public["delivery"]["defaultFee"] == 0
+    assert {zone["fee"] for zone in public["delivery"]["zones"]} == {0}
     assert public["delivery"]["timeWindows"] == ["09:00 - 12:00", "12:00 - 16:00", "16:00 - 19:00"]
     assert public["support"]["phone"]
 
     _, mobile = register_customer(client)
-    # A generic word no longer earns the campus rate: "hostel" in town pays the standard fee.
     town = create_address(client, mobile, label="Town", deliveryAddress="Kijenge hostel block C", area="Arusha")
+    assert create_order(client, mobile, address=town)["total"] == 4000
+
+    # Sales managers can set fees, like prices. A generic word does not earn the campus rate.
+    fees = client.get("/api/v1/admin/delivery-fees", headers=sales).json()
+    fees["defaultFee"] = 1500
+    assert client.put("/api/v1/admin/delivery-fees", headers=sales, json=fees).status_code == 200
     assert create_order(client, mobile, address=town)["total"] == 4000 + 1500
     campus = create_address(client, mobile, label="Campus", isDefault=False)
     assert create_order(client, mobile, address=campus)["total"] == 4000
@@ -160,3 +167,27 @@ def test_notification_switches_silence_phone_alerts_only(client):
     create_order(client, mobile)
     # The inbox copy is still written.
     assert "order_received" in _notifications(customer_id)
+
+
+def test_sales_managers_and_admins_can_change_delivery_fees(client):
+    _, _, _, _, admin, sales = staff(client)
+    _, mobile = register_customer(client)
+    assert client.get("/api/v1/admin/delivery-fees", headers=mobile).status_code in {401, 403}
+    assert client.get("/api/v1/admin/delivery-fees").status_code == 401
+
+    fees = client.get("/api/v1/admin/delivery-fees", headers=sales).json()
+    assert fees["defaultFee"] == 0 and fees["defaultZoneName"] == "Arusha"
+    fees["zones"][1]["fee"] = 1000
+    saved = client.put("/api/v1/admin/delivery-fees", headers=sales, json=fees)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["zones"][1] == {**fees["zones"][1], "fee": 1000}
+
+    # Changing fees keeps the delivery time windows that admins set in System Settings.
+    windows = client.get("/api/v1/admin/settings", headers=admin).json()["delivery"]["defaultTimeWindows"]
+    back = client.put("/api/v1/admin/delivery-fees", headers=admin, json={**fees, "defaultFee": 500})
+    assert back.status_code == 200, back.text
+    public = client.get("/api/v1/settings/public").json()["delivery"]
+    assert (public["defaultFee"], public["timeWindows"]) == (500, windows)
+
+    assert client.put("/api/v1/admin/delivery-fees", headers=sales, json={**fees, "defaultFee": -1}).status_code == 422
+    assert client.put("/api/v1/admin/delivery-fees", headers=sales, json={**fees, "timeWindows": []}).status_code == 422

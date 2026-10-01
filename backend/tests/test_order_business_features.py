@@ -94,8 +94,9 @@ def test_order_schedule_delivery_charges_messages_and_received_confirmation(clie
     )
 
     assert order["subtotal"] == 4000
-    assert order["charges"] == [{"id": "delivery_tengeru", "label": "Delivery fee - Tengeru", "amount": 1000}]
-    assert order["total"] == 5000
+    # Delivery is free by default, and a fee sent by the app is never trusted.
+    assert order["charges"] == []
+    assert order["total"] == 4000
     assert order["deliverySchedule"] == schedule
     assert order["customerRemarks"] == "Call when at the gate"
     assert order["messages"][0]["body"] == "Call when at the gate"
@@ -154,9 +155,9 @@ def test_business_dashboard_uses_real_customer_database(client):
     data = dashboard.json()
     assert data["monthlyReport"]["metrics"]["orders"] == 1
     assert data["monthlyReport"]["metrics"]["receivedOrders"] == 1
-    assert data["monthlyReport"]["metrics"]["revenue"] == 5000
-    assert data["monthlyReport"]["metrics"]["deliveryFees"] == 1000
+    assert data["monthlyReport"]["metrics"]["revenue"] == 4000
+    assert data["monthlyReport"]["metrics"]["deliveryFees"] == 0
     assert data["receivedOrders"][0]["orderId"] == order["id"]
     assert data["customers"][0]["id"] == customer_session["user"]["id"]
     assert data["customers"][0]["totalOrders"] == 1
-    assert data["customers"][0]["totalSpend"] == 5000
+    assert data["customers"][0]["totalSpend"] == 4000

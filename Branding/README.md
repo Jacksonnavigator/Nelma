@@ -11,6 +11,14 @@ Everything lives in `public/` so the site works on any host (not only on Lovable
 - `public/favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest`: browser and home-screen icons made from the app icon.
 - `public/media/`: product and plant photos.
 
+## Forms and live prices
+
+Everything is on one page; the menu (Home, Our Water, Pricing, Contact Us, Order Now) scrolls to sections.
+
+- **Contact Us** and **Order Now** send to the NELMA API (`/website/contact` and `/website/orders`). Staff see them in the admin under **Website requests**, get an alert, call the person back and create the real order with Create Order.
+- **Pricing** and the Order Now product and area lists load from the API, so price changes made in the admin show here automatically.
+- Set `VITE_API_URL` if the API is not at `https://nelma-gts5.onrender.com/api/v1`, and add this website's address (for example `https://nelma-website.onrender.com`) to the backend's `CORS_ORIGINS` on Render, or the forms will fail.
+
 ## App download buttons
 
 "Download App" downloads the Android app directly. The APK is too big for the repository (GitHub's 100 MB file limit), so it is published as a GitHub release file, and the site links to:

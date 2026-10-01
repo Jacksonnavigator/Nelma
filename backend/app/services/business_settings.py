@@ -25,14 +25,15 @@ DEFAULT_SETTINGS = {
     "notifications": {"newOrderAlerts": True, "deliveryAlerts": True, "paymentAlerts": True},
     "delivery": {
         "defaultTimeWindows": ["09:00 - 12:00", "12:00 - 16:00", "16:00 - 19:00"],
+        # Delivery is free (0 TZS) until staff set fees on the dashboard's Products page.
         # Matched against the delivery address the customer types. Keep keywords specific:
         # a generic word such as "hostel" would give that zone's fee to addresses anywhere.
         "zones": [
             {"id": "nmaist", "name": "NM-AIST campus", "fee": 0, "keywords": ["nm-aist", "nmaist", "nelson mandela"]},
-            {"id": "tengeru", "name": "Tengeru", "fee": 1000, "keywords": ["tengeru"]},
+            {"id": "tengeru", "name": "Tengeru", "fee": 0, "keywords": ["tengeru"]},
         ],
         "defaultZoneName": "Arusha",
-        "defaultFee": 1500,
+        "defaultFee": 0,
     },
 }
 

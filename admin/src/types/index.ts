@@ -347,6 +347,12 @@ export interface SystemSettings {
   };
 }
 
+/** The fee part of the delivery settings; sales managers and admins can change it. */
+export type DeliveryFees = Pick<
+  SystemSettings["delivery"],
+  "zones" | "defaultZoneName" | "defaultFee"
+>;
+
 export interface DeliveryZone {
   id: string;
   name: string;
@@ -379,4 +385,29 @@ export interface ApiError {
   status: number;
   message: string;
   detail?: string;
+}
+
+/** A message or order request sent from the public website (visitors have no account). */
+export interface WebsiteRequest {
+  id: string;
+  kind: "order" | "contact";
+  status: "new" | "handled";
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  customerType: "new" | "existing" | null;
+  city: string | null;
+  area: string | null;
+  productCode: string | null;
+  productName: string | null;
+  quantity: number | null;
+  address: string | null;
+  message: string | null;
+  createdAt: string;
+  handledAt: string | null;
+}
+
+export interface WebsiteRequestPage extends PaginatedResponse<WebsiteRequest> {
+  newCounts: { order: number; contact: number };
 }

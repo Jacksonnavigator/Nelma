@@ -24,6 +24,7 @@ from app.schemas.dashboard import (
     CashHandInInput,
     DashboardOrderInput,
     DashboardSettingsPatch,
+    DeliveryFeesInput,
     DeliveryStatusInput,
     PriceInput,
     ProductCreateInput,
@@ -33,6 +34,7 @@ from app.schemas.dashboard import (
 )
 from app.schemas.order import AssignDriverRequest, CreateOrderForCustomerRequest, CreateOrderMessageRequest
 from app.schemas.user import AccountUpdate, DriverCreate
+from app.schemas.website import WebsiteRequestStatusInput
 from app.services import dashboard_service as svc
 from app.services.account_service import account_service
 from app.services.audit_service import audit_service
@@ -41,6 +43,7 @@ from app.services.operations_service import operations_service
 from app.services.order_service import order_service
 from app.services.payment_service import payment_service
 from app.services.product_service import product_service
+from app.services.website_service import website_service
 
 router = APIRouter(prefix="/admin", tags=["Dashboard"])
 
@@ -413,6 +416,24 @@ def set_user_password(account_id: str, data: AccountPasswordInput, user: Dashboa
     return Response(status_code=204)
 
 
+@router.get("/website-requests")
+def website_requests(
+    user: DashboardUser,
+    db: DbSession,
+    kind: Literal["all", "order", "contact"] = "all",
+    status: Literal["all", "new", "handled"] = "all",
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    """Order requests and messages sent from the public website, newest first."""
+    return website_service.list(db, user, kind=kind, status_filter=status, page=page, page_size=page_size)
+
+
+@router.post("/website-requests/{request_id}/status")
+def website_request_status(request_id: str, data: WebsiteRequestStatusInput, user: DashboardUser, db: DbSession):
+    return website_service.set_status(db, user, request_id, data.status)
+
+
 @router.get("/settings")
 def settings(user: DashboardUser, db: DbSession):
     authorize(user, Permission.SYSTEM_SETTINGS_MANAGE)
@@ -423,6 +444,19 @@ def settings(user: DashboardUser, db: DbSession):
 def update_settings(data: DashboardSettingsPatch, user: DashboardUser, db: DbSession):
     authorize(user, Permission.SYSTEM_SETTINGS_MANAGE)
     return svc.save_settings(db, user, data)
+
+
+@router.get("/delivery-fees")
+def delivery_fees(user: DashboardUser, db: DbSession):
+    """Delivery fees sit with prices, so sales managers can change them as well as admins."""
+    authorize(user, Permission.PRICING_MANAGE)
+    return svc.delivery_fees(svc.read_settings(db))
+
+
+@router.put("/delivery-fees")
+def update_delivery_fees(data: DeliveryFeesInput, user: DashboardUser, db: DbSession):
+    authorize(user, Permission.PRICING_MANAGE)
+    return svc.save_delivery_fees(db, user, data)
 
 
 @router.get("/order-options")

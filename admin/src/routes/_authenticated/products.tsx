@@ -5,6 +5,7 @@ import { ImagePlus, Package, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PermissionGate } from "@/components/common/PermissionGate";
+import { DeliveryFeesCard } from "@/components/products/DeliveryFeesCard";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,8 +66,8 @@ function ProductsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Products"
-        description="What customers can order in the app. Price changes apply to new orders only."
+        title="Prices & delivery"
+        description="Products, their prices and the delivery fees customers pay. Changes apply to new orders only."
         actions={
           <Button onClick={() => setEditing("new")}>
             <Plus className="mr-2 size-4" /> Add product
@@ -145,6 +146,8 @@ function ProductsPage() {
           </div>
         </>
       )}
+
+      <DeliveryFeesCard />
 
       <ProductEditor
         product={editing === "new" ? null : editing}

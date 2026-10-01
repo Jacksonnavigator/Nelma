@@ -22,15 +22,15 @@ export type DeliveryQuote = {
   charge: OrderCharge;
 };
 
-/** Used until the settings arrive, and with backends that do not send them. Matches the server defaults. */
+/** Used until the settings arrive, and with backends that do not send them. Matches the server defaults: free delivery. */
 export const defaultDeliveryConfig: DeliveryConfig = {
   timeWindows: ["09:00 - 12:00", "12:00 - 16:00", "16:00 - 19:00"],
   zones: [
     { id: "nmaist", name: "NM-AIST campus", fee: 0, keywords: ["nm-aist", "nmaist", "nelson mandela"] },
-    { id: "tengeru", name: "Tengeru", fee: 1000, keywords: ["tengeru"] }
+    { id: "tengeru", name: "Tengeru", fee: 0, keywords: ["tengeru"] }
   ],
   defaultZoneName: "Arusha",
-  defaultFee: 1500
+  defaultFee: 0
 };
 
 const ASAP: DeliverySlotOption = { id: "asap", chip: "Soonest", label: "As soon as possible", window: "Next available delivery" };

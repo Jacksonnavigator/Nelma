@@ -582,10 +582,10 @@ export const systemSettings: SystemSettings = {
         fee: 0,
         keywords: ["nm-aist", "nmaist", "nelson mandela"],
       },
-      { id: "tengeru", name: "Tengeru", fee: 1000, keywords: ["tengeru"] },
+      { id: "tengeru", name: "Tengeru", fee: 0, keywords: ["tengeru"] },
     ],
     defaultZoneName: "Arusha",
-    defaultFee: 1500,
+    defaultFee: 0,
   },
 };
 
