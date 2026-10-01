@@ -7,7 +7,7 @@ import type { DeliveryAddress } from "../../types/address";
 import type { DeliverySchedule, OrderCharge, OrderType } from "../../types/order";
 import { hasCoordinates } from "../../utils/address";
 import { formatCurrency } from "../../utils/format";
-import { getOrderProductName, getOrderTypeLabel } from "../../utils/order";
+import { getOrderProductName } from "../../utils/order";
 import { Card } from "../ui/Card";
 
 type ReceiptSummaryProps = {
@@ -22,7 +22,6 @@ type ReceiptSummaryProps = {
   customerRemarks?: string;
   paymentMethodLabel?: string;
   date?: string;
-  orderTypeLabel?: string;
   productName?: string;
   onEditItems?: () => void;
   onEditDelivery?: () => void;
@@ -43,7 +42,6 @@ export const ReceiptSummary = ({
   customerRemarks,
   paymentMethodLabel,
   date,
-  orderTypeLabel,
   productName,
   onEditItems,
   onEditDelivery,
@@ -65,7 +63,6 @@ export const ReceiptSummary = ({
       ) : null}
 
       <Section title="Water order" actionLabel={onEditItems ? "Edit" : undefined} onAction={onEditItems}>
-        <Row label="Order type" value={t(orderTypeLabel ?? getOrderTypeLabel(orderType))} />
         <Row label="Product" value={t(productName ?? getOrderProductName(orderType))} />
         <Row label="Quantity" value={quantity + " x " + formatCurrency(unitPrice)} />
         <Row label="Subtotal" value={formatCurrency(subtotal)} strong />

@@ -17,7 +17,8 @@ import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/sta
 import { OrderCard } from "@/components/orders/OrderCard";
 import { DriverCard } from "@/components/drivers/DriverCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { SalesTrendChart, DistributionChart } from "@/components/sales/SalesChart";
+import { DistributionChart, SalesTrendChart } from "@/components/sales/SalesChart";
+import { ORDER_STATUS_COLORS } from "@/lib/chart-colors";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -251,6 +252,7 @@ function DashboardPage() {
             data={(statusCounts.data ?? []).map((s) => ({
               label: ORDER_STATUS_LABELS[s.status],
               count: s.count,
+              color: ORDER_STATUS_COLORS[s.status],
             }))}
           />
         )}

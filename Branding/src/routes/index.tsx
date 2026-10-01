@@ -31,9 +31,8 @@ const officialIcon = "/brand/nelma-drop.png";
 const heroBottle = "/media/nelma-branded-two-bottles.png";
 const singleBottle = "/media/nelma-branded-single-bottle.png";
 const processPhoto = "/media/our-process.jpg";
-const plantStore = "/media/DSC_0882.jpg";
-const plantLine = "/media/DSC_0884.jpg";
-const plantCapping = "/media/DSC_0886.jpg";
+const plantPretreatment = "/media/DSC_0874.jpg";
+const plantFilling = "/media/DSC_0885.jpg";
 const deliveryProcess = "/media/delivery-process.jpg";
 
 // Where the download buttons go. By default the Android app (APK) attached to the newest GitHub release,
@@ -73,22 +72,22 @@ const navLinks = [
   ["contact", "Contact Us"],
 ] as const;
 
-// The deck removed the reverse osmosis, pre-treatment and filling photos; these three remain.
+// The three photos the October recommendations keep ("hizi picha ndo zibaki"), with their captions.
 const gallery = [
   [
-    plantLine,
-    "Automated wash line",
-    "Returned 20L bottles are washed and rinsed inside a stainless SUS304 line.",
+    plantPretreatment,
+    "Pretreatment Tanks",
+    "Pretreatment tanks and control valves forming the initial stage of the water purification process, where incoming water is conditioned and prepared for further purification.",
   ],
   [
-    plantCapping,
-    "Capping and sealing",
-    "Each bottle is capped and sealed immediately after filling.",
+    processPhoto,
+    "Water Purification System",
+    "An integrated purification system where water undergoes successive purification stages, including RO membrane filtration, to achieve the required quality for drinking.",
   ],
   [
-    plantStore,
-    "Ready for collection",
-    "Sealed 20-litre bottles stored on site, ready for pickup or delivery.",
+    plantFilling,
+    "Water Filling Machine",
+    "Automated equipment for washing, filling, and capping purified water into 20-litre reusable bottles, ensuring hygienic and efficient packaging.",
   ],
 ] as const;
 
@@ -541,7 +540,9 @@ function Nelma() {
       <section className="video section-space">
         <div className="site-width video-inner video-inner-text">
           <div>
-            <SectionTitle light center>See How We Work</SectionTitle>
+            <SectionTitle light center>
+              See How We Work
+            </SectionTitle>
             <p>
               From filtration to filling, see how every NELMA bottle is prepared right here on
               campus.

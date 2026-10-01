@@ -185,7 +185,7 @@ button:disabled { opacity:.6; cursor:not-allowed; }
 @media(max-width:600px){ .plan-grid.plan-grid-two { grid-template-columns:1fr; } }
 
 /* About Us is text only in the deck; the faint "Contact Us" sits behind "Get In Touch" as on the slide. */
-.about-us { grid-template-columns:1fr; max-width:900px; }
+.about-us { grid-template-columns:1fr; }
 .contact-intro h2 { position:relative; }
 .contact-watermark { position:absolute; left:50%; top:50%; transform:translate(-50%,-56%); font-size:1.75em; font-weight:700; color:var(--foreground); opacity:.06; white-space:nowrap; text-transform:none; letter-spacing:0; pointer-events:none; z-index:-1; }
 .contact-intro { position:relative; z-index:0; }.about-us .lead { max-width:none; }
@@ -195,3 +195,5 @@ button:disabled { opacity:.6; cursor:not-allowed; }
 /* Slide 9: the home banner no longer uses the near-black background; it uses the NELMA blue from the app banner. */
 .hero { background: radial-gradient(ellipse 55% 60% at 50% 52%, oklch(1 0 0 / .18), transparent 70%), linear-gradient(135deg, #061C40 0%, #0A4F96 55%, #0B76C8 100%); }
 .hero .header { border-bottom-color: oklch(1 0 0 / .35); }
+/* About Us starts on the same left edge as Our Water and the other sections; only the text width is limited. */
+.about-us > div { max-width:900px; }

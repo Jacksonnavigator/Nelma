@@ -1,8 +1,8 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -48,7 +48,39 @@ def configure_cors(application: FastAPI, configuration: Settings) -> None:
     )
 
 
+def configure_public_website_cors(application: FastAPI, configuration: Settings) -> None:
+    """Let the public website call its endpoints from whatever domain it is hosted on.
+
+    These endpoints take no login and no cookies (contact form, order form, public prices), so allowing
+    any origin without credentials exposes nothing. Everything else stays behind the CORS_ORIGINS list.
+    Added after configure_cors so it runs first and answers the browser's preflight itself.
+    """
+    public_paths = tuple(
+        f"{configuration.api_v1_prefix}{path}" for path in ("/website/", "/settings/public")
+    )
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "600",
+    }
+
+    @application.middleware("http")
+    async def public_website_cors(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        if not request.url.path.startswith(public_paths):
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=cors_headers)
+        response = await call_next(request)
+        for key in ("access-control-allow-origin", "access-control-allow-credentials"):
+            if key in response.headers:
+                del response.headers[key]
+        response.headers.update(cors_headers)
+        return response
+
+
 configure_cors(app, settings)
+configure_public_website_cors(app, settings)
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 

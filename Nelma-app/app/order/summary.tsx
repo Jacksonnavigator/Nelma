@@ -53,7 +53,6 @@ export default function OrderSummaryScreen() {
       <Header title="Order Summary" subtitle="Review delivery, payment, and pricing before placing the order." />
       <ReceiptSummary
         orderType={draft.orderType}
-        orderTypeLabel={product.label}
         productName={product.productName}
         quantity={pricing.quantity}
         unitPrice={pricing.unitPrice}

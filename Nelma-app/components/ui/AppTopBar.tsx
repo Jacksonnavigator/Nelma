@@ -7,6 +7,7 @@ import { spacing, typography } from "../../constants/theme";
 import { haptics } from "../../services/haptics";
 import { useAuth } from "../../store/auth-context";
 import { useNotifications } from "../../store/notification-context";
+import { LanguageToggle } from "./LanguageToggle";
 
 const nelmaIcon = require("../../assets/nelma-icon.png");
 
@@ -59,6 +60,7 @@ export const AppTopBar = () => {
       </Pressable>
 
       <View style={styles.topActions}>
+        <LanguageToggle />
         {!isDriver ? (
           <Pressable
             accessibilityLabel={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}

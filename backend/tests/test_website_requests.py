@@ -63,3 +63,28 @@ def test_website_requests_are_staff_only(client):
     assert client.get("/api/v1/admin/website-requests", headers=mobile).status_code in {401, 403}
     _, _, _, _, _, sales = staff(client)
     assert client.post("/api/v1/admin/website-requests/missing/status", headers=sales, json={"status": "handled"}).status_code == 404
+
+
+def test_public_website_forms_work_from_any_website_domain(client):
+    # The website may be hosted on a domain missing from CORS_ORIGINS; its forms must still go through.
+    origin = "https://nelma-website.example.org"
+    for path in ("/api/v1/website/orders", "/api/v1/website/contact", "/api/v1/settings/public"):
+        preflight = client.options(
+            path,
+            headers={"Origin": origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"},
+        )
+        assert preflight.status_code == 204, (path, preflight.text)
+        assert preflight.headers["access-control-allow-origin"] == "*"
+        assert "content-type" in preflight.headers["access-control-allow-headers"].lower()
+
+    sent = client.post("/api/v1/website/orders", json=ORDER, headers={"Origin": origin})
+    assert sent.status_code == 201, sent.text
+    assert sent.headers["access-control-allow-origin"] == "*"
+    assert "access-control-allow-credentials" not in sent.headers
+
+    # Staff and customer endpoints keep the strict list: an unknown site gets no CORS approval.
+    private = client.options(
+        "/api/v1/auth/login",
+        headers={"Origin": origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"},
+    )
+    assert private.headers.get("access-control-allow-origin") not in ("*", origin)
