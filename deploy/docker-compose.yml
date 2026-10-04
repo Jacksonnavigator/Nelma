@@ -1,0 +1,56 @@
+# One "color" of the NELMA stack: the API and the admin dashboard.
+#
+# Do not run this file by hand. deploy/scripts/deploy.sh and rollback.sh run it as two
+# separate Compose projects, nelma-blue and nelma-green, and set these variables:
+#   IMAGE_TAG   image tag to run (the git commit)
+#   API_PORT    host port for the API    (blue 3001, green 3002)
+#   ADMIN_PORT  host port for the admin  (blue 4001, green 4002)
+# Everything else comes from the server's .env file (see .env.example at the repo root).
+#
+# Ports bind to 127.0.0.1 only. Nginx is the only public entry point.
+
+services:
+  api:
+    image: nelma-api:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: ../backend
+      labels:
+        app: nelma
+    env_file:
+      - ${NELMA_ENV_FILE:-../.env}
+    environment:
+      # Inside the container the API always listens on 8000; the host port differs per color.
+      PORT: "8000"
+    ports:
+      - "127.0.0.1:${API_PORT:?API_PORT is required}:8000"
+    restart: unless-stopped
+    labels:
+      app: nelma
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  admin:
+    image: nelma-admin:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: ../admin
+      args:
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required in .env}
+        VITE_DATA_MODE: ${VITE_DATA_MODE:-api}
+      labels:
+        app: nelma
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+    ports:
+      - "127.0.0.1:${ADMIN_PORT:?ADMIN_PORT is required}:3000"
+    restart: unless-stopped
+    labels:
+      app: nelma
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

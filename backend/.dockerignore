@@ -1,0 +1,14 @@
+# Keep secrets, local databases and caches out of the image.
+.env
+.env.*
+!.env.example
+*.db
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+tests/

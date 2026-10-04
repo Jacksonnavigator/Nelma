@@ -67,6 +67,10 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 See [admin/README.md](admin/README.md).
 
+## Self-hosting (Contabo VPS)
+
+The API and dashboard can also run on one Ubuntu VPS with Docker, Nginx, Let's Encrypt and blue-green deploys, alongside Render. See [DEPLOY.md](DEPLOY.md).
+
 ## Before going to the Play Store
 
 - Have the Terms & Conditions and Privacy Policy in the app (Profile > Legal) reviewed; they describe what the app actually does but are not legal advice.

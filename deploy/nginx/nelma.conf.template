@@ -1,0 +1,58 @@
+# NELMA reverse proxy. Generated from deploy/nginx/nelma.conf.template by setup-nginx.sh.
+# Edit the template in the repo, not the copy in /etc/nginx.
+
+# Defines the nelma_api and nelma_admin upstreams. deploy.sh and rollback.sh rewrite this
+# file to point at the blue (3001/4001) or green (3002/4002) containers, then reload Nginx.
+include /etc/nginx/nelma/upstream.conf;
+
+# HTTP: answer Let's Encrypt renewals, send everything else to HTTPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${API_DOMAIN} ${ADMIN_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# API (FastAPI)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${API_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/nelma/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/nelma/privkey.pem;
+    include /etc/nginx/snippets/nelma-ssl.conf;
+
+    # Product pictures are uploaded through the API (5 MB limit in the app).
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://nelma_api;
+        include /etc/nginx/snippets/nelma-proxy.conf;
+    }
+}
+
+# Admin / sales dashboard (TanStack Start, Node)
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${ADMIN_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/nelma/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/nelma/privkey.pem;
+    include /etc/nginx/snippets/nelma-ssl.conf;
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://nelma_admin;
+        include /etc/nginx/snippets/nelma-proxy.conf;
+    }
+}

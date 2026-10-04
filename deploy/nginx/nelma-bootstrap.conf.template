@@ -1,0 +1,16 @@
+# Temporary HTTP-only site, used once to get the first Let's Encrypt certificate.
+# setup-nginx.sh replaces it with nelma.conf.template as soon as the certificate exists.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${API_DOMAIN} ${ADMIN_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 503 "Certificate setup in progress\n";
+    }
+}

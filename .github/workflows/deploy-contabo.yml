@@ -1,0 +1,96 @@
+# Blue-green deploy to the Contabo VPS over SSH. See DEPLOY.md.
+#
+# Manual only for now: Actions > "Deploy to Contabo" > Run workflow, then pick the branch.
+# The latest commit of that branch is deployed. Render deploys are not affected.
+#
+# To deploy automatically on every push to main later, add this under `on:`:
+#   push:
+#     branches: [main]
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   CONTABO_HOST          server IP or hostname
+#   CONTABO_USER          deploy user on the server (for example "deploy")
+#   CONTABO_SSH_KEY       private key whose public half is in that user's authorized_keys
+#   CONTABO_KNOWN_HOSTS   output of `ssh-keyscan -p <port> <host>`, pins the server's host key
+#   CONTABO_SSH_PORT      optional, defaults to 22
+#   CONTABO_APP_DIR       optional, defaults to /opt/nelma
+
+name: Deploy to Contabo
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "deploy = ship this branch's latest commit; rollback = switch traffic back to the previous color"
+        type: choice
+        options:
+          - deploy
+          - rollback
+        default: deploy
+
+permissions:
+  contents: read
+
+# Never run two deploys against the server at once.
+concurrency:
+  group: contabo-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: ${{ inputs.action }} (${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DEPLOY_HOST: ${{ secrets.CONTABO_HOST }}
+      DEPLOY_USER: ${{ secrets.CONTABO_USER }}
+      DEPLOY_PORT: ${{ secrets.CONTABO_SSH_PORT || '22' }}
+      DEPLOY_DIR: ${{ secrets.CONTABO_APP_DIR || '/opt/nelma' }}
+      DEPLOY_SHA: ${{ github.sha }}
+      DEPLOY_ACTION: ${{ inputs.action || 'deploy' }}
+    steps:
+      - name: Check secrets
+        env:
+          SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.CONTABO_KNOWN_HOSTS }}
+        run: |
+          missing=""
+          [ -n "$DEPLOY_HOST" ] || missing="$missing CONTABO_HOST"
+          [ -n "$DEPLOY_USER" ] || missing="$missing CONTABO_USER"
+          [ -n "$SSH_KEY" ] || missing="$missing CONTABO_SSH_KEY"
+          [ -n "$KNOWN_HOSTS" ] || missing="$missing CONTABO_KNOWN_HOSTS"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (see DEPLOY.md)"
+            exit 1
+          fi
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.CONTABO_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/contabo
+          chmod 600 ~/.ssh/contabo
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run ${{ inputs.action }} on the server
+        run: |
+          ssh -i ~/.ssh/contabo -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            bash -s -- "'$DEPLOY_DIR'" "'$DEPLOY_SHA'" "'$DEPLOY_ACTION'" <<'REMOTE'
+          set -euo pipefail
+          cd "$1"
+          if [ "$3" = rollback ]; then
+            exec ./deploy/scripts/rollback.sh
+          fi
+          git fetch --prune origin
+          git checkout --detach "$2"
+          exec ./deploy/scripts/deploy.sh
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/contabo

@@ -44,8 +44,21 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Liveness probe for Docker and the blue-green deploy script. Answered before SSR so it
+// never depends on routing, the backend, or rendering.
+function isHealthCheck(request: Request): boolean {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  return new URL(request.url).pathname === "/health";
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    if (isHealthCheck(request)) {
+      return new Response(JSON.stringify({ status: "ok", service: "nelma-admin" }), {
+        status: 200,
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      });
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
