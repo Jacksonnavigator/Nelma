@@ -633,6 +633,23 @@ function Nelma() {
                 browser, then tap Install.
               </p>
             ) : null}
+            {androidIsApk ? (
+              <div className="qr-card">
+                <div className="qr-code">
+                  <img src="/media/nelma-app-qr.svg" alt="QR code to download the NELMA Android app" width="168" height="168" />
+                  <span className="qr-logo">
+                    <img src="/brand/nelma-icon.png" alt="" width="34" height="34" />
+                  </span>
+                </div>
+                <div>
+                  <h3>Scan to download</h3>
+                  <p>Point your phone camera at the code and the NELMA app starts downloading straight away.</p>
+                  <span className="qr-badge">
+                    <Smartphone size={14} /> Android
+                  </span>
+                </div>
+              </div>
+            ) : null}
             <div className="app-contact-row">
               <a className="app-call" href={contact.phoneHref}>
                 <Phone size={16} /> Call {contact.phone}
