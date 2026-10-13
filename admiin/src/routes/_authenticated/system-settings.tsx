@@ -79,7 +79,7 @@ function SettingsPage() {
           }}
         >
           <fieldset disabled={save.isPending} className="space-y-5">
-            <section className="rounded-xl border bg-card p-6 shadow-card">
+            <section className="rounded-xl border bg-card p-6">
               <h2 className="mb-4 font-semibold">Business information</h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 {(
@@ -110,7 +110,7 @@ function SettingsPage() {
                 ))}
               </div>
             </section>
-            <section className="rounded-xl border bg-card p-6 shadow-card">
+            <section className="rounded-xl border bg-card p-6">
               <h2 className="mb-4 font-semibold">Payment methods</h2>
               <div className="space-y-4">
                 {(
@@ -137,7 +137,7 @@ function SettingsPage() {
                 provider account (for example Selcom or AzamPay) is connected to the server.
               </p>
             </section>
-            <section className="rounded-xl border bg-card p-6 shadow-card">
+            <section className="rounded-xl border bg-card p-6">
               <h2 className="mb-4 font-semibold">Notifications</h2>
               <div className="space-y-4">
                 {(
@@ -163,7 +163,7 @@ function SettingsPage() {
                 ))}
               </div>
             </section>
-            <section className="space-y-4 rounded-xl border bg-card p-6 shadow-card">
+            <section className="space-y-4 rounded-xl border bg-card p-6">
               <h2 className="font-semibold">Delivery</h2>
               <p className="text-sm text-muted-foreground">
                 Delivery fees are set on{" "}

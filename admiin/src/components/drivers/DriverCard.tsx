@@ -7,7 +7,7 @@ import type { Driver } from "@/types";
 
 export function DriverCard({ driver, action }: { driver: Driver; action?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
           {initials(driver.fullName)}

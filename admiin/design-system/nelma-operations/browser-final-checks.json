@@ -1,0 +1,118 @@
+{
+  "checks": [
+    {
+      "route": "/dashboard",
+      "name": "dashboard-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/dashboard",
+      "name": "dashboard-mobile",
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "route": "/dashboard",
+      "name": "dashboard-tablet",
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "route": "/orders",
+      "name": "orders-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/products",
+      "name": "products-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/sales",
+      "name": "sales-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "test": "sales records pagination",
+      "pass": true
+    },
+    {
+      "route": "/system-settings",
+      "name": "system-settings-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "test": "switch target size",
+      "sizes": [
+        {
+          "w": 48,
+          "h": 44
+        },
+        {
+          "w": 48,
+          "h": 44
+        },
+        {
+          "w": 48,
+          "h": 44
+        },
+        {
+          "w": 48,
+          "h": 44
+        },
+        {
+          "w": 48,
+          "h": 44
+        }
+      ]
+    },
+    {
+      "route": "/orders/ord_1000",
+      "name": "order-detail",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/drivers/drv_001",
+      "name": "driver-detail",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/pricing",
+      "name": "pricing-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/deliveries",
+      "name": "deliveries-desktop",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "route": "/dashboard",
+      "name": "dashboard-dark",
+      "width": 1440,
+      "overflow": 0
+    },
+    {
+      "test": "dark theme colors",
+      "values": {
+        "background": "rgba(0, 0, 0, 0)",
+        "token": "#121b27",
+        "title": "rgb(241, 245, 251)"
+      }
+    },
+    {
+      "test": "sales manager create-order action",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

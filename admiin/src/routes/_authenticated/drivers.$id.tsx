@@ -139,7 +139,7 @@ function DriverDetailPage() {
       </div>
 
       {can("drivers.manage") ? (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-sm font-semibold text-foreground">Driver details</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -186,7 +186,7 @@ function DriverDetailPage() {
             description="This driver has no deliveries on record."
           />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>

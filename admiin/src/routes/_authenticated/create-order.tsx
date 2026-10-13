@@ -67,7 +67,7 @@ function Stepper({ step }: { step: number }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+    <section className="rounded-xl border border-border bg-card p-5">
       <h2 className="mb-4 text-sm font-semibold text-foreground">{title}</h2>
       {children}
     </section>

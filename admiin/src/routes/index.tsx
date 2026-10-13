@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  Loader2,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  ClipboardList,
-  Truck,
-  BarChart3,
-  LockKeyhole,
-} from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,66 +56,38 @@ function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen bg-card lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-svh bg-card lg:grid-cols-[1.05fr_1fr]">
       <section
         className="login-story hidden flex-col justify-between p-12 lg:flex xl:p-16"
-        aria-label="About the management portal"
+        aria-label="About the NELMA management portal"
       >
-        <div className="flex items-center gap-4">
-          <div className="login-logo">
-            <img
-              src="/brand/nelma-logo.png"
-              alt="NELMA — Maji Safi na Salama"
-              width={176}
-              height={80}
-              className="h-auto w-44"
-            />
-          </div>
+        <div className="login-logo">
+          <img
+            src="/brand/nelma-logo.png"
+            alt="NELMA, Maji Safi na Salama"
+            width={176}
+            height={80}
+            className="h-auto w-44"
+          />
         </div>
         <div className="my-12 max-w-lg">
-          <p className="mb-5 text-sm font-medium tracking-[.15em] text-[#91c7ff]">
-            THE NELMA WORKSPACE
-          </p>
-          <h2 className="text-[48px] font-semibold leading-[1.12] tracking-[-.04em] xl:text-[56px]">
-            Better flow.
+          <h2 className="text-[64px] font-semibold leading-[1.02] tracking-[-.045em]">
+            Water,
             <br />
-            Every day.
+            in motion.
           </h2>
-          <p className="login-story-copy mt-6 max-w-md text-lg leading-relaxed">
-            From the first order to the final delivery. Keep your water operations moving, all in
-            one place.
+          <p className="login-story-copy mt-8 max-w-sm text-xl leading-relaxed">
+            Your orders. Your drivers.
+            <br />
+            One connected workspace.
           </p>
-          <div className="mt-10 space-y-0">
-            {[
-              {
-                icon: ClipboardList,
-                title: "Orders, organized",
-                copy: "One clear view of every customer order.",
-              },
-              {
-                icon: Truck,
-                title: "Deliveries, coordinated",
-                copy: "Connect your drivers with the next delivery.",
-              },
-              {
-                icon: BarChart3,
-                title: "Performance, in focus",
-                copy: "See sales and operational activity at a glance.",
-              },
-            ].map(({ icon: Icon, title, copy }) => (
-              <div key={title} className="login-step flex items-center gap-4 py-5">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[#91c7ff]">
-                  <Icon className="size-5" />
-                </span>
-                <div>
-                  <p className="text-base font-medium">{title}</p>
-                  <p className="login-story-copy mt-1 text-sm">{copy}</p>
-                </div>
-              </div>
-            ))}
+          <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4 text-base">
+            <span>Take the order</span>
+            <span>Plan the delivery</span>
+            <span>Keep it moving</span>
           </div>
         </div>
-        <p className="login-story-copy text-sm">Maji Safi na Salama · NELMA Drinking Water</p>
+        <p className="login-story-copy text-base">Maji Safi na Salama · NELMA Drinking Water</p>
       </section>
       <main className="flex items-center justify-center px-6 py-12 sm:px-12">
         <div className="w-full max-w-[400px]">
@@ -132,10 +95,8 @@ function LoginPage() {
             <img src="/brand/nelma-icon.png" alt="" className="size-11 object-contain" />
             <div>
               <p className="text-lg font-bold tracking-wider">NELMA</p>
-              <p className="text-sm text-muted-foreground">Management portal</p>
             </div>
           </div>
-          <p className="mb-3 text-sm font-medium text-primary">STAFF ACCESS</p>
           <h1 className="text-[36px] font-semibold leading-tight tracking-[-.04em] text-foreground">
             Welcome back.
           </h1>
@@ -210,7 +171,7 @@ function LoginPage() {
               )}
             </Button>
           </form>
-          <div className="mt-8 border-t border-border pt-6">
+          <div className="mt-8 pt-6">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <LockKeyhole className="size-4" />
               For authorized NELMA staff only.

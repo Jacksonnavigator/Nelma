@@ -92,12 +92,17 @@ function ProductsPage() {
           <p className="text-sm text-muted-foreground">
             {onSale} of {products.data.length} on sale in the app.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div
+            className={cn(
+              "grid gap-4 sm:grid-cols-2",
+              products.data.length >= 3 && "xl:grid-cols-3",
+            )}
+          >
             {products.data.map((p) => (
               <article
                 key={p.id}
                 className={cn(
-                  "flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card",
+                  "flex flex-col overflow-hidden rounded-xl border border-border bg-card",
                   !p.isActive && "opacity-70",
                 )}
               >

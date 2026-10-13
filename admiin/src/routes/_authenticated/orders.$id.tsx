@@ -62,7 +62,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-4 shadow-card">
+    <section className="rounded-xl border border-border bg-card p-4">
       <h2 className="mb-2 text-sm font-semibold text-foreground">{title}</h2>
       {children}
     </section>

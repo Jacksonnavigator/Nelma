@@ -14,7 +14,7 @@ import { RoleBadge } from "@/components/common/RoleBadge";
 import { NavigationSearch } from "./NavigationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
-import { notificationsService } from "@/services";
+import { DATA_MODE, notificationsService } from "@/services";
 import { initials } from "@/lib/format";
 
 export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar: () => void }) {
@@ -31,7 +31,7 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
   if (!user) return null;
 
   return (
-    <header className="sticky top-0 z-30 flex h-20 items-center gap-3 border-b border-border bg-card/95 px-4 backdrop-blur lg:px-8">
+    <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-border bg-card px-4 lg:px-8">
       <Button
         variant="ghost"
         size="icon"
@@ -43,7 +43,9 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
       </Button>
 
       <div className="min-w-0 flex-1">
-        <p className="hidden text-xs text-muted-foreground sm:block">Workspace</p>
+        <p className="hidden text-sm text-muted-foreground sm:block">
+          {DATA_MODE === "mock" ? "NELMA demo workspace" : "NELMA workspace"}
+        </p>
         <p className="truncate text-sm font-semibold text-foreground">{title}</p>
       </div>
 

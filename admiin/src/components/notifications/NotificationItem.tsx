@@ -25,7 +25,7 @@ export function NotificationItem({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-4 shadow-card",
+        "flex items-start gap-3 rounded-xl border p-4",
         notification.read ? "border-border bg-card" : "border-primary/25 bg-primary/5",
       )}
     >

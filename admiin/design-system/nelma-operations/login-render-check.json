@@ -1,0 +1,45 @@
+{
+  "browser": "chromium",
+  "captureMethod": "cdp",
+  "captureSize": [
+    1440,
+    900
+  ],
+  "consoleErrors": [],
+  "document": {
+    "diagnostics": {
+      "clippedOverflow": [],
+      "overlayIntersections": [],
+      "viewportOverflow": {
+        "horizontal": false,
+        "vertical": false
+      }
+    },
+    "documentSize": [
+      1440,
+      900
+    ],
+    "fontStatus": "loaded",
+    "title": "NELMA | Sign In",
+    "viewportSize": [
+      1440,
+      900
+    ]
+  },
+  "exceptions": [],
+  "failedResources": [],
+  "frames": [],
+  "fullPage": false,
+  "input": "static login snapshot",
+  "output": "login.png",
+  "reducedMotion": true,
+  "byteLength": 85036,
+  "sha256": "7348d3fb60a921100a662f831c7329b9b079551d3d75d23412217a79423f39c1",
+  "dimensions": [
+    1440,
+    900
+  ],
+  "pixelSha256": "07bdfeda57d19ff8e211b6b6cc219d6645135340318a0f1b94df8a60a792091e",
+  "renderedFrameCount": 0,
+  "distinctFrameCount": 0
+}

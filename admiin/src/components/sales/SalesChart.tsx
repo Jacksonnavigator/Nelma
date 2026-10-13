@@ -1,3 +1,4 @@
+import { cloneElement, useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -7,7 +8,6 @@ import {
   LineChart,
   Pie,
   PieChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -34,18 +34,35 @@ function Frame({
   title,
   children,
   footer,
+  bare = false,
 }: {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  bare?: boolean;
 }) {
+  const container = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(Math.round(entry.contentRect.width));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
-      <p className="text-base font-semibold text-foreground">{title}</p>
-      <div className="mt-3 h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          {children as React.ReactElement}
-        </ResponsiveContainer>
+    <div className={bare ? "chart-bare" : "rounded-xl border border-border bg-card p-5 sm:p-6"}>
+      {!bare && <p className="text-base font-semibold text-foreground">{title}</p>}
+      <div ref={container} className="mt-3 h-64">
+        {width > 0 &&
+          cloneElement(children as React.ReactElement<{ width: number; height: number }>, {
+            width,
+            height: 256,
+            key: width,
+          })}
       </div>
       {footer}
     </div>
@@ -55,27 +72,46 @@ function Frame({
 export function SalesTrendChart({
   title = "Sales trend",
   data,
+  bare = false,
 }: {
   title?: string;
+  bare?: boolean;
   data: { date: string; sales: number }[];
 }) {
   return (
-    <Frame title={title}>
+    <Frame title={`${title} (TZS)`} bare={bare}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-        <XAxis dataKey="date" tickLine={false} axisLine={false} fontSize={12} />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          tick={{ fill: "var(--muted-foreground)" }}
+        />
         <YAxis
           tickLine={false}
           axisLine={false}
           fontSize={12}
+          tick={{ fill: "var(--muted-foreground)" }}
           width={64}
-          tickFormatter={(v: number) => formatTZS(v, { compact: true })}
+          tickFormatter={(v: number) => formatTZS(v, { compact: true }).replace("TZS ", "")}
         />
-        <Tooltip formatter={(v: number) => formatTZS(v)} />
+        <Tooltip
+          contentStyle={{
+            background: "var(--card)",
+            color: "var(--foreground)",
+            borderColor: "var(--border)",
+            borderRadius: 8,
+          }}
+          labelStyle={{ color: "var(--foreground)" }}
+          formatter={(v: number) => formatTZS(v)}
+        />
         <Line
+          isAnimationActive={false}
           type="monotone"
           dataKey="sales"
-          stroke={CHART_COLORS.blue}
+          stroke="var(--primary)"
           strokeWidth={2}
           dot={false}
         />
@@ -97,10 +133,24 @@ export function CountBarChart({
     <Frame title={title}>
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} interval={0} />
-        <YAxis tickLine={false} axisLine={false} fontSize={12} width={36} allowDecimals={false} />
+        <XAxis
+          dataKey="label"
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          tick={{ fill: "var(--muted-foreground)" }}
+          interval={0}
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          fontSize={12}
+          tick={{ fill: "var(--muted-foreground)" }}
+          width={36}
+          allowDecimals={false}
+        />
         <Tooltip cursor={{ fill: "rgba(100,116,139,0.08)" }} />
-        <Bar dataKey={dataKey} radius={[6, 6, 0, 0]}>
+        <Bar isAnimationActive={false} dataKey={dataKey} radius={[6, 6, 0, 0]}>
           {data.map((item, i) => (
             <Cell key={item.label} fill={colorAt(i, item.color)} />
           ))}
@@ -155,6 +205,7 @@ export function DistributionChart({
     >
       <PieChart>
         <Pie
+          isAnimationActive={false}
           data={colored}
           dataKey="count"
           nameKey="label"

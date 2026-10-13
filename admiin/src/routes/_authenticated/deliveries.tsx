@@ -144,7 +144,7 @@ function DeliveriesPage() {
         <EmptyState title="No deliveries here" description="Nothing matches this view right now." />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>

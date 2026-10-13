@@ -70,7 +70,7 @@ export function DeliveryFeesCard() {
     setDraft({ ...value, zones: value.zones.map((z, i) => (i === index ? zone : z)) });
 
   return (
-    <section className="rounded-xl border bg-card p-5 shadow-card">
+    <section className="rounded-xl border bg-card p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">

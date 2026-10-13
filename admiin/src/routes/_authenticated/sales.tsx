@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { DataPagination } from "@/components/common/DataPagination";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { FilterBar, FilterDate, FilterSelect } from "@/components/common/FilterBar";
@@ -108,6 +109,8 @@ function SalesPage() {
   const [period, setPeriod] = useState<SalesPeriod>("week");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [recordsPage, setRecordsPage] = useState(1);
+  useEffect(() => setRecordsPage(1), [period, from, to]);
 
   const query = {
     period,
@@ -250,7 +253,7 @@ function SalesPage() {
             {data.records.length === 0 ? (
               <EmptyState title="No sales in this period" description="Try a wider date range." />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -264,7 +267,7 @@ function SalesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.records.map((r) => (
+                    {data.records.slice((recordsPage - 1) * 20, recordsPage * 20).map((r) => (
                       <TableRow key={r.orderId}>
                         <TableCell className="whitespace-nowrap">{formatDate(r.date)}</TableCell>
                         <TableCell className="font-medium text-foreground">{r.customer}</TableCell>
@@ -281,6 +284,14 @@ function SalesPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <div className="p-4">
+                  <DataPagination
+                    page={recordsPage}
+                    pageSize={20}
+                    total={data.records.length}
+                    onPageChange={setRecordsPage}
+                  />
+                </div>
               </div>
             )}
           </div>

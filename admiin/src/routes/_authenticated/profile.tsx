@@ -36,7 +36,7 @@ function ProfilePage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Profile" description="Manage your personal contact details." />
-      <div className="max-w-2xl rounded-xl border bg-card p-6 shadow-card">
+      <div className="max-w-2xl rounded-xl border bg-card p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-semibold">Your account</h2>
           <RoleBadge role={user.role} />

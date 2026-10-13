@@ -13,7 +13,7 @@ import type { AuditEvent } from "@/types";
 /** Read-only audit trail. Entries can never be edited or deleted here. */
 export function AuditLogTable({ events }: { events: AuditEvent[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>

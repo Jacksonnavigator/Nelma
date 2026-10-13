@@ -20,12 +20,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   if (user.role === "SYSTEM_ADMIN" && base === "/sales") title = "Sales Reports";
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
       <div className="hidden lg:block">
-        <div className="sticky top-0 h-screen">
+        <div className="sticky top-0 h-dvh">
           <Sidebar
             role={user.role}
             collapsed={collapsed}

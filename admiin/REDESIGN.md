@@ -1,55 +1,55 @@
-# NELMA — UI/UX redesign handoff
+# NELMA — Taste-informed redesign, second pass
 
-## What changed
+This pass replaces the dashboard composition rather than only restyling its components.
 
-The existing TanStack Start application was refined in place. Its routes, service repositories, backend integration, original brand assets, and role permission map are retained. This is a source-code deliverable, not a replacement static mockup.
+## Skills actually used
 
-- **Workspace shell:** navigation grouped into Operations, Business, Administration, and Workspace; stronger active-page indication; mobile drawer; skip-to-content link.
-- **Page navigation search:** permission-filtered destinations, mouse and keyboard selection, Ctrl/Command K shortcut, and a clear no-results message. This searches pages, not customer records.
-- **Appearance:** Light, Dark, and Use device theme options. Selection is saved locally when browser storage is available; device-theme changes are observed.
-- **Dashboard:** clearer primary versus secondary metrics, more readable panels, permission-aware quick actions, full metric values rather than truncated amounts, and per-panel request errors with retry actions.
-- **Order table:** reduced from 12 columns to 8 by grouping customer/phone, product/quantity, delivery/date window, and payment/status. Existing fields remain available. Sorting retains the original behavior: it sorts the current page, not the entire backend result set.
-- **Sign-in:** branded split layout, responsive mobile layout, password-visibility control, loading feedback, and announced error feedback.
-- **Shared controls:** stronger focus indicators, 44px standard button/input/select controls, more readable filters and statuses, roomier tables, contained modal scrolling, reduced-motion support, and improved pagination semantics.
-- **Cards and charts:** readable supporting text, wrapping card headers, and refined chart framing. Existing chart data and chart types are preserved.
+- **design-taste-frontend**: read the complete bundled SKILL.md; generated three directions; chose `product-performs` / The product performs, seed **1987354453**; read composition, copy, and critique references; ran the source linter.
+- **UI/UX Pro Max**: read the bundled skill and professional rules; verified the **Logistics/Delivery** product match (Minimalism & Swiss Style + Flat Design; Real-Time Monitoring + Route Analytics). The generic marketing pattern from the first design-system result was rejected as inappropriate. Both React stack queries returned no matches; no stack-dataset match is claimed.
 
-No new runtime dependency was added. An npm lockfile is included for reproducible installation.
+Taste explicitly excludes dashboards. Its concept, hierarchy, flat-tone treatment, and composition principles inform this app, while app usability comes from Pro Max and the existing workflows. Its marketing hero, photograph quota, and motion quota are not applied to staff work screens.
 
-## Run safely in demo mode
+## Visible changes
 
-1. Install Node.js 22.12+ (Node 24 was used for verification).
-2. In the `admin` directory, run `npm ci`.
-3. Copy `.env.example` to `.env`.
-4. Set `VITE_DATA_MODE=mock` in `.env` before running the app.
-5. Run `npm run dev` and open the local URL printed by Vite.
+- A **navy navigation rail**, rather than the old all-white sidebar.
+- A **blue revenue summary**, followed by quieter supporting figures, rather than eight equal competing metric cards.
+- A reorganized **main working area and dispatch desk**.
+- **Pending orders / Assign drivers** switcher, populated by the existing services. The assignment action opens the existing deliveries workflow; it does not simulate driver assignment.
+- A **Week / Month** sales-period switcher, connected to the real sales-service contract.
+- A compact delivery-flow summary, recent-order table, and activity rail.
+- Mobile-specific metric and order-list layouts.
+- Order search and status remain readily available; **advanced filters are expandable**, with an active-filter count and Clear all action.
+- The sign-in screen has a new flat-blue typographic composition; the earlier three-icon feature formula was removed.
 
-The bundled mock repository contains demo-only staff accounts. See `DEMO_IDENTITIES` in `src/services/mock/index.ts`. Mock mutations are in-memory and are discarded on reload. The mock sign-in session is retained by the app's existing local-storage implementation.
+All original routes, service repositories, backend modes, roles, permission checks, and public brand assets remain. This is the existing app's source, not a separate mockup.
 
-For the real backend, use your existing local `.env` configuration and set `VITE_DATA_MODE=api`. The original `.env` was intentionally **not** included in this deliverable. Keep your configuration backed up when replacing source files. Live API integration was not exercised during this redesign.
+## Direction and decisions
 
-## Verification status
+Detailed inventory, copy, tokens, and adaptation decisions are in `design-system/nelma-operations/MASTER.md`. The generated direction sheet is in `.taste-skill/direction.json`. No script redraw was used. The app-scoped composition adaptation is explicit in the master document.
 
-- TypeScript: `npm run typecheck` passed.
-- Unit/regression tests: `npm test` passed all 14 tests (9 existing plus 5 interface-foundation tests).
-- Production compilation: `npm run build` passed in mock mode.
-- Core color pairs were calculated for contrast. Sample ratios: light body on card 15.29:1; light secondary on card 5.77:1; primary-button text 5.86:1; light input boundary 3.22:1; dark secondary on card 7.33:1; dark input boundary 4.82:1. These are sampled token checks, **not** a complete accessibility audit.
-- **Browser visual and interaction QA is pending.** Starting a local preview was blocked by a safety gate and requires user approval. No screenshots were reviewed, and no claim is made that every route or interaction has been visually verified.
+## Checks performed
 
-## Finish-before-release checklist
+- TypeScript check passed; all **14 tests** passed; mock-mode production build passed.
+- Real local Chromium screenshots reviewed individually at 1440px, 768px and 390px for dashboard/sign-in; major admin routes reviewed at desktop, orders and create-order at mobile.
+- Browser checks: Week/Month, dispatch queue switch, mobile drawer, expandable filters, empty-search state, Ctrl/Cmd K navigation, persisted dark mode, sales-table Next, sales-manager Create order, and assignment-dialog opening.
+- No page JavaScript errors or horizontal overflow in the recorded checks. Switch targets measured 48 × 44px.
+- Scoped Taste source lint: **five core sources, zero findings**. This is not a whole-app lint pass. The sign-in browser inspector passed with documented application exceptions: few-pictures, no-footage, focal-point, still-page, eyebrow. Staff sign-in and brand marks are not a marketing campaign.
+- Independent static login render: no failed resources, console errors, clipping or viewport overflow.
+- Screenshot review caught and fixed the dark-background cascade, undersized/stale chart painting, mobile task ordering, rotated refill photo, and overly long sales records.
+- Sales records now paginate in groups of 20; CSV continues to include the full filtered dataset.
 
-After approving or running the local preview:
+**Scope:** all previews use the existing demo services, prominently labelled Demo data. Live API sign-in, SMS/email recovery, payments, data persistence, security, full mutation workflows, screen-reader behaviour, cross-browser compatibility and a complete accessibility audit remain unverified. This is an improved source package, not a production deployment or a claim of perfection. Existing mock settings and sample addresses remain demo values.
 
-- Inspect all routes at desktop and approximately 390px mobile widths; also smoke-test 320px.
-- Check both roles, all sidebar groups, collapsed navigation, the mobile drawer, and page-search keyboard/focus behavior.
-- Check Light, Dark, and Use device theme, including reopening the app and storage-disabled behavior.
-- Exercise sign-in errors, password visibility, sign-out, and password reset.
-- Exercise order search, filters, current-page sorting, pagination, details, and create-order validation.
-- Verify driver assignment and all permitted operational mutations against a test backend.
-- Check every chart, tooltip, loading state, empty state, request-error state, dialog, and confirmation state.
-- Confirm no clipped text, overlaps, page-level horizontal overflow, or lost keyboard focus.
-- Run a complete contrast, keyboard, and screen-reader accessibility review.
+QA details and the three-round critique are in `design-system/nelma-operations/QA.md`; actual captures are in `previews/`.
 
-## Packaging
+## Local setup
 
-Included: app source, existing public assets and documentation, `package-lock.json`, and this handoff.
-Excluded: `.env`, installed dependencies, generated build output, deployment caches, and local preview artifacts. Rebuild using your chosen environment before deployment; a prebuilt demo bundle is not included.
+1. Run `npm ci` inside `admin`.
+2. Keep your existing `.env` backed up; it is excluded from this deliverable.
+3. For a safe demo, copy `.env.example` to `.env` and set `VITE_DATA_MODE=mock`.
+4. Run `npm run dev`; open the URL Vite prints.
+5. Demo identities are in `src/services/mock/index.ts`.
+
+For your backend, restore your own configuration and use `VITE_DATA_MODE=api`. Rebuild for the chosen environment. Mock mutations are in-memory and reset on reload; a mock build is not a live deployment.
+
+MIT notices from both design-resource bundles are included. No third-party photographs, fonts, or motion packages were added.

@@ -182,7 +182,7 @@ function RequestCard({
   return (
     <li
       className={cn(
-        "rounded-xl border bg-card p-4 shadow-card",
+        "rounded-xl border bg-card p-4",
         request.status === "new" ? "border-primary/40" : "opacity-80",
       )}
     >

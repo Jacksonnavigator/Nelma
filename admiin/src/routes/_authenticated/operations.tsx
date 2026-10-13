@@ -275,7 +275,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
       <header className="border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{caption}</p>

@@ -13,7 +13,7 @@ import type { Order } from "@/types";
 /** Compact order representation used on narrow screens and dashboard lists. */
 export function OrderCard({ order, compact }: { order: Order; compact?: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 basis-[140px]">
           <p className="truncate text-sm font-semibold text-foreground">

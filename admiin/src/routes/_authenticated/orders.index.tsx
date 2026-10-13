@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchInput } from "@/components/common/SearchInput";
 import { FilterBar, FilterDate, FilterSelect } from "@/components/common/FilterBar";
@@ -35,6 +35,7 @@ const PAGE_SIZE = 10;
 function OrdersPage() {
   const { can } = useAuth();
   const [page, setPage] = useState(1);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<OrderStatus | "all">("all");
   const [product, setProduct] = useState<OrderType | "all">("all");
@@ -121,18 +122,16 @@ function OrdersPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="orders-toolbar">
         <SearchInput
           value={search}
           onChange={(v) => {
             setSearch(v);
             setPage(1);
           }}
+          className="min-w-[220px] flex-1 sm:max-w-none"
           placeholder="Search customer name or phone"
         />
-      </div>
-
-      <FilterBar onClear={clearFilters} showClear={filtersActive}>
         <FilterSelect
           label="Status"
           value={status}
@@ -148,63 +147,105 @@ function OrdersPage() {
             })),
           ]}
         />
-        <FilterSelect
-          label="Product"
-          value={product}
-          onChange={(v) => {
-            setProduct(v as OrderType | "all");
-            setPage(1);
-          }}
-          options={[
-            { value: "all", label: "All products" },
-            ...(products.data ?? []).map((p) => ({ value: p.code, label: p.name })),
-          ]}
-        />
-        <FilterSelect
-          label="Payment method"
-          value={paymentMethod}
-          onChange={(v) => {
-            setPaymentMethod(v as PaymentMethod | "all");
-            setPage(1);
-          }}
-          options={[
-            { value: "all", label: "All methods" },
-            { value: "cash", label: PAYMENT_METHOD_LABELS.cash },
-            { value: "mobile_money", label: PAYMENT_METHOD_LABELS.mobile_money },
-          ]}
-        />
-        <FilterSelect
-          label="Payment status"
-          value={paymentStatus}
-          onChange={(v) => {
-            setPaymentStatus(v as PaymentStatus | "all");
-            setPage(1);
-          }}
-          options={[
-            { value: "all", label: "All payments" },
-            ...(Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]).map((s) => ({
-              value: s,
-              label: PAYMENT_STATUS_LABELS[s],
-            })),
-          ]}
-        />
-        <FilterDate
-          label="Order date"
-          value={orderDate}
-          onChange={(v) => {
-            setOrderDate(v);
-            setPage(1);
-          }}
-        />
-        <FilterDate
-          label="Delivery date"
-          value={deliveryDate}
-          onChange={(v) => {
-            setDeliveryDate(v);
-            setPage(1);
-          }}
-        />
-      </FilterBar>
+        <Button
+          variant="outline"
+          aria-expanded={showAdvanced}
+          aria-controls="advanced-order-filters"
+          onClick={() => setShowAdvanced((value) => !value)}
+        >
+          <SlidersHorizontal aria-hidden="true" />
+          Filters
+          {[
+            product !== "all",
+            paymentMethod !== "all",
+            paymentStatus !== "all",
+            !!orderDate,
+            !!deliveryDate,
+          ].filter(Boolean).length > 0 && (
+            <span>
+              (
+              {
+                [
+                  product !== "all",
+                  paymentMethod !== "all",
+                  paymentStatus !== "all",
+                  !!orderDate,
+                  !!deliveryDate,
+                ].filter(Boolean).length
+              }
+              )
+            </span>
+          )}
+        </Button>
+        {filtersActive && (
+          <Button variant="ghost" onClick={clearFilters}>
+            Clear all
+          </Button>
+        )}
+      </div>
+
+      {showAdvanced && (
+        <div id="advanced-order-filters">
+          <FilterBar onClear={clearFilters} showClear={filtersActive}>
+            <FilterSelect
+              label="Product"
+              value={product}
+              onChange={(v) => {
+                setProduct(v as OrderType | "all");
+                setPage(1);
+              }}
+              options={[
+                { value: "all", label: "All products" },
+                ...(products.data ?? []).map((p) => ({ value: p.code, label: p.name })),
+              ]}
+            />
+            <FilterSelect
+              label="Payment method"
+              value={paymentMethod}
+              onChange={(v) => {
+                setPaymentMethod(v as PaymentMethod | "all");
+                setPage(1);
+              }}
+              options={[
+                { value: "all", label: "All methods" },
+                { value: "cash", label: PAYMENT_METHOD_LABELS.cash },
+                { value: "mobile_money", label: PAYMENT_METHOD_LABELS.mobile_money },
+              ]}
+            />
+            <FilterSelect
+              label="Payment status"
+              value={paymentStatus}
+              onChange={(v) => {
+                setPaymentStatus(v as PaymentStatus | "all");
+                setPage(1);
+              }}
+              options={[
+                { value: "all", label: "All payments" },
+                ...(Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]).map((s) => ({
+                  value: s,
+                  label: PAYMENT_STATUS_LABELS[s],
+                })),
+              ]}
+            />
+            <FilterDate
+              label="Order date"
+              value={orderDate}
+              onChange={(v) => {
+                setOrderDate(v);
+                setPage(1);
+              }}
+            />
+            <FilterDate
+              label="Delivery date"
+              value={deliveryDate}
+              onChange={(v) => {
+                setDeliveryDate(v);
+                setPage(1);
+              }}
+            />
+          </FilterBar>
+        </div>
+      )}
 
       {orders.isError ? (
         <ErrorState description="Orders could not be loaded." onRetry={() => orders.refetch()} />

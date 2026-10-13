@@ -30,7 +30,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "portal-sidebar flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200",
+        "portal-sidebar flex h-full flex-col bg-sidebar transition-[width] duration-200",
         collapsed ? "w-[80px]" : "w-[248px]",
       )}
     >
@@ -40,22 +40,24 @@ export function Sidebar({
         aria-label="NELMA dashboard"
         className="flex h-20 shrink-0 items-center gap-3 px-5"
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white">
           <img src="/brand/nelma-icon.png" alt="" className="size-8 object-contain" />
         </span>
         {!collapsed && (
           <div>
-            <p className="text-lg font-bold tracking-[.12em] text-foreground">NELMA</p>
-            <p className="text-xs text-muted-foreground">Management portal</p>
+            <p className="text-lg font-bold tracking-[.12em] text-sidebar-accent-foreground">
+              NELMA
+            </p>
+            <p className="text-xs text-sidebar-foreground">Management portal</p>
           </div>
         )}
       </Link>
       {!collapsed && (
-        <div className="mx-4 mb-3 flex items-center gap-3 rounded-lg border border-sidebar-border bg-background px-3 py-3">
-          <Droplets className="size-4 text-primary" />
+        <div className="mx-4 mb-3 flex items-center gap-3 rounded-lg bg-sidebar-accent/50 px-3 py-3">
+          <Droplets className="size-4 text-sidebar-accent-foreground" />
           <div>
-            <p className="text-sm font-medium text-foreground">Water operations</p>
-            <p className="text-xs text-muted-foreground">{ROLE_LABELS[role]} workspace</p>
+            <p className="text-sm font-medium text-sidebar-accent-foreground">Water operations</p>
+            <p className="text-xs text-sidebar-foreground">{ROLE_LABELS[role]} workspace</p>
           </div>
         </div>
       )}
@@ -66,11 +68,11 @@ export function Sidebar({
           return (
             <div key={group} className="mb-3">
               {!collapsed ? (
-                <p className="px-3 pb-2 pt-3 text-xs font-semibold tracking-[.08em] text-muted-foreground">
-                  {group.toUpperCase()}
+                <p className="px-3 pb-2 pt-3 text-sm font-medium text-sidebar-foreground">
+                  {group}
                 </p>
               ) : (
-                <div className="my-3 border-t border-sidebar-border" />
+                <div className="my-3 h-3" />
               )}
               <div className="space-y-1">
                 {members.map((item) => (
@@ -104,7 +106,7 @@ export function Sidebar({
           );
         })}
       </nav>
-      <div className="shrink-0 border-t border-sidebar-border p-3">
+      <div className="shrink-0 bg-sidebar-accent/20 p-3">
         <button
           type="button"
           onClick={onToggle}
@@ -112,7 +114,7 @@ export function Sidebar({
             onNavigate ? "Close navigation" : collapsed ? "Expand sidebar" : "Collapse sidebar"
           }
           className={cn(
-            "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground hover:bg-sidebar-accent",
+            "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm text-sidebar-foreground hover:bg-sidebar-accent",
             collapsed && "justify-center px-0",
           )}
         >

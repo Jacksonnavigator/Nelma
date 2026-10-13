@@ -1,0 +1,169 @@
+{
+  "results": [
+    {
+      "route": "/dashboard",
+      "name": "dashboard-desktop",
+      "width": 1440,
+      "title": "Today's operations",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "test": "sales period switch",
+      "pass": true
+    },
+    {
+      "test": "dispatch queue switch",
+      "pass": true
+    },
+    {
+      "route": "/dashboard",
+      "name": "dashboard-mobile",
+      "width": 390,
+      "title": "Today's operations",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "test": "mobile drawer open and close",
+      "pass": true
+    },
+    {
+      "route": "/dashboard",
+      "name": "dashboard-tablet",
+      "width": 768,
+      "title": "Today's operations",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/orders",
+      "name": "orders-desktop",
+      "width": 1440,
+      "title": "Orders",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "test": "expand advanced order filters",
+      "pass": true
+    },
+    {
+      "test": "search empty state",
+      "pass": true
+    },
+    {
+      "route": "/orders",
+      "name": "orders-mobile",
+      "width": 390,
+      "title": "Orders",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "test": "Ctrl K search and keyboard navigation",
+      "pass": true
+    },
+    {
+      "test": "dark appearance selected and retained",
+      "pass": true
+    },
+    {
+      "route": "/deliveries",
+      "name": "deliveries-desktop",
+      "width": 1440,
+      "title": "Deliveries",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/drivers",
+      "name": "drivers-desktop",
+      "width": 1440,
+      "title": "Drivers",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/sales",
+      "name": "sales-desktop",
+      "width": 1440,
+      "title": "Sales Reports",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/products",
+      "name": "products-desktop",
+      "width": 1440,
+      "title": "Prices & delivery",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/operations",
+      "name": "operations-desktop",
+      "width": 1440,
+      "title": "Operations",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/users",
+      "name": "users-desktop",
+      "width": 1440,
+      "title": "Users",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/admin-accounts",
+      "name": "admin-accounts-desktop",
+      "width": 1440,
+      "title": "Admin Accounts",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/system-settings",
+      "name": "system-settings-desktop",
+      "width": 1440,
+      "title": "System Settings",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/audit-logs",
+      "name": "audit-logs-desktop",
+      "width": 1440,
+      "title": "Audit Logs",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/notifications",
+      "name": "notifications-desktop",
+      "width": 1440,
+      "title": "Notifications",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/profile",
+      "name": "profile-desktop",
+      "width": 1440,
+      "title": "Profile",
+      "overflow": 0,
+      "brokenImages": 0
+    },
+    {
+      "route": "/website-requests",
+      "name": "website-requests-desktop",
+      "width": 1440,
+      "title": "Website requests",
+      "overflow": 0,
+      "brokenImages": 0
+    }
+  ],
+  "errors": []
+}
