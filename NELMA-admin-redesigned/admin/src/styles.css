@@ -1,0 +1,287 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * NELMA Drinking Water — Dashboard design system.
+ * Contrast-conscious water-blue brand, muted surfaces, and semantic status tones.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  /* Brand */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-green: var(--brand-green);
+  --color-brand-mint: var(--brand-mint);
+
+  /* Semantic status */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-card: 0 1px 2px 0 oklch(0.25 0.03 258 / 0.05), 0 1px 3px 0 oklch(0.25 0.03 258 / 0.06);
+  --shadow-elevated: 0 6px 24px -8px oklch(0.35 0.06 258 / 0.18);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: #f5f7fa;
+  --foreground: #182638;
+  --card: #ffffff;
+  --card-foreground: #182638;
+  --popover: #ffffff;
+  --popover-foreground: #182638;
+  --primary: #1763c0;
+  --primary-foreground: #ffffff;
+  --secondary: #edf2f8;
+  --secondary-foreground: #34455a;
+  --muted: #f0f3f7;
+  --muted-foreground: #58677b;
+  --accent: #eaf2fd;
+  --accent-foreground: #184b87;
+  --destructive: #bf3434;
+  --destructive-foreground: oklch(1 0 0);
+  --border: #e0e6ee;
+  --input: #8191a5;
+  --ring: #1763c0;
+  --brand: #1763c0;
+  --brand-foreground: #ffffff;
+  --brand-soft: oklch(0.764 0.058 240);
+  --brand-green: oklch(0.79 0.101 152);
+  --brand-mint: oklch(0.833 0.086 176);
+  --success: #197044;
+  --success-foreground: oklch(1 0 0);
+  --warning: #92530c;
+  --warning-foreground: oklch(0.24 0.04 76);
+  --info: #1763c0;
+  --info-foreground: oklch(1 0 0);
+  --chart-1: oklch(0.658 0.142 259);
+  --chart-2: oklch(0.79 0.101 152);
+  --chart-3: oklch(0.833 0.086 176);
+  --chart-4: oklch(0.764 0.058 240);
+  --chart-5: oklch(0.72 0.15 76);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4b5b71;
+  --sidebar-primary: #1763c0;
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: #eaf2fd;
+  --sidebar-accent-foreground: #155bad;
+  --sidebar-border: #e0e6ee;
+  --sidebar-ring: #1763c0;
+}
+
+.dark {
+  --background: #121b27;
+  --foreground: #f1f5fb;
+  --card: #1a2636;
+  --card-foreground: #f1f5fb;
+  --popover: #1a2636;
+  --popover-foreground: #f1f5fb;
+  --primary: #8ab8fb;
+  --primary-foreground: #122640;
+  --secondary: #243246;
+  --secondary-foreground: #e7eef8;
+  --muted: #243246;
+  --muted-foreground: #a6b5c9;
+  --accent: #213c5e;
+  --accent-foreground: #b8d7ff;
+  --destructive: #ff9b9b;
+  --destructive-foreground: #3c1414;
+  --border: #344356;
+  --input: #7f92ae;
+  --ring: #8ab8fb;
+  --sidebar: #172230;
+  --sidebar-foreground: #bcc9db;
+  --sidebar-accent: #213c5e;
+  --sidebar-accent-foreground: #b8d7ff;
+  --sidebar-border: #344356;
+  --brand: #8ab8fb;
+  --brand-foreground: #122640;
+  --success: #7ed8a7;
+  --warning: #f2be70;
+  --info: #8ab8fb;
+  --sidebar-ring: #8ab8fb;
+  --success-foreground: #102f22;
+  --info-foreground: #122640;
+  --warning-foreground: #3e2508;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive shell and accessible interaction details. */
+
+@layer base {
+  html {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  body {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  button,
+  a,
+  input,
+  textarea,
+  [role="combobox"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+  input[type="date"] {
+    min-width: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+.nav-indicator {
+  opacity: 0;
+}
+.nav-active .nav-indicator {
+  opacity: 1;
+}
+.nav-active {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  padding: 12px 20px;
+  background: var(--card);
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+}
+.skip-link:focus {
+  top: 16px;
+}
+.portal-sidebar nav {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.portal-main:focus {
+  outline: none;
+}
+.dashboard-panel {
+  min-width: 0;
+  padding: 24px;
+}
+.dashboard-panel-header {
+  margin-bottom: 20px;
+}
+.dashboard-attention {
+  border-left: 3px solid var(--warning);
+}
+@media (max-width: 639px) {
+  .dashboard-panel {
+    padding: 16px;
+  }
+  .filter-bar > .filter-field {
+    flex: 1 1 140px;
+  }
+  .filter-bar > .filter-field button,
+  .filter-bar > .filter-field input {
+    width: 100%;
+  }
+}
+/* Sign-in art direction: water-blue branding, no decorative dashboard clutter. */
+.login-story {
+  background: #102e53;
+  color: #ffffff;
+}
+.login-story-copy {
+  color: #bed0e6;
+}
+.login-step {
+  border-top: 1px solid #3a5678;
+}
+.login-logo {
+  background: #ffffff;
+  padding: 16px 24px;
+  border-radius: 12px;
+  width: fit-content;
+}
