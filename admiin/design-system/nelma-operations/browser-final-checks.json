@@ -105,8 +105,8 @@
       "test": "dark theme colors",
       "values": {
         "background": "rgba(0, 0, 0, 0)",
-        "token": "#121b27",
-        "title": "rgb(241, 245, 251)"
+        "token": "#191b18",
+        "title": "rgb(241, 242, 236)"
       }
     },
     {

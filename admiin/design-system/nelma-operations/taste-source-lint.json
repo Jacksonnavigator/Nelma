@@ -1,4 +1,13 @@
 {
-  "files": 5,
-  "findings": []
+ "files": 5,
+ "findings": [
+  {
+   "level": "FAIL",
+   "id": "hairline",
+   "file": "src/styles.css",
+   "line": 296,
+   "match": "border-right: 1px",
+   "message": "Thin rule / divider line. Separate with space, tone or scale; lines belong to real tables and form fields."
+  }
+ ]
 }

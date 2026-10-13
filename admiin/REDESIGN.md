@@ -1,6 +1,6 @@
-# NELMA — Taste-informed redesign, second pass
+# NELMA — restrained neutral revision
 
-This pass replaces the dashboard composition rather than only restyling its components.
+This package retains the redesigned dashboard and applies the user-requested reduction in blue across the entire visual system.
 
 ## Skills actually used
 
@@ -11,17 +11,21 @@ Taste explicitly excludes dashboards. Its concept, hierarchy, flat-tone treatmen
 
 ## Visible changes
 
-- A **navy navigation rail**, rather than the old all-white sidebar.
-- A **blue revenue summary**, followed by quieter supporting figures, rather than eight equal competing metric cards.
+- A **warm-white navigation rail** with stone selection states; no full-height navy field.
+- A **soft-stone revenue summary** with charcoal figures; no solid-blue card.
 - A reorganized **main working area and dispatch desk**.
 - **Pending orders / Assign drivers** switcher, populated by the existing services. The assignment action opens the existing deliveries workflow; it does not simulate driver assignment.
 - A **Week / Month** sales-period switcher, connected to the real sales-service contract.
 - A compact delivery-flow summary, recent-order table, and activity rail.
 - Mobile-specific metric and order-list layouts.
 - Order search and status remain readily available; **advanced filters are expandable**, with an active-filter count and Clear all action.
-- The sign-in screen has a new flat-blue typographic composition; the earlier three-icon feature formula was removed.
+- The sign-in screen uses a soft-stone typographic field and charcoal action. Blue stays in the supplied NELMA branding, not the page background.
 
 All original routes, service repositories, backend modes, roles, permission checks, and public brand assets remain. This is the existing app's source, not a separate mockup.
+
+## Palette revision
+
+Warm white canvas, white working surfaces, soft-stone selection states, charcoal headings/actions, and muted sage chart lines. Avatars, navigation, tabs, role pills and supporting icons are neutral. Dark mode uses charcoal/olive neutrals rather than navy. Semantic amber/green/red statuses are retained. Layout, permissions and services are unchanged.
 
 ## Direction and decisions
 

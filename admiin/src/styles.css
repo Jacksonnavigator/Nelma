@@ -72,85 +72,87 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #f3f6fa;
-  --foreground: #182638;
+  --background: #f5f4f0;
+  --foreground: #292a26;
   --card: #ffffff;
-  --card-foreground: #182638;
+  --card-foreground: #292a26;
   --popover: #ffffff;
-  --popover-foreground: #182638;
-  --primary: #1763c0;
+  --popover-foreground: #292a26;
+  --primary: #30332d;
   --primary-foreground: #ffffff;
-  --secondary: #edf2f8;
-  --secondary-foreground: #34455a;
-  --muted: #f0f3f7;
-  --muted-foreground: #58677b;
-  --accent: #eaf2fd;
-  --accent-foreground: #184b87;
+  --secondary: #eeeee8;
+  --secondary-foreground: #44463f;
+  --muted: #f0f0eb;
+  --muted-foreground: #66685f;
+  --accent: #edeee8;
+  --accent-foreground: #3f4738;
   --destructive: #bf3434;
   --destructive-foreground: oklch(1 0 0);
-  --border: #e0e6ee;
-  --input: #8191a5;
-  --ring: #1763c0;
+  --border: #dedfd7;
+  --input: #92968a;
+  --ring: #666f5b;
   --brand: #1763c0;
   --brand-foreground: #ffffff;
-  --brand-soft: oklch(0.764 0.058 240);
+  --brand-soft: #c5ccbd;
   --brand-green: oklch(0.79 0.101 152);
   --brand-mint: oklch(0.833 0.086 176);
   --success: #197044;
   --success-foreground: oklch(1 0 0);
   --warning: #92530c;
   --warning-foreground: oklch(0.24 0.04 76);
-  --info: #1763c0;
+  --info: #535f49;
   --info-foreground: oklch(1 0 0);
-  --chart-1: oklch(0.658 0.142 259);
-  --chart-2: oklch(0.79 0.101 152);
-  --chart-3: oklch(0.833 0.086 176);
-  --chart-4: oklch(0.764 0.058 240);
-  --chart-5: oklch(0.72 0.15 76);
-  --sidebar: #ffffff;
-  --sidebar-foreground: #4b5b71;
-  --sidebar-primary: #1763c0;
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: #eaf2fd;
-  --sidebar-accent-foreground: #155bad;
-  --sidebar-border: #e0e6ee;
-  --sidebar-ring: #1763c0;
+  --chart-1: #657655;
+  --chart-2: #81917b;
+  --chart-3: #a1ae97;
+  --chart-4: #aa9470;
+  --chart-5: #ba853f;
+  --sidebar: #fafaf7;
+  --sidebar-foreground: #65685e;
+  --sidebar-primary: #30332d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e9ebe3;
+  --sidebar-accent-foreground: #30372b;
+  --sidebar-border: #e1e3d9;
+  --sidebar-ring: #666f5b;
 }
 
 .dark {
-  --background: #121b27;
-  --foreground: #f1f5fb;
-  --card: #1a2636;
-  --card-foreground: #f1f5fb;
-  --popover: #1a2636;
-  --popover-foreground: #f1f5fb;
-  --primary: #8ab8fb;
-  --primary-foreground: #122640;
-  --secondary: #243246;
-  --secondary-foreground: #e7eef8;
-  --muted: #243246;
-  --muted-foreground: #a6b5c9;
-  --accent: #213c5e;
-  --accent-foreground: #b8d7ff;
+  --background: #191b18;
+  --foreground: #f1f2ec;
+  --card: #232621;
+  --card-foreground: #f1f2ec;
+  --popover: #232621;
+  --popover-foreground: #f1f2ec;
+  --primary: #e5e9de;
+  --primary-foreground: #252a20;
+  --secondary: #30352c;
+  --secondary-foreground: #e4e8dc;
+  --muted: #30352c;
+  --muted-foreground: #b4bbab;
+  --accent: #353d2e;
+  --accent-foreground: #d4dec6;
   --destructive: #ff9b9b;
   --destructive-foreground: #3c1414;
-  --border: #344356;
-  --input: #7f92ae;
-  --ring: #8ab8fb;
-  --sidebar: #172230;
-  --sidebar-foreground: #bcc9db;
-  --sidebar-accent: #213c5e;
-  --sidebar-accent-foreground: #b8d7ff;
-  --sidebar-border: #344356;
+  --border: #434b3b;
+  --input: #858f7a;
+  --ring: #a7b699;
+  --sidebar: #20231d;
+  --sidebar-foreground: #b6bead;
+  --sidebar-accent: #353d2e;
+  --sidebar-accent-foreground: #e0e7d7;
+  --sidebar-border: #434b3b;
   --brand: #8ab8fb;
   --brand-foreground: #122640;
   --success: #7ed8a7;
   --warning: #f2be70;
-  --info: #8ab8fb;
-  --sidebar-ring: #8ab8fb;
+  --info: #c2d1ae;
+  --sidebar-ring: #a7b699;
   --success-foreground: #102f22;
-  --info-foreground: #122640;
+  --info-foreground: #252a20;
   --warning-foreground: #3e2508;
+  --brand-soft: #6e7d60;
+  --chart-1: #acbe96;
 }
 
 @layer base {
@@ -266,13 +268,13 @@
     width: 100%;
   }
 }
-/* Sign-in art direction: water-blue branding, no decorative dashboard clutter. */
+/* Sign-in: quiet neutral story field, with blue reserved for the real brand. */
 .login-story {
-  background: #102e53;
-  color: #ffffff;
+  background: var(--accent);
+  color: var(--foreground);
 }
 .login-story-copy {
-  color: #bed0e6;
+  color: var(--muted-foreground);
 }
 .login-logo {
   background: #ffffff;
@@ -284,20 +286,14 @@
 /* Taste / product-performs: a working canvas, not a grid of competing widgets. */
 :root,
 .dark {
-  --sidebar: #102b4b;
-  --sidebar-foreground: #c5d4e6;
-  --sidebar-accent: #1d416a;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #325477;
-  --sidebar-ring: #a5cdff;
   --shadow-card: none;
-  --sales-field: #1763c0;
-  --sales-ink: #ffffff;
-  --sales-note: #dceaff;
+  --sales-field: var(--accent);
+  --sales-ink: var(--foreground);
+  --sales-note: var(--muted-foreground);
 }
 
 .portal-sidebar {
-  border-right: 0;
+  border-right: 1px solid var(--sidebar-border);
 }
 .portal-sidebar nav a {
   transition:
@@ -305,7 +301,7 @@
     color 160ms;
 }
 .portal-sidebar nav a:hover {
-  color: #ffffff;
+  color: var(--sidebar-accent-foreground);
 }
 .portal-sidebar .nav-active {
   background: var(--sidebar-accent);

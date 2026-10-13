@@ -23,16 +23,19 @@ NELMA's actual order-to-delivery flow becomes the main dashboard interaction: st
 Headings: Today's operations / Sales this week / Dispatch desk / Recent orders / Delivery flow / Team activity.
 Actions: Create order / View reports / Assign drivers / View order / All orders.
 
-## Visual system
-- System sans; no decorative monospace. Titles 32px desktop, 28px mobile; revenue 38px desktop, 32px mobile; body 16px, compact data 14px.
-- Light ground #f3f6fa; white working surfaces; ink #182638.
-- Sidebar #102b4b, text #c5d4e6, active surface #1d416a, active text #ffffff.
-- Blue hero #1763c0 / white; semantic green, amber, and red retain their text meanings.
-- Main gutters 32px desktop, 16px mobile. 8/12/16/24/32 rhythm.
-- Flat surfaces. No resting shadows or gradients. Lines are retained where functional in forms and tables.
-- Functional data cards may repeat; marketing feature-card formulas are not introduced.
-- Desktop: dense working canvas with a main work region and task rail. Phone: revenue first, two-column compact metrics, then dispatch work; no desktop squeeze.
-- 44px target controls; visible focus; reduced-motion support; no hover-only actions.
+## Visual system — neutral revision
+- System sans; existing type sizes and responsive hierarchy preserved.
+- Canvas #f5f4f0; working surfaces #ffffff; charcoal ink #292a26.
+- Sidebar #fafaf7; active surface #e9ebe3; text #65685e.
+- Primary actions #30332d / white. Actual NELMA logo retains its blue.
+- Revenue and login story field #edeee8; no solid-blue panels.
+- Main sales line muted sage #657655; chart series muted, with explicit labels and legends.
+- Dark canvas #191b18; card #232621; foreground #f1f2ec; no navy ground.
+- Existing spacing, mobile ordering, keyboard navigation, semantic statuses and 44px target controls remain.
+- No new fonts, assets or dependencies.
+
+## Palette guidance
+Pro Max color search was refined to the verified Logistics/Delivery entry. Its standard blue recommendation was intentionally not adopted because it conflicts with the user's explicit feedback. Neutral tones are a bespoke revision grounded in that feedback, not a claimed dataset palette.
 
 ## Verification boundary
 Local Chromium review and interaction checks completed in mock mode after explicit approval. Source checks, 14 tests and the mock production build passed. See QA.md for scope, issues found, inspector exceptions and remaining limitations. Nothing here claims live-backend or full accessibility certification.

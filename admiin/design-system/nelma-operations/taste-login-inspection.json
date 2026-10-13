@@ -1,0 +1,796 @@
+{
+  "url": "http://127.0.0.1:3000/",
+  "at": "2026-10-13T18:07:47.199Z",
+  "allow": [
+    "few-pictures",
+    "no-footage",
+    "focal-point",
+    "still-page",
+    "eyebrow"
+  ],
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 900,
+      "load": "load",
+      "screens": 1,
+      "filled": [
+        1
+      ],
+      "motion": {
+        "elements": 0,
+        "css": 0,
+        "transitions": 0,
+        "scripted": 0,
+        "videos": 0,
+        "playingVideos": 0
+      },
+      "metrics": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "page": {
+          "height": 900,
+          "screens": 1,
+          "words": 55,
+          "img": 2,
+          "video": 0,
+          "canvas": 0,
+          "svg": 3,
+          "sections": 2,
+          "horizontalOverflow": 0,
+          "overflowCulprits": [],
+          "uiFragments": 0,
+          "uiAbuse": false,
+          "realPictures": 0,
+          "videoCount": 0,
+          "uiPictures": 0,
+          "pictureSamples": [],
+          "blendText": 0,
+          "sideScrollers": 0,
+          "brokenImages": [],
+          "emoji": []
+        },
+        "hero": {
+          "text": "Water, in motion.",
+          "words": 3,
+          "chars": 17,
+          "lines": 2,
+          "size": 64,
+          "vw": 4.4,
+          "font": "-apple-system",
+          "weight": 600,
+          "tracking": -0.045,
+          "leading": 1.02,
+          "upper": false,
+          "italic": false,
+          "mono": false,
+          "align": "left",
+          "position": "left",
+          "widthRatio": 0.36,
+          "top": 345,
+          "tag": "h2",
+          "kind": "heading"
+        },
+        "h1": {
+          "text": "Welcome back.",
+          "words": 2,
+          "lines": 1,
+          "size": 36,
+          "font": "-apple-system"
+        },
+        "headings": [
+          {
+            "text": "Welcome back.",
+            "words": 2,
+            "chars": 13,
+            "lines": 1,
+            "size": 36,
+            "vw": 2.5,
+            "font": "-apple-system",
+            "weight": 600,
+            "tracking": -0.04,
+            "leading": 1.25,
+            "upper": false,
+            "italic": false,
+            "mono": false,
+            "align": "left",
+            "position": "right",
+            "widthRatio": 0.28,
+            "top": 216,
+            "tag": "h1",
+            "kind": "heading"
+          },
+          {
+            "text": "Water, in motion.",
+            "words": 3,
+            "chars": 17,
+            "lines": 2,
+            "size": 64,
+            "vw": 4.4,
+            "font": "-apple-system",
+            "weight": 600,
+            "tracking": -0.045,
+            "leading": 1.02,
+            "upper": false,
+            "italic": false,
+            "mono": false,
+            "align": "left",
+            "position": "left",
+            "widthRatio": 0.36,
+            "top": 345,
+            "tag": "h2",
+            "kind": "heading"
+          }
+        ],
+        "headingSummary": {
+          "count": 2,
+          "maxLines": 2,
+          "over2Lines": 0,
+          "statements": 0,
+          "centered": 0,
+          "medianWords": 2,
+          "mixedFontHeadings": 0
+        },
+        "type": {
+          "families": [
+            {
+              "family": "-apple-system",
+              "share": 1,
+              "mono": false
+            }
+          ],
+          "familyCount": 1,
+          "sizes": [
+            14,
+            16,
+            20,
+            36,
+            64
+          ],
+          "sizeCount": 5,
+          "notLoaded": [],
+          "body": null,
+          "measureChars": null,
+          "max": {
+            "size": 64,
+            "vw": 4.4,
+            "font": "-apple-system",
+            "text": "Water,in motion."
+          },
+          "monoShare": 0,
+          "monoProseShare": 0,
+          "monoFamilies": [],
+          "monoSamples": [],
+          "microLabels": 0,
+          "microLabelShare": 0,
+          "microSamples": [],
+          "upperShare": 0,
+          "centerShare": 0.02,
+          "smallText": 0
+        },
+        "eyebrows": [],
+        "numbered": [],
+        "color": {
+          "bodyBg": "#f5f4f0",
+          "bodyBgHsl": {
+            "h": 48,
+            "s": 0.2,
+            "l": 0.95
+          },
+          "dark": false,
+          "sectionBgs": [
+            {
+              "color": "#ffffff",
+              "top": 0,
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1
+              }
+            },
+            {
+              "color": "#edeee8",
+              "top": 0,
+              "hsl": {
+                "h": 70,
+                "s": 0.15,
+                "l": 0.92
+              }
+            }
+          ],
+          "textColors": [
+            {
+              "color": "#66685f",
+              "share": 0.62
+            },
+            {
+              "color": "#292a26",
+              "share": 0.31
+            },
+            {
+              "color": "#30332d",
+              "share": 0.05
+            },
+            {
+              "color": "#ffffff",
+              "share": 0.02
+            }
+          ],
+          "button": {
+            "bg": "#30332d",
+            "hsl": {
+              "h": 90,
+              "s": 0.06,
+              "l": 0.19
+            },
+            "fg": "#ffffff"
+          },
+          "lowContrast": []
+        },
+        "buttons": {
+          "count": 1,
+          "inHero": 1,
+          "radius": 8,
+          "height": 48,
+          "withShadow": 0,
+          "withGradient": 0,
+          "mono": 0,
+          "upper": 0,
+          "heroLabels": [
+            "Sign in"
+          ]
+        },
+        "surfaces": {
+          "shadowStatic": 0,
+          "shadowOverlay": 0,
+          "shadowSamples": [],
+          "gradients": 0,
+          "scrims": 0,
+          "gradientSamples": [],
+          "gradientText": 0,
+          "hairlines": 0,
+          "hairlineSamples": [],
+          "outlinedBoxes": 0,
+          "dashed": 0,
+          "blurred": 0,
+          "roundedBoxes": 1,
+          "boxRadius": 12,
+          "squareMedia": 0,
+          "roundedMedia": 0,
+          "mediaRadius": 0,
+          "textShadow": 0,
+          "cardRows": []
+        },
+        "heroMedia": [],
+        "nav": null,
+        "fontsLoaded": []
+      },
+      "consoleErrors": []
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "load": "load",
+      "screens": 1,
+      "filled": [
+        1
+      ],
+      "motion": {
+        "elements": 0,
+        "css": 0,
+        "transitions": 0,
+        "scripted": 0,
+        "videos": 0,
+        "playingVideos": 0
+      },
+      "metrics": {
+        "viewport": {
+          "w": 768,
+          "h": 1024
+        },
+        "page": {
+          "height": 1024,
+          "screens": 1,
+          "words": 29,
+          "img": 2,
+          "video": 0,
+          "canvas": 0,
+          "svg": 3,
+          "sections": 2,
+          "horizontalOverflow": 0,
+          "overflowCulprits": [],
+          "uiFragments": 0,
+          "uiAbuse": false,
+          "realPictures": 0,
+          "videoCount": 0,
+          "uiPictures": 0,
+          "pictureSamples": [],
+          "blendText": 0,
+          "sideScrollers": 0,
+          "brokenImages": [],
+          "emoji": []
+        },
+        "hero": {
+          "text": "Welcome back.",
+          "words": 2,
+          "chars": 13,
+          "lines": 1,
+          "size": 36,
+          "vw": 4.7,
+          "font": "-apple-system",
+          "weight": 600,
+          "tracking": -0.04,
+          "leading": 1.25,
+          "upper": false,
+          "italic": false,
+          "mono": false,
+          "align": "left",
+          "position": "center",
+          "widthRatio": 0.52,
+          "top": 320,
+          "tag": "h1",
+          "kind": "heading"
+        },
+        "h1": {
+          "text": "Welcome back.",
+          "words": 2,
+          "lines": 1,
+          "size": 36,
+          "font": "-apple-system"
+        },
+        "headings": [
+          {
+            "text": "Welcome back.",
+            "words": 2,
+            "chars": 13,
+            "lines": 1,
+            "size": 36,
+            "vw": 4.7,
+            "font": "-apple-system",
+            "weight": 600,
+            "tracking": -0.04,
+            "leading": 1.25,
+            "upper": false,
+            "italic": false,
+            "mono": false,
+            "align": "left",
+            "position": "center",
+            "widthRatio": 0.52,
+            "top": 320,
+            "tag": "h1",
+            "kind": "heading"
+          }
+        ],
+        "headingSummary": {
+          "count": 1,
+          "maxLines": 1,
+          "over2Lines": 0,
+          "statements": 0,
+          "centered": 0,
+          "medianWords": null,
+          "mixedFontHeadings": 0
+        },
+        "type": {
+          "families": [
+            {
+              "family": "-apple-system",
+              "share": 1,
+              "mono": false
+            }
+          ],
+          "familyCount": 1,
+          "sizes": [
+            14,
+            16,
+            18,
+            36
+          ],
+          "sizeCount": 4,
+          "notLoaded": [],
+          "body": null,
+          "measureChars": null,
+          "max": {
+            "size": 36,
+            "vw": 4.7,
+            "font": "-apple-system",
+            "text": "Welcome back."
+          },
+          "monoShare": 0,
+          "monoProseShare": 0,
+          "monoFamilies": [],
+          "monoSamples": [],
+          "microLabels": 0,
+          "microLabelShare": 0,
+          "microSamples": [],
+          "upperShare": 0.03,
+          "centerShare": 0.04,
+          "smallText": 0
+        },
+        "eyebrows": [
+          {
+            "text": "NELMA",
+            "above": "Welcome back.",
+            "upper": true,
+            "tracked": true,
+            "mono": false,
+            "pill": false,
+            "size": 18,
+            "top": 244
+          }
+        ],
+        "numbered": [],
+        "color": {
+          "bodyBg": "#f5f4f0",
+          "bodyBgHsl": {
+            "h": 48,
+            "s": 0.2,
+            "l": 0.95
+          },
+          "dark": false,
+          "sectionBgs": [
+            {
+              "color": "#ffffff",
+              "top": 0,
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1
+              }
+            }
+          ],
+          "textColors": [
+            {
+              "color": "#66685f",
+              "share": 0.61
+            },
+            {
+              "color": "#292a26",
+              "share": 0.26
+            },
+            {
+              "color": "#30332d",
+              "share": 0.09
+            },
+            {
+              "color": "#ffffff",
+              "share": 0.04
+            }
+          ],
+          "button": {
+            "bg": "#30332d",
+            "hsl": {
+              "h": 90,
+              "s": 0.06,
+              "l": 0.19
+            },
+            "fg": "#ffffff"
+          },
+          "lowContrast": []
+        },
+        "buttons": {
+          "count": 1,
+          "inHero": 1,
+          "radius": 8,
+          "height": 48,
+          "withShadow": 0,
+          "withGradient": 0,
+          "mono": 0,
+          "upper": 0,
+          "heroLabels": [
+            "Sign in"
+          ]
+        },
+        "surfaces": {
+          "shadowStatic": 0,
+          "shadowOverlay": 0,
+          "shadowSamples": [],
+          "gradients": 0,
+          "scrims": 0,
+          "gradientSamples": [],
+          "gradientText": 0,
+          "hairlines": 0,
+          "hairlineSamples": [],
+          "outlinedBoxes": 0,
+          "dashed": 0,
+          "blurred": 0,
+          "roundedBoxes": 0,
+          "boxRadius": 0,
+          "squareMedia": 0,
+          "roundedMedia": 0,
+          "mediaRadius": 0,
+          "textShadow": 0,
+          "cardRows": []
+        },
+        "heroMedia": [],
+        "nav": null,
+        "fontsLoaded": []
+      },
+      "consoleErrors": [
+        "TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:3000/node_modules/@tanstack/react-start/dist/plugin/default-entry/client.tsx"
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "load": "load",
+      "screens": 1,
+      "filled": [
+        1
+      ],
+      "motion": {
+        "elements": 0,
+        "css": 0,
+        "transitions": 0,
+        "scripted": 0,
+        "videos": 0,
+        "playingVideos": 0
+      },
+      "metrics": {
+        "viewport": {
+          "w": 390,
+          "h": 844
+        },
+        "page": {
+          "height": 844,
+          "screens": 1,
+          "words": 29,
+          "img": 2,
+          "video": 0,
+          "canvas": 0,
+          "svg": 3,
+          "sections": 2,
+          "horizontalOverflow": 0,
+          "overflowCulprits": [],
+          "uiFragments": 0,
+          "uiAbuse": false,
+          "realPictures": 0,
+          "videoCount": 0,
+          "uiPictures": 0,
+          "pictureSamples": [],
+          "blendText": 0,
+          "sideScrollers": 0,
+          "brokenImages": [],
+          "emoji": []
+        },
+        "hero": {
+          "text": "Welcome back.",
+          "words": 2,
+          "chars": 13,
+          "lines": 1,
+          "size": 36,
+          "vw": 9.2,
+          "font": "-apple-system",
+          "weight": 600,
+          "tracking": -0.04,
+          "leading": 1.25,
+          "upper": false,
+          "italic": false,
+          "mono": false,
+          "align": "left",
+          "position": "center",
+          "widthRatio": 0.88,
+          "top": 230,
+          "tag": "h1",
+          "kind": "heading"
+        },
+        "h1": {
+          "text": "Welcome back.",
+          "words": 2,
+          "lines": 1,
+          "size": 36,
+          "font": "-apple-system"
+        },
+        "headings": [
+          {
+            "text": "Welcome back.",
+            "words": 2,
+            "chars": 13,
+            "lines": 1,
+            "size": 36,
+            "vw": 9.2,
+            "font": "-apple-system",
+            "weight": 600,
+            "tracking": -0.04,
+            "leading": 1.25,
+            "upper": false,
+            "italic": false,
+            "mono": false,
+            "align": "left",
+            "position": "center",
+            "widthRatio": 0.88,
+            "top": 230,
+            "tag": "h1",
+            "kind": "heading"
+          }
+        ],
+        "headingSummary": {
+          "count": 1,
+          "maxLines": 1,
+          "over2Lines": 0,
+          "statements": 0,
+          "centered": 0,
+          "medianWords": null,
+          "mixedFontHeadings": 0
+        },
+        "type": {
+          "families": [
+            {
+              "family": "-apple-system",
+              "share": 1,
+              "mono": false
+            }
+          ],
+          "familyCount": 1,
+          "sizes": [
+            14,
+            16,
+            18,
+            36
+          ],
+          "sizeCount": 4,
+          "notLoaded": [],
+          "body": null,
+          "measureChars": null,
+          "max": {
+            "size": 36,
+            "vw": 9.2,
+            "font": "-apple-system",
+            "text": "Welcome back."
+          },
+          "monoShare": 0,
+          "monoProseShare": 0,
+          "monoFamilies": [],
+          "monoSamples": [],
+          "microLabels": 0,
+          "microLabelShare": 0,
+          "microSamples": [],
+          "upperShare": 0.03,
+          "centerShare": 0.04,
+          "smallText": 0
+        },
+        "eyebrows": [
+          {
+            "text": "NELMA",
+            "above": "Welcome back.",
+            "upper": true,
+            "tracked": true,
+            "mono": false,
+            "pill": false,
+            "size": 18,
+            "top": 154
+          }
+        ],
+        "numbered": [],
+        "color": {
+          "bodyBg": "#f5f4f0",
+          "bodyBgHsl": {
+            "h": 48,
+            "s": 0.2,
+            "l": 0.95
+          },
+          "dark": false,
+          "sectionBgs": [
+            {
+              "color": "#ffffff",
+              "top": 0,
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1
+              }
+            }
+          ],
+          "textColors": [
+            {
+              "color": "#66685f",
+              "share": 0.61
+            },
+            {
+              "color": "#292a26",
+              "share": 0.26
+            },
+            {
+              "color": "#30332d",
+              "share": 0.09
+            },
+            {
+              "color": "#ffffff",
+              "share": 0.04
+            }
+          ],
+          "button": {
+            "bg": "#30332d",
+            "hsl": {
+              "h": 90,
+              "s": 0.06,
+              "l": 0.19
+            },
+            "fg": "#ffffff"
+          },
+          "lowContrast": []
+        },
+        "buttons": {
+          "count": 1,
+          "inHero": 1,
+          "radius": 8,
+          "height": 48,
+          "withShadow": 0,
+          "withGradient": 0,
+          "mono": 0,
+          "upper": 0,
+          "heroLabels": [
+            "Sign in"
+          ]
+        },
+        "surfaces": {
+          "shadowStatic": 0,
+          "shadowOverlay": 0,
+          "shadowSamples": [],
+          "gradients": 0,
+          "scrims": 0,
+          "gradientSamples": [],
+          "gradientText": 0,
+          "hairlines": 0,
+          "hairlineSamples": [],
+          "outlinedBoxes": 0,
+          "dashed": 0,
+          "blurred": 0,
+          "roundedBoxes": 0,
+          "boxRadius": 0,
+          "squareMedia": 0,
+          "roundedMedia": 0,
+          "mediaRadius": 0,
+          "textShadow": 0,
+          "cardRows": []
+        },
+        "heroMedia": [],
+        "nav": null,
+        "fontsLoaded": []
+      },
+      "consoleErrors": [
+        "TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:3000/node_modules/@tanstack/react-start/dist/plugin/default-entry/client.tsx"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "level": "WARN",
+      "id": "palette-cream",
+      "width": 1440,
+      "message": "Yellow-cream background (page background #f5f4f0).",
+      "fix": "Use the drawn palette. If you want warmth, take a low-chroma stone or bone, not a yellow cream.",
+      "alsoAt": [
+        768,
+        390
+      ]
+    }
+  ],
+  "images": [
+    {
+      "viewport": "desktop",
+      "width": 1440,
+      "fold": "/data/taste-login-neutral/desktop-fold.jpg",
+      "pages": [
+        "/data/taste-login-neutral/desktop-page-01.jpg"
+      ]
+    },
+    {
+      "viewport": "tablet",
+      "width": 768,
+      "fold": "/data/taste-login-neutral/tablet-fold.jpg",
+      "pages": [
+        "/data/taste-login-neutral/tablet-page-01.jpg"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "width": 390,
+      "fold": "/data/taste-login-neutral/mobile-fold.jpg",
+      "pages": [
+        "/data/taste-login-neutral/mobile-page-01.jpg"
+      ]
+    }
+  ]
+}

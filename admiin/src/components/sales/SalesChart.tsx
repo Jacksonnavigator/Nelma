@@ -111,7 +111,7 @@ export function SalesTrendChart({
           isAnimationActive={false}
           type="monotone"
           dataKey="sales"
-          stroke="var(--primary)"
+          stroke="var(--chart-1)"
           strokeWidth={2}
           dot={false}
         />

@@ -48,3 +48,8 @@ Stop after three rounds: **7.4**, below the skill's 7.5 target. The remaining is
 
 ## Checks and limits
 TypeScript passed; 14 tests passed; mock-mode production build passed. Recorded browser checks report no page errors or horizontal overflow. Login independent render reports no failed resources or clipping. Switches measured 48x44px. Full accessibility, live APIs, real payments, OTP recovery, cross-browser testing, load testing and complete data-changing workflows were not verified.
+
+## Subsequent user-requested palette revision
+The three design rounds above describe the earlier composition pass. The user rejected the extent of blue. A targeted palette revision now removes the navy sidebar, blue revenue/login fields, blue avatars/tabs/role pills, and blue sales line. Desktop, tablet, mobile and dark dashboard captures, login, and the selected interactions were rerun. TypeScript, 14 tests and the mock production build passed again. Browser checks reported no page errors or horizontal overflow. This is a color revision, not another invented award score. The same live-backend and accessibility limits apply.
+
+Neutral sign-in inspector: no FAIL findings; one palette-cream warning for the slightly warm #f5f4f0 canvas at all three sizes. Retained as the intentional warm-neutral direction; this is not an unqualified zero-warning inspector result.

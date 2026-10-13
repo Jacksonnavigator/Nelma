@@ -10,6 +10,7 @@ design-system/nelma-operations/QA.md
 design-system/nelma-operations/browser-final-checks.json
 design-system/nelma-operations/browser-route-checks.json
 design-system/nelma-operations/login-render-check.json
+design-system/nelma-operations/taste-login-inspection.json
 design-system/nelma-operations/taste-source-lint.json
 package-lock.json
 previews/dashboard-dark.png
@@ -48,6 +49,7 @@ src/components/ui/input.tsx
 src/components/ui/select.tsx
 src/components/ui/switch.tsx
 src/components/ui/table.tsx
+src/lib/chart-colors.ts
 src/lib/ui.test.ts
 src/routes/README.md
 src/routes/__root.tsx

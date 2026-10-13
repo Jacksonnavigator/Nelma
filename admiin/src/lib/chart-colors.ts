@@ -2,16 +2,16 @@ import type { OrderStatus, PaymentMethod, PaymentStatus } from "@/types";
 
 // Plain colours: the theme's --chart-* tokens are oklch values, which hsl(var(...)) turned into black.
 export const CHART_COLORS = {
-  blue: "#2563eb",
-  green: "#16a34a",
-  orange: "#f97316",
-  yellow: "#eab308",
+  blue: "#64755b",
+  green: "#558263",
+  orange: "#b78349",
+  yellow: "#c6a94d",
   red: "#dc2626",
-  purple: "#9333ea",
-  teal: "#0d9488",
-  pink: "#db2777",
-  sky: "#0ea5e9",
-  gray: "#64748b",
+  purple: "#8b7d91",
+  teal: "#587d76",
+  pink: "#a97686",
+  sky: "#889980",
+  gray: "#7b8075",
 } as const;
 
 /** One fixed colour per order status, so a status keeps its colour on every chart. */
@@ -38,7 +38,7 @@ export const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
   mobile_money: CHART_COLORS.blue,
 };
 
-/** New bottle + water in blue, refills in green; products added later use the series colours. */
+/** Muted sage for new bottles, green for refills; no dominant blue chart fills. */
 export const PRODUCT_COLORS: Record<string, string> = {
   first_purchase: CHART_COLORS.blue,
   refill: CHART_COLORS.green,

@@ -30,16 +30,16 @@
   "failedResources": [],
   "frames": [],
   "fullPage": false,
-  "input": "static login snapshot",
+  "input": "static neutral login snapshot",
   "output": "login.png",
   "reducedMotion": true,
-  "byteLength": 85036,
-  "sha256": "7348d3fb60a921100a662f831c7329b9b079551d3d75d23412217a79423f39c1",
+  "byteLength": 85220,
+  "sha256": "107eeea30db55ccdd9e76f2babd25cae9bbf17ad303f661994fcbccffa9b1f30",
   "dimensions": [
     1440,
     900
   ],
-  "pixelSha256": "07bdfeda57d19ff8e211b6b6cc219d6645135340318a0f1b94df8a60a792091e",
+  "pixelSha256": "1b20f29915128c3be96c04350282f7444c599fa7a07fd2468dfd7aac29bdbef8",
   "renderedFrameCount": 0,
   "distinctFrameCount": 0
 }
