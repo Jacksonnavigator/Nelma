@@ -112,8 +112,9 @@ export default function ProfileScreen() {
 
   const signOut = async () => {
     haptics.selection();
+    // The tab layout redirects to login as soon as the session clears. Navigating again after the
+    // server answers would reset the login form if the person has already started typing.
     await logout();
-    router.replace("/(auth)/login");
   };
 
   return (

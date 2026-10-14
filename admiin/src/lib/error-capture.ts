@@ -5,6 +5,7 @@ let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
 function record(error: unknown) {
+  if (import.meta.env.PROD) return;
   lastCapturedError = { error, at: Date.now() };
 }
 
@@ -16,6 +17,7 @@ const CAUSE_DEPTH_LIMIT = 5;
 const DESCRIPTION_LENGTH_LIMIT = 8_000;
 
 export function describeError(error: unknown): string {
+  if (import.meta.env.PROD) return error instanceof Error ? error.name : "Server error";
   const parts: string[] = [];
   let current: unknown = error;
   for (let depth = 0; depth < CAUSE_DEPTH_LIMIT && current != null; depth++) {
@@ -54,6 +56,13 @@ function isErrorLike(value: unknown): value is Error {
 // recorded for consumeLastCapturedError and expanded before serialization.
 const originalConsoleError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
+  if (import.meta.env.PROD) {
+    originalConsoleError(
+      "NELMA server failure",
+      ...args.map((arg) => (arg instanceof Error ? arg.name : "[details redacted]")),
+    );
+    return;
+  }
   const expanded = args.map((arg) => {
     if (!isErrorLike(arg)) return arg;
     record(arg);

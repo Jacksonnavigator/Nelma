@@ -3,6 +3,8 @@ export const appConfig = {
   name: "NELMA Drinking Water",
   shortName: "NELMA",
   currency: "TZS",
-  supportPhone: process.env.EXPO_PUBLIC_SUPPORT_PHONE?.trim() || "+255 700 000 000",
-  supportEmail: process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim() || "support@nelma.co.tz"
+  supportPhone: process.env.EXPO_PUBLIC_SUPPORT_PHONE?.trim() || "+255 719 081 401",
+  supportWhatsapp: process.env.EXPO_PUBLIC_SUPPORT_WHATSAPP?.trim() || "+255 762 307 425",
+  supportEmail: process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim() || "nelma.water@nm-aist.ac.tz",
+  address: "WISE-Futures Office, near the cafeteria, NM-AIST, Tengeru, Arusha"
 } as const;

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, LogOut, Menu, UserCircle } from "lucide-react";
@@ -95,7 +96,9 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={async () => {
-                await signOut();
+                await signOut().catch(() =>
+                  toast.error("Signed out here. Server revocation could not be confirmed."),
+                );
                 navigate({ to: "/", replace: true });
               }}
             >

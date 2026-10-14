@@ -37,6 +37,7 @@ export function PasswordChange() {
         if (!mutation.isPending && newPassword === confirmPassword) mutation.mutate();
       }}
     >
+      <p className="text-sm text-muted-foreground">Use a unique passphrase of 15–128 characters.</p>
       <fieldset disabled={mutation.isPending} className="space-y-4">
         {(
           [
@@ -52,7 +53,7 @@ export function PasswordChange() {
               type="password"
               autoComplete={id === "current-password" ? "current-password" : "new-password"}
               required
-              minLength={8}
+              minLength={id === "current-password" ? 1 : 15}
               maxLength={128}
               value={value}
               onChange={(e) => update(e.target.value)}

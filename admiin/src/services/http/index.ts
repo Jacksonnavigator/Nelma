@@ -1,10 +1,13 @@
+import { requireNewPassword, validateImageUpload } from "@/lib/security-input";
+import { z } from "zod";
+import { safeEntityId } from "@/lib/security-config";
 import {
   apiRequest,
-  setAuthToken,
   getAuthToken,
   getRefreshToken,
-  setRefreshToken,
   clearSession,
+  establishSession,
+  getSessionVersion,
 } from "@/services/api";
 import type {
   ActivityEvent,
@@ -52,8 +55,20 @@ interface ApiSession {
   user: ApiUser;
   tokens: { accessToken: string; refreshToken: string };
 }
-function dashboardUser(user: ApiUser): DashboardUser {
-  if (user.role !== "SYSTEM_ADMIN" && user.role !== "SALES_MANAGER")
+const apiUserSchema = z.object({
+  id: z.string().min(1).max(128),
+  fullName: z.string().min(1).max(200),
+  email: z.string().max(254).nullable(),
+  phone: z.string().max(32),
+  role: z.enum(["SYSTEM_ADMIN", "SALES_MANAGER"]),
+  isActive: z.boolean(),
+});
+function dashboardUser(input: unknown, requireActive = false): DashboardUser {
+  const parsed = apiUserSchema.safeParse(input);
+  if (!parsed.success)
+    throw { status: 502, message: "The server returned invalid account information." };
+  const user = parsed.data;
+  if (requireActive && !user.isActive)
     throw { status: 403, message: "This account cannot access the dashboard." };
   return {
     id: user.id,
@@ -64,10 +79,9 @@ function dashboardUser(user: ApiUser): DashboardUser {
     status: user.isActive ? "active" : "inactive",
   };
 }
-function acceptSession(session: ApiSession): AuthSession {
-  const user = dashboardUser(session.user);
-  setAuthToken(session.tokens.accessToken);
-  setRefreshToken(session.tokens.refreshToken);
+function acceptSession(session: ApiSession, expectedVersion: number): AuthSession {
+  const user = dashboardUser(session?.user, true);
+  establishSession(session?.tokens, expectedVersion);
   return { token: session.tokens.accessToken, user };
 }
 
@@ -75,7 +89,8 @@ function adminAccount(user: ApiUser): AdminAccount {
   return { ...dashboardUser(user), createdAt: user.createdAt, lastLoginAt: null };
 }
 /** Base64 contents of a picked file, without the data: URL prefix. */
-function fileToBase64(file: File): Promise<string> {
+async function fileToBase64(file: File): Promise<string> {
+  await validateImageUpload(file);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
@@ -87,40 +102,51 @@ function fileToBase64(file: File): Promise<string> {
 export const httpServices: ServiceRegistry = {
   auth: {
     async login(identifier, password) {
+      const expectedVersion = getSessionVersion();
       const session = await apiRequest<ApiSession>("auth/dashboard/login", {
         method: "POST",
         body: { identifier, password },
       });
-      return acceptSession(session);
+      return acceptSession(session, expectedVersion);
     },
     async logout() {
       const refreshToken = getRefreshToken();
-      try {
-        if (refreshToken)
-          await apiRequest<void>("auth/dashboard/logout", {
+      // Start revocation with the old access token, then discard local credentials
+      // immediately even if the network is unavailable. Server revocation must be
+      // checked by operators; offline logout cannot promise server-side revocation.
+      const request = refreshToken
+        ? apiRequest<void>("auth/dashboard/logout", {
             method: "POST",
             body: { refreshToken },
             skipRefresh: true,
-          });
-      } finally {
-        clearSession();
-      }
+          })
+        : Promise.resolve();
+      clearSession();
+      await request;
     },
     currentUser: async () =>
-      getAuthToken() ? dashboardUser(await apiRequest<ApiUser>("auth/dashboard/me")) : null,
+      getAuthToken() ? dashboardUser(await apiRequest<ApiUser>("auth/dashboard/me"), true) : null,
     updateProfile: async (input) =>
       dashboardUser(
         await apiRequest<ApiUser>("auth/dashboard/me", { method: "PATCH", body: input }),
       ),
-    changePassword: (input) =>
-      apiRequest<void>("auth/dashboard/security", { method: "PATCH", body: input }),
+    changePassword: (input) => {
+      requireNewPassword(input.newPassword);
+      if (input.newPassword !== input.confirmPassword)
+        throw { status: 400, message: "Passwords must match." };
+      return apiRequest<void>("auth/dashboard/security", { method: "PATCH", body: input });
+    },
     forgotPassword: (identifier) =>
       apiRequest<{ message: string }>("auth/forgot-password", {
         method: "POST",
         body: { identifier },
       }),
-    resetPassword: (input) =>
-      apiRequest<void>("auth/reset-password", { method: "POST", body: input }),
+    resetPassword: (input) => {
+      requireNewPassword(input.newPassword);
+      if (input.newPassword !== input.confirmPassword)
+        throw { status: 400, message: "Passwords must match." };
+      return apiRequest<void>("auth/reset-password", { method: "POST", body: input });
+    },
   },
 
   orders: {
@@ -140,27 +166,38 @@ export const httpServices: ServiceRegistry = {
           page_size: query.pageSize,
         },
       }),
-    get: (id) => apiRequest<Order>(`admin/orders/${id}`),
+    get: (id) => apiRequest<Order>(`admin/orders/${safeEntityId(id)}`),
     create: (input) => apiRequest<Order>("admin/orders", { method: "POST", body: input }),
     collectCash: (id, amount) =>
-      apiRequest<Order>(`admin/orders/${id}/collect-cash`, { method: "POST", body: { amount } }),
-    confirm: (id) => apiRequest<Order>(`admin/orders/${id}/confirm`, { method: "POST" }),
-    process: (id) => apiRequest<Order>(`admin/orders/${id}/process`, { method: "POST" }),
+      apiRequest<Order>(`admin/orders/${safeEntityId(id)}/collect-cash`, {
+        method: "POST",
+        body: { amount },
+      }),
+    confirm: (id) =>
+      apiRequest<Order>(`admin/orders/${safeEntityId(id)}/confirm`, { method: "POST" }),
+    process: (id) =>
+      apiRequest<Order>(`admin/orders/${safeEntityId(id)}/process`, { method: "POST" }),
     reply: (id, body) =>
-      apiRequest<Order>(`admin/orders/${id}/messages`, { method: "POST", body: { body } }),
+      apiRequest<Order>(`admin/orders/${safeEntityId(id)}/messages`, {
+        method: "POST",
+        body: { body },
+      }),
     cancel: (id, reason) =>
-      apiRequest<Order>(`admin/orders/${id}/cancel`, { method: "POST", body: { reason } }),
+      apiRequest<Order>(`admin/orders/${safeEntityId(id)}/cancel`, {
+        method: "POST",
+        body: { reason },
+      }),
     statusCounts: () =>
       apiRequest<{ status: OrderStatus; count: number }[]>("admin/orders/status-counts"),
   },
 
   customers: {
     search: (term) => apiRequest<Customer[]>("admin/customers", { query: { search: term } }),
-    get: (id) => apiRequest<Customer>(`admin/customers/${id}`),
+    get: (id) => apiRequest<Customer>(`admin/customers/${safeEntityId(id)}`),
   },
 
   deliveries: {
-    forOrder: (orderId) => apiRequest<Delivery>(`admin/deliveries/${orderId}`),
+    forOrder: (orderId) => apiRequest<Delivery>(`admin/deliveries/${safeEntityId(orderId)}`),
     list: (query) =>
       apiRequest<PaginatedResponse<Delivery>>("admin/deliveries", {
         query: {
@@ -170,14 +207,14 @@ export const httpServices: ServiceRegistry = {
           page_size: query.pageSize,
         },
       }),
-    get: (id) => apiRequest<Delivery>(`admin/deliveries/${id}`),
+    get: (id) => apiRequest<Delivery>(`admin/deliveries/${safeEntityId(id)}`),
     assignDriver: (deliveryId, driverId) =>
-      apiRequest<Delivery>(`admin/deliveries/${deliveryId}/assign`, {
+      apiRequest<Delivery>(`admin/deliveries/${safeEntityId(deliveryId)}/assign`, {
         method: "POST",
         body: { driver_id: driverId },
       }),
     updateStatus: (deliveryId, status) =>
-      apiRequest<Delivery>(`admin/deliveries/${deliveryId}`, {
+      apiRequest<Delivery>(`admin/deliveries/${safeEntityId(deliveryId)}`, {
         method: "PATCH",
         body: { status },
       }),
@@ -193,19 +230,29 @@ export const httpServices: ServiceRegistry = {
           page_size: query.pageSize,
         },
       }),
-    get: (id) => apiRequest<Driver>(`admin/drivers/${id}`),
+    get: (id) => apiRequest<Driver>(`admin/drivers/${safeEntityId(id)}`),
     available: () => apiRequest<Driver[]>("admin/drivers/available"),
-    create: (input) => apiRequest<Driver>("admin/drivers", { method: "POST", body: input }),
+    create: (input) => {
+      requireNewPassword(input.password);
+      return apiRequest<Driver>("admin/drivers", { method: "POST", body: input });
+    },
     update: async (id, input) => {
       if (input.status) {
-        await apiRequest(`drivers/${id}/${input.status === "active" ? "activate" : "deactivate"}`, {
-          method: "POST",
-        });
-        return apiRequest<Driver>(`admin/drivers/${id}`);
+        await apiRequest(
+          `drivers/${safeEntityId(id)}/${input.status === "active" ? "activate" : "deactivate"}`,
+          {
+            method: "POST",
+          },
+        );
+        return apiRequest<Driver>(`admin/drivers/${safeEntityId(id)}`);
       }
-      return apiRequest<Driver>(`admin/drivers/${id}`, { method: "PATCH", body: input });
+      return apiRequest<Driver>(`admin/drivers/${safeEntityId(id)}`, {
+        method: "PATCH",
+        body: input,
+      });
     },
-    deliveriesFor: (driverId) => apiRequest<Delivery[]>(`admin/drivers/${driverId}/deliveries`),
+    deliveriesFor: (driverId) =>
+      apiRequest<Delivery[]>(`admin/drivers/${safeEntityId(driverId)}/deliveries`),
   },
 
   sales: {
@@ -218,7 +265,7 @@ export const httpServices: ServiceRegistry = {
   pricing: {
     list: () => apiRequest<PriceConfiguration[]>("admin/pricing"),
     update: (product, price) =>
-      apiRequest<PriceConfiguration>(`admin/pricing/${product}`, {
+      apiRequest<PriceConfiguration>(`admin/pricing/${safeEntityId(product)}`, {
         method: "PATCH",
         body: { price },
       }),
@@ -228,9 +275,9 @@ export const httpServices: ServiceRegistry = {
     list: () => apiRequest<Product[]>("admin/products"),
     create: (input) => apiRequest<Product>("admin/products", { method: "POST", body: input }),
     update: (id, input) =>
-      apiRequest<Product>(`admin/products/${id}`, { method: "PATCH", body: input }),
+      apiRequest<Product>(`admin/products/${safeEntityId(id)}`, { method: "PATCH", body: input }),
     uploadImage: async (id, file) =>
-      apiRequest<Product>(`admin/products/${id}/image`, {
+      apiRequest<Product>(`admin/products/${safeEntityId(id)}/image`, {
         method: "POST",
         body: { contentType: file.type, data: await fileToBase64(file) },
       }),
@@ -251,25 +298,37 @@ export const httpServices: ServiceRegistry = {
         },
       }),
     setActive: (id, active) =>
-      apiRequest<UserAccount>(`admin/users/${id}/status`, { method: "POST", body: { active } }),
-    setPassword: (id, password) =>
-      apiRequest<void>(`admin/users/${id}/password`, { method: "POST", body: { password } }),
+      apiRequest<UserAccount>(`admin/users/${safeEntityId(id)}/status`, {
+        method: "POST",
+        body: { active },
+      }),
+    setPassword: (id, password) => {
+      requireNewPassword(password);
+      return apiRequest<void>(`admin/users/${safeEntityId(id)}/password`, {
+        method: "POST",
+        body: { password },
+      });
+    },
   },
 
   adminAccounts: {
     list: async () => (await apiRequest<ApiUser[]>("admin/accounts")).map(adminAccount),
-    create: async (input) =>
-      adminAccount(await apiRequest<ApiUser>("admin/accounts", { method: "POST", body: input })),
+    create: async (input) => {
+      requireNewPassword(input.password);
+      return adminAccount(
+        await apiRequest<ApiUser>("admin/accounts", { method: "POST", body: input }),
+      );
+    },
     update: async (id, input) => {
       if (input.status)
         return adminAccount(
           await apiRequest<ApiUser>(
-            `admin/accounts/${id}/${input.status === "active" ? "activate" : "deactivate"}`,
+            `admin/accounts/${safeEntityId(id)}/${input.status === "active" ? "activate" : "deactivate"}`,
             { method: "POST" },
           ),
         );
       return adminAccount(
-        await apiRequest<ApiUser>(`admin/accounts/${id}`, {
+        await apiRequest<ApiUser>(`admin/accounts/${safeEntityId(id)}`, {
           method: "PATCH",
           body: {
             fullName: input.fullName,
@@ -306,18 +365,20 @@ export const httpServices: ServiceRegistry = {
 
   notifications: {
     list: (role) => apiRequest<AppNotification[]>("admin/notifications", { query: { role } }),
-    markRead: (id) => apiRequest<void>(`admin/notifications/${id}/read`, { method: "POST" }),
+    markRead: (id) =>
+      apiRequest<void>(`admin/notifications/${safeEntityId(id)}/read`, { method: "POST" }),
     markAllRead: () => apiRequest<void>("admin/notifications/read-all", { method: "POST" }),
   },
 
   operations: {
     overview: () => apiRequest<OperationsOverview>("admin/operations"),
     handIn: (driverId, paymentIds, amountReceived) =>
-      apiRequest<{ settled: number }>(`admin/operations/cash/${driverId}/hand-in`, {
+      apiRequest<{ settled: number }>(`admin/operations/cash/${safeEntityId(driverId)}/hand-in`, {
         method: "POST",
         body: { paymentIds, amountReceived },
       }),
-    reviewFlag: (id) => apiRequest<void>(`admin/operations/flags/${id}/review`, { method: "POST" }),
+    reviewFlag: (id) =>
+      apiRequest<void>(`admin/operations/flags/${safeEntityId(id)}/review`, { method: "POST" }),
   },
 
   websiteRequests: {
@@ -331,7 +392,7 @@ export const httpServices: ServiceRegistry = {
         },
       }),
     setStatus: (id, status) =>
-      apiRequest<WebsiteRequest>(`admin/website-requests/${id}/status`, {
+      apiRequest<WebsiteRequest>(`admin/website-requests/${safeEntityId(id)}/status`, {
         method: "POST",
         body: { status },
       }),

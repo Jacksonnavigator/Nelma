@@ -26,10 +26,9 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/nelma-icon.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/nelma-icon.png"
+        "backgroundColor": "#E2F1FD",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
       },
       "predictiveBackGestureEnabled": true
     },

@@ -107,6 +107,7 @@ function LoginPage() {
               <Input
                 id="identifier"
                 autoComplete="username"
+                maxLength={254}
                 autoCapitalize="none"
                 spellCheck={false}
                 value={identifier}
@@ -131,6 +132,7 @@ function LoginPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"

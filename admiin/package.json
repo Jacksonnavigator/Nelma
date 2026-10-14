@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build:dev": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "security:check": "npm run typecheck && npm run test && npm audit --audit-level=moderate",
+    "security:verify-assets": "node scripts/verify-release.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

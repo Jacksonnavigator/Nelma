@@ -78,7 +78,7 @@ const fallbackSupport: SupportInfo = {
   name: appConfig.name,
   phone: appConfig.supportPhone,
   email: appConfig.supportEmail,
-  address: "Arusha, Tanzania",
+  address: appConfig.address,
   operatingHours: ""
 };
 

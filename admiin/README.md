@@ -1,3 +1,5 @@
+> Security-hardened source revision: read SECURITY.md and security/RELEASE-CHECKLIST.md first. This archive does not include or certify the FastAPI backend or a production deployment.
+
 # NELMA admin dashboard
 
 The web dashboard NELMA staff use to run the business. It talks to the FastAPI backend in `../backend`.

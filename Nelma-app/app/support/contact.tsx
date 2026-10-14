@@ -3,6 +3,7 @@ import { ChevronRight, Mail, MessageCircle, Phone } from "lucide-react-native";
 import { type ComponentType, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { Header, Screen } from "../../components";
+import { appConfig } from "../../config/app";
 import { useOrders } from "../../store/order-context";
 import { colors } from "../../constants/colors";
 import { radius, spacing, typography } from "../../constants/theme";
@@ -18,8 +19,8 @@ export default function ContactScreen() {
   const { order: orderNumber } = useLocalSearchParams<{ order?: string }>();
   const { supportInfo } = useOrders();
   const [error, setError] = useState<string | null>(null);
-  // WhatsApp can be a different number, set per build; otherwise it is the support phone from the dashboard.
-  const whatsapp = process.env.EXPO_PUBLIC_SUPPORT_WHATSAPP?.trim() || supportInfo.phone;
+  // WhatsApp is NELMA's separate WhatsApp line (the same one the website shows).
+  const whatsapp = appConfig.supportWhatsapp;
   const topic = orderNumber ? `${t("About my order")} ${orderNumber}` : t("Help with NELMA");
 
   const open = async (url: string, fallback: string) => {

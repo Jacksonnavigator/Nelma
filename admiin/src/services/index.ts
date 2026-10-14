@@ -1,18 +1,21 @@
 import { DATA_MODE } from "@/services/api";
-import { mockServices } from "@/services/mock";
 import { httpServices } from "@/services/http";
 import type { ServiceRegistry } from "@/services/contracts";
 
 /**
  * Repository injection point.
  *
- * VITE_DATA_MODE=mock -> in-memory demo repositories (default)
+ * VITE_DATA_MODE=mock -> explicitly selected, non-production demo repositories
  * VITE_DATA_MODE=api  -> the existing NELMA FastAPI backend
  *
  * Screens import `services` only. Swapping the data source requires no screen
  * changes. The backend remains authoritative for authorization and pricing.
  */
-export const services: ServiceRegistry = DATA_MODE === "api" ? httpServices : mockServices;
+// Direct build-time condition removes demo identities from API production assets.
+export const services: ServiceRegistry =
+  import.meta.env["VITE_DATA_MODE"] === "mock"
+    ? (await import("@/services/mock")).mockServices
+    : httpServices;
 
 export const authService = services.auth;
 export const ordersService = services.orders;

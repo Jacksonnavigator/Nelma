@@ -64,8 +64,8 @@ export default function DriverProfileScreen() {
 
   const signOut = async () => {
     haptics.selection();
+    // The driver layout redirects to login as soon as the session clears (see the customer profile).
     await logout();
-    router.replace("/(auth)/login");
   };
 
   return (

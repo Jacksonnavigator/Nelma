@@ -16,9 +16,9 @@ SETTINGS_KEY = "DASHBOARD_SETTINGS"
 DEFAULT_SETTINGS = {
     "business": {
         "name": "NELMA Drinking Water",
-        "supportPhone": "+255700000000",
-        "supportEmail": "support@nelma.co.tz",
-        "address": "Arusha, Tanzania",
+        "supportPhone": "+255719081401",
+        "supportEmail": "nelma.water@nm-aist.ac.tz",
+        "address": "WISE-Futures Office, near the cafeteria, NM-AIST, Tengeru, Arusha",
         "operatingHours": "Every day, 07:00 - 20:00",
     },
     "payments": {"cashEnabled": True, "mobileMoneyEnabled": False},

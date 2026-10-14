@@ -1,3 +1,5 @@
+> Security update: the neutral design is retained. The 14-test/mock-build notes below describe the earlier visual review, not the current security release. Read SECURITY.md and security/VERIFICATION.md for current checks and deployment blockers. Ordinary mock release builds are now blocked; an explicitly labelled local demo build requires NELMA_ALLOW_DEMO_BUILD=true. Full reloads require new sign-in in API mode.
+
 # NELMA — restrained neutral revision
 
 This package retains the redesigned dashboard and applies the user-requested reduction in blue across the entire visual system.

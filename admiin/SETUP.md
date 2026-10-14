@@ -1,3 +1,5 @@
+> Security scope notice: the backend described below is an external dependency and is NOT included or verified in this dashboard archive. Historical SMTP/Twilio/backend implementation statements below must be confirmed against your actual backend. Read SECURITY.md before deployment. API tokens now remain in memory; a full reload requires sign-in. Production builds require an HTTPS API URL or a reviewed same-origin proxy, and demo builds are blocked unless explicitly opted into for non-production use.
+
 # Run the admin dashboard
 
 The dashboard now uses the FastAPI backend for authentication, accounts, profiles, settings, orders, deliveries, drivers, pricing, reports, audit logs and notifications.

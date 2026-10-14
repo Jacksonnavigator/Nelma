@@ -242,7 +242,7 @@ function AccountsPage() {
                     type="password"
                     autoComplete="new-password"
                     required
-                    minLength={8}
+                    minLength={15}
                     maxLength={128}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

@@ -67,6 +67,7 @@ function ResetPassword() {
                   autoComplete="username"
                   required
                   minLength={3}
+                  maxLength={254}
                   value={identifier}
                   readOnly={sent}
                   onChange={(e) => setIdentifier(e.target.value)}
@@ -96,7 +97,7 @@ function ResetPassword() {
                       type="password"
                       autoComplete="new-password"
                       required
-                      minLength={8}
+                      minLength={15}
                       maxLength={128}
                       value={newPassword}
                       onChange={(e) => setPassword(e.target.value)}
@@ -109,7 +110,8 @@ function ResetPassword() {
                       type="password"
                       autoComplete="new-password"
                       required
-                      minLength={8}
+                      minLength={15}
+                      maxLength={128}
                       value={confirmPassword}
                       onChange={(e) => setConfirm(e.target.value)}
                     />

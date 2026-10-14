@@ -1,3 +1,4 @@
+import { safeImageUrl, validateImageUpload } from "@/lib/security-input";
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -181,7 +182,12 @@ function ProductImage({
   className?: string;
 }) {
   const builtIn = !product.imageUrl && product.code ? BUILT_IN_PICTURES[product.code] : undefined;
-  const src = product.imageUrl ?? builtIn;
+  const src =
+    safeImageUrl(
+      product.imageUrl,
+      true,
+      typeof window === "undefined" ? undefined : window.location.origin,
+    ) ?? builtIn;
   return (
     <div
       className={cn(
@@ -196,6 +202,7 @@ function ProductImage({
             alt={product.name}
             className="absolute inset-0 size-full object-contain"
             loading="lazy"
+            referrerPolicy="no-referrer"
           />
           {builtIn ? (
             <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -254,7 +261,7 @@ function ProductEditor({
   const parsed = Number(price);
   const priceOk = price.trim() !== "" && Number.isSafeInteger(parsed) && parsed > 0;
   const nameOk = name.trim().length >= 2;
-  const linkOk = !imageUrl.trim() || /^https:\/\/\S+$/.test(imageUrl.trim());
+  const linkOk = !imageUrl.trim() || safeImageUrl(imageUrl.trim()) !== null;
   const valid = nameOk && priceOk && linkOk;
 
   const save = useMutation({
@@ -288,7 +295,7 @@ function ProductEditor({
     onError: (e) => toast.error(isApiError(e) ? e.message : "Could not save this product"),
   });
 
-  const pick = (picked: File | undefined) => {
+  const pick = async (picked: File | undefined) => {
     if (!picked) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(picked.type)) {
       toast.error("Choose a JPG, PNG or WebP picture.");
@@ -298,7 +305,12 @@ function ProductEditor({
       toast.error(`Pictures must be smaller than ${MAX_IMAGE_MB} MB.`);
       return;
     }
-    setFile(picked);
+    try {
+      await validateImageUpload(picked);
+      setFile(picked);
+    } catch (error) {
+      toast.error(isApiError(error) ? error.message : "Could not validate the image.");
+    }
   };
 
   const shown = preview ?? (linkOk && imageUrl.trim() ? imageUrl.trim() : null);
@@ -337,7 +349,7 @@ function ProductEditor({
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(e) => {
-                pick(e.target.files?.[0]);
+                void pick(e.target.files?.[0]);
                 e.target.value = "";
               }}
             />
@@ -357,7 +369,9 @@ function ProductEditor({
                   aria-label="Picture link"
                 />
                 {!linkOk ? (
-                  <p className="text-xs text-destructive">Links must start with https://</p>
+                  <p className="text-xs text-destructive">
+                    Use a public HTTPS image URL without credentials.
+                  </p>
                 ) : null}
               </div>
             )}

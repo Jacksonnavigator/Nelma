@@ -305,7 +305,7 @@ function UsersPage() {
                 id="new-password"
                 type="password"
                 autoComplete="new-password"
-                minLength={8}
+                minLength={15}
                 maxLength={128}
                 required
                 value={password}

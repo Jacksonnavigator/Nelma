@@ -173,8 +173,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     const pushToken = registeredPushToken.get();
     registeredPushToken.set(null);
     await clearSession();
+    // Wait for the server to revoke the session, but only briefly: on a slow network the sign-out
+    // navigation otherwise lands after the person has already started signing in again.
     if (tokens?.refreshToken && tokens.audience === "mobile") {
-      await repositories.auth.logout(tokens.refreshToken, pushToken).catch(() => undefined);
+      const revoke = repositories.auth.logout(tokens.refreshToken, pushToken).catch(() => undefined);
+      await Promise.race([revoke, new Promise((resolve) => setTimeout(resolve, 3000))]);
     }
   }, [clearSession]);
 

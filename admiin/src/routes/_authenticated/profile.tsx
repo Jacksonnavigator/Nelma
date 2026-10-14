@@ -89,7 +89,9 @@ function ProfilePage() {
         <Button
           variant="outline"
           onClick={() => {
-            void signOut().catch(() => toast.error("Could not sign out. Please try again."));
+            void signOut().catch(() =>
+              toast.error("Signed out here. Server revocation could not be confirmed."),
+            );
           }}
         >
           Log out

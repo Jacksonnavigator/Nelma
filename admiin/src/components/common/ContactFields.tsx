@@ -28,6 +28,7 @@ export function ContactFields({
             id={key}
             type={type}
             required
+            maxLength={key === "fullName" ? 200 : key === "email" ? 254 : 32}
             value={value[key]}
             onChange={(e) => onChange({ ...value, [key]: e.target.value })}
             minLength={key === "fullName" ? 3 : key === "phone" ? 9 : undefined}

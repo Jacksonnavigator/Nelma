@@ -1,3 +1,4 @@
+import { csvCell } from "@/lib/security-input";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -55,13 +56,6 @@ export const Route = createFileRoute("/_authenticated/sales")({
   }),
   component: SalesPage,
 });
-
-const csvCell = (value: string | number) => {
-  const text = String(value);
-  // Quote everything and neutralise leading formula characters so Excel never runs cell content.
-  const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
-  return `"${safe.replace(/"/g, '""')}"`;
-};
 
 // How the orders in the period are paid for: cash or mobile money.
 function paymentMethodShares(records: SalesRecord[]) {

@@ -66,7 +66,7 @@ export const ROLE_PERMISSIONS: Record<DashboardRole, Permission[]> = {
 
 export function can(role: DashboardRole | undefined, permission: Permission): boolean {
   if (!role) return false;
-  return ROLE_PERMISSIONS[role].includes(permission);
+  return Object.hasOwn(ROLE_PERMISSIONS, role) && ROLE_PERMISSIONS[role].includes(permission);
 }
 
 export const ROLE_LABELS: Record<DashboardRole, string> = {

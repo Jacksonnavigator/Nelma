@@ -96,7 +96,7 @@ function DriversPage() {
   const valid =
     fullName.trim().length > 2 &&
     phone.trim().length >= 9 &&
-    (DATA_MODE !== "api" || password.length >= 8);
+    (DATA_MODE !== "api" || password.length >= 15);
   const filtersActive = search !== "" || status !== "all";
 
   return (
@@ -225,7 +225,7 @@ function DriversPage() {
                 id="driver-password"
                 type="password"
                 autoComplete="new-password"
-                minLength={8}
+                minLength={15}
                 maxLength={128}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
