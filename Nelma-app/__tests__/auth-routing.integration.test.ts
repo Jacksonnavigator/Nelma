@@ -35,6 +35,12 @@ vi.mock("../components", () => ({
   Screen: ({ children }: { children: import("react").ReactNode }) => createElement("screen", null, children)
 }));
 vi.mock("../hooks/use-translation", () => ({ useTranslation: () => ({ t: (value: string) => value }) }));
+vi.mock("../components/legal/TermsConsent", () => ({ TermsConsent: () => createElement("terms-consent") }));
+// These tests are about sign-in routing, so they start with the current terms already accepted.
+beforeAll(async () => {
+  const { TERMS_VERSION } = await import("../constants/terms");
+  native.local.set("nelma.terms.accepted", JSON.stringify({ version: TERMS_VERSION, acceptedAt: "2026-10-19T00:00:00.000Z" }));
+});
 vi.mock("lucide-react-native", () => ({ Home: () => null, ReceiptText: () => null, User: () => null, Bell: () => null, Clock3: () => null, Truck: () => null, Check: () => null, Languages: () => null, LocateFixed: () => null, MapPin: () => null, Navigation: () => null, UserPlus: () => null, LogIn: () => null }));
 vi.mock("expo-router", () => {
   const Tabs = Object.assign(() => createElement("tabs"), { Screen: () => null });

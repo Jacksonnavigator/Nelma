@@ -1,4 +1,5 @@
-﻿from collections.abc import Callable
+﻿import secrets
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, Request, status
@@ -80,7 +81,10 @@ def require_internal_admin(
     settings: Annotated[Settings, Depends(current_settings)],
     x_internal_admin_token: Annotated[str | None, Header(alias="X-Internal-Admin-Token")] = None,
 ) -> None:
-    if x_internal_admin_token != settings.internal_admin_token:
+    # Constant-time comparison so response timing cannot leak the token character by character.
+    if not x_internal_admin_token or not secrets.compare_digest(
+        x_internal_admin_token.encode("utf-8"), settings.internal_admin_token.encode("utf-8")
+    ):
         raise AppException("INTERNAL_FORBIDDEN", "Internal operation is not allowed.", status.HTTP_403_FORBIDDEN)
 
 

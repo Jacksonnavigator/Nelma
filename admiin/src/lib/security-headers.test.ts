@@ -20,6 +20,15 @@ describe("production response policy", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'none'");
   });
+  it("lets only this site's own service worker run, so order alerts can work but nothing foreign can", () => {
+    const csp = securityHeaders("https://staff.example/", createCspNonce(), "/api/v1").get(
+      "Content-Security-Policy",
+    )!;
+    const workers = csp.split(";").find((x) => x.trim().startsWith("worker-src "))!;
+    expect(workers.trim()).toBe("worker-src 'self'");
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("object-src 'none'");
+  });
   it("disables caching, framing, sniffing and unwanted device permissions", () => {
     const h = securityHeaders("https://staff.example/", createCspNonce(), "/api/v1");
     expect(h.get("Cache-Control")).toContain("no-store");

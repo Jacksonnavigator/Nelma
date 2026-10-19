@@ -38,6 +38,13 @@ class Settings(BaseSettings):
 
     expo_push_enabled: bool = False
     expo_push_access_token: str = Field("", repr=False)
+    # Browser push for the staff dashboard: a real notification on the desktop or phone when an order arrives,
+    # even with the dashboard closed. Generate the key pair with `python -m app.scripts.generate_vapid_keys`.
+    # The private key signs every push, so it is a secret: it goes in Render only, never in a VITE_ variable.
+    web_push_enabled: bool = False
+    vapid_public_key: str = ""
+    vapid_private_key: str = Field("", repr=False)
+    vapid_subject: str = "mailto:nelma.water@nm-aist.ac.tz"
     delivery_code_required: bool = True
     # Product images uploaded from the dashboard go to a public Supabase Storage bucket,
     # because Render's disk is wiped on every deploy.
@@ -84,7 +91,9 @@ class Settings(BaseSettings):
                 return "postgresql+psycopg://" + value[len(prefix):]
         return value
 
-    @field_validator("debug", "rate_limit_enabled", "trust_proxy_headers", "expo_push_enabled", "delivery_code_required", mode="before")
+    @field_validator(
+        "debug", "rate_limit_enabled", "trust_proxy_headers", "expo_push_enabled", "web_push_enabled", "delivery_code_required", mode="before"
+    )
     @classmethod
     def parse_boolish(cls, value: object) -> object:
         if isinstance(value, str):
@@ -137,6 +146,11 @@ class Settings(BaseSettings):
             # Twilio (SMS) is intentionally not validated at startup: email-based password
             # reset works via SMTP alone. SMS-based reset validates its own config and fails
             # per-request (see ProductionNotificationProvider._sms) if Twilio isn't set up.
+        if self.web_push_enabled:
+            if not self.vapid_public_key or not self.vapid_private_key:
+                raise ValueError("WEB_PUSH_ENABLED needs both VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY")
+            if not self.vapid_subject.startswith(("mailto:", "https://")):
+                raise ValueError("VAPID_SUBJECT must be a mailto: address or an https:// URL")
         if self.app_env == "production":
             if self.notification_provider == "development":
                 raise ValueError("Production password resets require NOTIFICATION_PROVIDER=smtp_twilio")

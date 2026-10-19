@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, LogOut, Menu, UserCircle } from "lucide-react";
+import { Bell, BellRing, LogOut, Menu, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import { RoleBadge } from "@/components/common/RoleBadge";
 import { NavigationSearch } from "./NavigationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushAlerts } from "@/hooks/usePushAlerts";
 import { DATA_MODE, notificationsService } from "@/services";
 import { initials } from "@/lib/format";
 
@@ -28,6 +29,7 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
     enabled: !!user,
   });
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
+  const push = usePushAlerts();
 
   if (!user) return null;
 
@@ -53,6 +55,17 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
       <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
         <NavigationSearch />
         <ThemeToggle />
+        {push.status === "off" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={push.busy}
+            onClick={() => void push.enable()}
+            className="hidden gap-1.5 md:inline-flex"
+          >
+            <BellRing className="size-4" /> Turn on order alerts
+          </Button>
+        ) : null}
         <Button asChild variant="ghost" size="icon" aria-label="Notifications" className="relative">
           <Link to="/notifications">
             <Bell className="size-5" />

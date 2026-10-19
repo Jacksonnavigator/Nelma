@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, LogOut, Menu, UserCircle } from "lucide-react";
+import { Bell, BellRing, LogOut, Menu, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RoleBadge } from "@/components/common/RoleBadge";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushAlerts } from "@/hooks/usePushAlerts";
 import { notificationsService } from "@/services";
 import { initials } from "@/lib/format";
 
@@ -25,6 +26,7 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
     enabled: !!user,
   });
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
+  const push = usePushAlerts();
 
   if (!user) return null;
 
@@ -43,6 +45,17 @@ export function TopBar({ title, onOpenSidebar }: { title: string; onOpenSidebar:
       <h2 className="truncate text-base font-semibold text-foreground">{title}</h2>
 
       <div className="ml-auto flex items-center gap-2">
+        {push.status === "off" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={push.busy}
+            onClick={() => void push.enable()}
+            className="hidden gap-1.5 sm:inline-flex"
+          >
+            <BellRing className="size-4" /> Turn on order alerts
+          </Button>
+        ) : null}
         <Button asChild variant="ghost" size="icon" aria-label="Notifications" className="relative">
           <Link to="/notifications">
             <Bell className="size-5" />

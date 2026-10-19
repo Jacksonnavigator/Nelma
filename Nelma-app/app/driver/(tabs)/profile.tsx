@@ -2,7 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { Bell, ChevronRight, KeyRound, LifeBuoy, LogOut, Truck, UserRound } from "lucide-react-native";
 import { type ComponentType, useCallback, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { HeaderBand, Screen, Sheet, WaveEdge } from "../../../components";
+import { HeaderBand, PushPermissionNotice, Screen, Sheet, WaveEdge } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { driverTheme, liftShadow, sheetShadow } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
@@ -93,6 +93,7 @@ export default function DriverProfileScreen() {
         </HeaderBand>
 
         <View style={styles.body}>
+        <PushPermissionNotice />
         {summary ? (
           <Sheet style={[styles.performance, liftShadow]}>
             <View style={styles.segments}>

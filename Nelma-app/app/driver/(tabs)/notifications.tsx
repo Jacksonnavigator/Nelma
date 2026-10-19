@@ -2,7 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { CalendarClock, Megaphone, MessageSquareText, Truck } from "lucide-react-native";
 import { type ComponentType, useCallback, useMemo } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { DriverTitle, DropletArt, ErrorState, Screen, Sheet, SkyBackdrop } from "../../../components";
+import { DriverTitle, DropletArt, ErrorState, PushPermissionNotice, Screen, Sheet, SkyBackdrop } from "../../../components";
 import { colors } from "../../../constants/colors";
 import { driverTheme } from "../../../constants/driver-theme";
 import { radius, spacing, typography } from "../../../constants/theme";
@@ -64,16 +64,19 @@ export default function DriverNotificationsScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={false} onRefresh={loadNotifications} tintColor={colors.primary} colors={[colors.primary]} />}
           ListHeaderComponent={
-            <DriverTitle
-              title={t("Notifications")}
-              backLabel="Account"
-              onBack={() => router.replace("/driver/(tabs)/profile")}
-              right={unread > 0 ? (
-                <Pressable accessibilityRole="button" hitSlop={10} onPress={() => void markAllRead()}>
-                  <Text style={styles.markAll}>{t("Mark all read")}</Text>
-                </Pressable>
-              ) : undefined}
-            />
+            <View>
+              <DriverTitle
+                title={t("Notifications")}
+                backLabel="Account"
+                onBack={() => router.replace("/driver/(tabs)/profile")}
+                right={unread > 0 ? (
+                  <Pressable accessibilityRole="button" hitSlop={10} onPress={() => void markAllRead()}>
+                    <Text style={styles.markAll}>{t("Mark all read")}</Text>
+                  </Pressable>
+                ) : undefined}
+              />
+              <PushPermissionNotice />
+            </View>
           }
           ListEmptyComponent={
             <View style={styles.empty}>

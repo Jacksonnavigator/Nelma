@@ -16,6 +16,7 @@ ORDER = {
     "quantity": 20,
     "address": "Njiro block C, house 12",
     "instructions": "Call at the gate",
+    "acceptedTerms": True,
 }
 
 
@@ -48,13 +49,46 @@ def test_website_forms_validate_and_ignore_bots(client):
     assert client.post("/api/v1/website/orders", json={**ORDER, "quantity": 0}).status_code == 422
     assert client.post("/api/v1/website/orders", json={**ORDER, "email": "not-an-email"}).status_code == 422
 
-    message = {"name": "Baraka", "email": "baraka@example.com", "message": "Do you deliver to Moshi?"}
+    message = {"name": "Baraka", "email": "baraka@example.com", "message": "Do you deliver to Moshi?", "acceptedTerms": True}
     assert client.post("/api/v1/website/contact", json=message).status_code == 201
     assert client.post("/api/v1/website/contact", json={**message, "website": "http://spam.example"}).status_code == 201
     assert client.post("/api/v1/website/contact", json={**message, "message": "hi"}).status_code == 422
     with SessionLocal() as db:
         assert db.query(WebsiteRequest).count() == 1
         assert db.query(WebsiteRequest).one().kind == "contact"
+
+
+def test_website_forms_require_the_age_and_agreement_confirmation(client):
+    message = {"name": "Baraka", "email": "baraka@example.com", "message": "Do you deliver to Moshi?"}
+    without = {key: value for key, value in ORDER.items() if key != "acceptedTerms"}
+    # Missing, unticked or anything other than a real true: refused, for both forms.
+    for payload, path in ((without, "/api/v1/website/orders"), (message, "/api/v1/website/contact")):
+        assert client.post(path, json=payload).status_code == 422
+        assert client.post(path, json={**payload, "acceptedTerms": False}).status_code == 422
+        assert client.post(path, json={**payload, "acceptedTerms": None}).status_code == 422
+    # A bot that fills the hidden field is still told nothing useful, and nothing is stored.
+    with SessionLocal() as db:
+        assert db.query(WebsiteRequest).count() == 0
+
+
+def test_website_forms_only_accept_real_looking_values(client):
+    url = "/api/v1/website/orders"
+    for bad_name in ("1234", "   ", "<script>alert(1)</script>", "Amina\x00Joseph", "_x", "!!"):
+        assert client.post(url, json={**ORDER, "name": bad_name}).status_code == 422, bad_name
+    for bad_company in ("<b>Shop</b>", "---", "!!!"):
+        assert client.post(url, json={**ORDER, "company": bad_company}).status_code == 422, bad_company
+    assert client.post(url, json={**ORDER, "area": "<>"}).status_code == 422
+    assert client.post(url, json={**ORDER, "instructions": "gate\x07code"}).status_code == 422
+    assert client.post("/api/v1/website/contact", json={"name": "Baraka", "email": "b@example.com", "message": "?????", "acceptedTerms": True}).status_code == 422
+    assert client.post("/api/v1/website/contact", json={"name": "Baraka", "email": "b@example.com", "message": "x" * 2001, "acceptedTerms": True}).status_code == 422
+
+    # Real names with apostrophes, hyphens, dots and non-English letters still go through, tidied up.
+    good = client.post(url, json={**ORDER, "name": "  Mary-Ann   O'Neil Jr. ", "company": "  Njiro   Cafe 2 "})
+    assert good.status_code == 201, good.text
+    with SessionLocal() as db:
+        row = db.query(WebsiteRequest).one()
+        assert (row.name, row.company) == ("Mary-Ann O'Neil Jr.", "Njiro Cafe 2")
+    assert client.post(url, json={**ORDER, "name": "Zuhura Mwalímu"}).status_code == 201
 
 
 def test_website_requests_are_staff_only(client):

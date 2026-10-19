@@ -1,4 +1,5 @@
 import { LegalDocument, type LegalSection } from "../../components/legal/LegalDocument";
+import { TERMS_UPDATED } from "../../constants/terms";
 import { useOrders } from "../../store/order-context";
 
 export default function PrivacyScreen() {
@@ -46,6 +47,13 @@ export default function PrivacyScreen() {
       ]
     },
     {
+      heading: "Children",
+      paragraphs: [
+        "The NELMA app is not meant for children under 18 to use on their own, and we do not knowingly collect information from them without a parent or guardian's permission.",
+        "If you think a child has given us their information without permission, contact us and we will delete it."
+      ]
+    },
+    {
       heading: "How long we keep it",
       paragraphs: [
         "We keep your account while you use it. Order and payment records are kept for as long as accounting and tax rules require."
@@ -56,7 +64,8 @@ export default function PrivacyScreen() {
       paragraphs: [
         "You can see and change your details in Profile, and switch order or payment alerts off in Notifications & settings.",
         "You can delete your account at any time in Profile > Password & security > Delete my account. Your personal details are removed; past order records remain without your name or contact details.",
-        "You can also ask us for a copy of your information or to correct it by contacting us."
+        "You can also ask us for a copy of your information, to correct it, or to stop using it, by contacting us.",
+        "If you are not happy with how we handle your information, you can complain to Tanzania's Personal Data Protection Commission."
       ]
     },
     {
@@ -72,7 +81,7 @@ export default function PrivacyScreen() {
   return (
     <LegalDocument
       title="Privacy Policy"
-      updated="28 September 2026"
+      updated={TERMS_UPDATED}
       intro="This explains what information the NELMA app collects, why, and the choices you have. We only collect what we need to deliver your water."
       sections={sections}
     />

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/states";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { PushAlertsCard } from "@/components/notifications/PushAlertsCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
@@ -72,6 +73,8 @@ function NotificationsPage() {
           ) : null
         }
       />
+
+      <PushAlertsCard />
 
       <Tabs value={view} onValueChange={(v) => setView(v as typeof view)}>
         <TabsList>

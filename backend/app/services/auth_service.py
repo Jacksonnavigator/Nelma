@@ -5,6 +5,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core import rate_limit
 from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.core.roles import Role, SessionAudience, role_allowed_for_audience
@@ -41,8 +42,33 @@ from app.utils.phone import normalize_tanzanian_phone
 
 repo = UserRepository()
 
+# Per-account limits. Unlike the per-IP limits on the routes, these cannot be dodged by changing
+# address, so they are what actually stops password guessing and reset-code guessing.
+LOGIN_FAILURES_PER_ACCOUNT = 10
+LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+RESET_CODE_FAILURES_PER_ACCOUNT = 5
+RESET_CODE_FAILURE_WINDOW_SECONDS = 15 * 60
+# Checked against when no account matches, so a wrong identifier costs as long as a wrong password.
+_DUMMY_PASSWORD_HASH = hash_password("nelma-timing-equaliser")
+
 
 class AuthService:
+    def _check_password(self, db: Session, identifier: str, password: str) -> User:
+        user = self._find_user_by_identifier(db, identifier)
+        account_key = f"login-account:{user.id if user else identifier.strip().lower()}"
+        if rate_limit.is_limited(account_key, LOGIN_FAILURES_PER_ACCOUNT, LOGIN_FAILURE_WINDOW_SECONDS):
+            raise AppException(
+                "ACCOUNT_LOCKED",
+                "Too many wrong passwords. Wait 15 minutes, or reset your password.",
+                status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        valid = verify_password(password, user.password_hash if user else _DUMMY_PASSWORD_HASH)
+        if user is None or not user.is_active or not valid:
+            rate_limit.hit(account_key, LOGIN_FAILURES_PER_ACCOUNT + 1, LOGIN_FAILURE_WINDOW_SECONDS)
+            raise AppException("INVALID_CREDENTIALS", "Phone/email or password is incorrect.", status.HTTP_401_UNAUTHORIZED)
+        rate_limit.clear(account_key)
+        return user
+
     def _email(self, email: object) -> str | None:
         return str(email).lower() if email else None
 
@@ -151,9 +177,7 @@ class AuthService:
             raise AppException("ACCOUNT_ALREADY_EXISTS", "An account already exists with these details.", status.HTTP_409_CONFLICT) from exc
 
     def login(self, db: Session, data: LoginRequest, *, user_agent: str | None = None, ip_address: str | None = None) -> AuthSession:
-        user = self._find_user_by_identifier(db, data.identifier)
-        if user is None or not user.is_active or not verify_password(data.password, user.password_hash):
-            raise AppException("INVALID_CREDENTIALS", "Phone/email or password is incorrect.", status.HTTP_401_UNAUTHORIZED)
+        user = self._check_password(db, data.identifier, data.password)
         session = self._issue_session(db, user, audience=SessionAudience.MOBILE, user_agent=user_agent, ip_address=ip_address)
         db.commit()
         return session
@@ -161,9 +185,7 @@ class AuthService:
     def dashboard_login(
         self, db: Session, data: LoginRequest, *, user_agent: str | None = None, ip_address: str | None = None
     ) -> AuthSession:
-        user = self._find_user_by_identifier(db, data.identifier)
-        if user is None or not user.is_active or not verify_password(data.password, user.password_hash):
-            raise AppException("INVALID_CREDENTIALS", "Phone/email or password is incorrect.", status.HTTP_401_UNAUTHORIZED)
+        user = self._check_password(db, data.identifier, data.password)
         session = self._issue_session(db, user, audience=SessionAudience.DASHBOARD, user_agent=user_agent, ip_address=ip_address)
         db.commit()
         return session
@@ -183,6 +205,19 @@ class AuthService:
         refresh_session = db.scalar(
             select(RefreshSession).where(RefreshSession.token_hash == token_hash, RefreshSession.jti == payload.get("jti"))
         )
+        if refresh_session is not None and refresh_session.revoked_at is not None and refresh_session.replaced_by_id is not None:
+            # A refresh token that was already swapped for a new one is being used again: someone holds
+            # a stolen copy. Sign the account out everywhere so the thief's copy dies with the real one.
+            db.execute(
+                update(RefreshSession)
+                .where(RefreshSession.user_id == refresh_session.user_id, RefreshSession.revoked_at.is_(None))
+                .values(revoked_at=utc_now())
+            )
+            audit_service.record(
+                db, actor=None, event_type="REFRESH_TOKEN_REUSED", resource_type="user", resource_id=refresh_session.user_id
+            )
+            db.commit()
+            raise AppException("REFRESH_REVOKED", "Please sign in again.", status.HTTP_401_UNAUTHORIZED)
         if refresh_session is None or refresh_session.revoked_at is not None or ensure_aware(refresh_session.expires_at) <= utc_now():
             raise AppException("REFRESH_REVOKED", "Please sign in again.", status.HTTP_401_UNAUTHORIZED)
         if refresh_session.audience != audience:
@@ -259,6 +294,20 @@ class AuthService:
         user = self._find_user_by_identifier(db, data.identifier)
         if user is None or not user.is_active:
             raise AppException("INVALID_RESET_TOKEN", "The reset code is invalid or expired.", status.HTTP_400_BAD_REQUEST)
+        # Six digits is a million guesses; cap wrong guesses per account and then void the codes.
+        attempts_key = f"reset-code:{user.id}"
+        try:
+            rate_limit.hit(attempts_key, RESET_CODE_FAILURES_PER_ACCOUNT, RESET_CODE_FAILURE_WINDOW_SECONDS)
+        except AppException:
+            db.execute(
+                update(PasswordResetToken)
+                .where(PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None))
+                .values(used_at=utc_now())
+            )
+            db.commit()
+            raise AppException(
+                "RESET_LOCKED", "Too many wrong codes. Wait 15 minutes, then request a new code.", status.HTTP_429_TOO_MANY_REQUESTS
+            ) from None
         token_hash = sha256_token(data.reset_token)
         reset = db.scalar(
             select(PasswordResetToken)
@@ -292,6 +341,8 @@ class AuthService:
             .values(revoked_at=utc_now())
         )
         db.commit()
+        rate_limit.clear(attempts_key)
+        rate_limit.clear(f"login-account:{user.id}")
 
 
 auth_service = AuthService()

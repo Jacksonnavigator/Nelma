@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import {
   Apple,
   Building2,
@@ -23,8 +23,25 @@ import {
   Truck,
   X,
 } from "lucide-react";
+import { ConsentCheck, Field } from "../components/form-field";
+import { contact } from "../lib/contact";
+import {
+  CONSENT_ERROR,
+  cleanLine,
+  cleanText,
+  focusFirstError,
+  normalizeTzPhone,
+  validateCompany,
+  validateEmail,
+  validateMessage,
+  validateName,
+  validateOptionalText,
+  validatePhone,
+  validateQuantity,
+} from "../lib/form-validation";
 
-// Everything lives on this one page: the menu scrolls to sections, it never opens other pages.
+// Everything lives on this one page: the menu scrolls to sections. The only other pages are the legal ones
+// (/privacy and /terms), reached from the footer and the forms.
 // Brand images live in public/ so the site works on any host, not only on Lovable.
 const logo = "/brand/nelma-logo.png";
 const officialIcon = "/brand/nelma-drop.png";
@@ -51,16 +68,6 @@ const apiUrl = (import.meta.env.VITE_API_URL || "https://nelma-gts5.onrender.com
   /\/$/,
   "",
 );
-
-const contact = {
-  phone: "0719 081 401",
-  phoneHref: "tel:+255719081401",
-  mobiles: ["+255 719 081 401", "+255 762 307 425"],
-  whatsapp: "0762 307 425",
-  whatsappHref: "https://wa.me/255762307425",
-  email: "nelma.water@nm-aist.ac.tz",
-  address: "WISE-Futures Office, near the cafeteria, NM-AIST, Tengeru, Arusha",
-};
 
 const mapEmbed =
   "https://www.google.com/maps?q=Nelson%20Mandela%20African%20Institution%20of%20Science%20and%20Technology%2C%20Tengeru%2C%20Arusha&z=14&output=embed";
@@ -210,6 +217,49 @@ function SectionTitle({
       <h2>{children}</h2>
       <img className="section-brand-icon" src={officialIcon} alt="" aria-hidden="true" />
     </div>
+  );
+}
+
+// Google receives the visitor's address as soon as its map loads, so the map only loads once they ask for it.
+const mapLink =
+  "https://www.google.com/maps/search/?api=1&query=Nelson%20Mandela%20African%20Institution%20of%20Science%20and%20Technology%2C%20Tengeru%2C%20Arusha";
+
+function ConsentMap() {
+  const [shown, setShown] = useState(false);
+  if (shown) {
+    return (
+      <iframe
+        className="contact-map"
+        src={mapEmbed}
+        title="Map: WISE Futures, NM-AIST, Tengeru, Arusha"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+  return (
+    <div className="contact-map map-consent">
+      <MapPin />
+      <h3>Find our office</h3>
+      <p>
+        The map is provided by Google. Showing it shares your internet address with Google, so we
+        only load it if you choose to.
+      </p>
+      <button className="primary-button" type="button" onClick={() => setShown(true)}>
+        Show map
+      </button>
+      <a href={mapLink} target="_blank" rel="noreferrer noopener">
+        Or open it in Google Maps
+      </a>
+    </div>
+  );
+}
+
+function FormNote() {
+  return (
+    <p className="form-note">
+      We use your details only to reply to you and handle your request. See our{" "}
+      <Link to="/privacy">Privacy Policy</Link>.
+    </p>
   );
 }
 
@@ -534,6 +584,15 @@ function Nelma() {
             <ShieldCheck /> Subscription plans
           </span>
         </div>
+        <p className="strip-note site-width">
+          Subscription plans are arranged with our customer care team. Before one starts, we confirm
+          in writing what you will receive, how often, the price, how you pay and how to cancel.
+          Nothing renews or is charged automatically.{" "}
+          <Link to="/terms" hash="subscriptions">
+            Read the subscription terms
+          </Link>
+          .
+        </p>
       </section>
 
       {/* Slide 16 "REMOVE/REMAIN": the video play button is removed, the text and Contact Us button remain. */}
@@ -636,14 +695,22 @@ function Nelma() {
             {androidIsApk ? (
               <div className="qr-card">
                 <div className="qr-code">
-                  <img src="/media/nelma-app-qr.svg" alt="QR code to download the NELMA Android app" width="168" height="168" />
+                  <img
+                    src="/media/nelma-app-qr.svg"
+                    alt="QR code to download the NELMA Android app"
+                    width="168"
+                    height="168"
+                  />
                   <span className="qr-logo">
                     <img src="/brand/nelma-icon.png" alt="" width="34" height="34" />
                   </span>
                 </div>
                 <div>
                   <h3>Scan to download</h3>
-                  <p>Point your phone camera at the code and the NELMA app starts downloading straight away.</p>
+                  <p>
+                    Point your phone camera at the code and the NELMA app starts downloading
+                    straight away.
+                  </p>
                   <span className="qr-badge">
                     <Smartphone size={14} /> Android
                   </span>
@@ -730,6 +797,8 @@ function Nelma() {
             <button onClick={() => go("app")}>Mobile App</button>
             <button onClick={() => go("pricing")}>Pricing</button>
             <button onClick={() => go("our-water")}>Our Process</button>
+            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/terms">Terms &amp; Conditions</Link>
           </div>
           <div>
             <h3>Contact Us</h3>
@@ -786,23 +855,60 @@ function FormStatus({
   return null;
 }
 
+const emptyContact = { name: "", email: "", message: "", website: "", consent: false };
+type ContactField = "name" | "email" | "message" | "consent";
+
+// Every message here is shown next to the field it is about. Fields that are fine are simply left out.
+function contactErrors(form: typeof emptyContact): Partial<Record<ContactField, string>> {
+  const found: Partial<Record<ContactField, string>> = {};
+  const problems: [ContactField, string | null][] = [
+    ["name", validateName(form.name)],
+    ["email", validateEmail(form.email)],
+    ["message", validateMessage(form.message)],
+    ["consent", form.consent ? null : CONSENT_ERROR],
+  ];
+  for (const [field, message] of problems) if (message) found[field] = message;
+  return found;
+}
+
 function ContactSection() {
-  const [form, setForm] = useState({ name: "", email: "", message: "", website: "" });
+  const [form, setForm] = useState(emptyContact);
+  const [errors, setErrors] = useState<Partial<Record<ContactField, string>>>({});
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const set = (key: keyof typeof form) => (value: string) => {
-    setSent(false);
-    setForm((current) => ({ ...current, [key]: value }));
-  };
+  const formRef = useRef<HTMLFormElement>(null);
+  const set =
+    <K extends keyof typeof form>(key: K) =>
+    (value: (typeof form)[K]) => {
+      setSent(false);
+      setForm((current) => ({ ...current, [key]: value }));
+      if (key in errors) setErrors((current) => ({ ...current, [key]: undefined }));
+    };
+  // Checks one field when the visitor leaves it, so a mistake is shown while they are still there.
+  const check = (key: ContactField) => () =>
+    setErrors((current) => ({ ...current, [key]: contactErrors(form)[key] }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    setSending(true);
+    const found = contactErrors(form);
+    setErrors(found);
     setError(null);
+    if (Object.keys(found).length > 0) {
+      window.requestAnimationFrame(() => focusFirstError(formRef.current));
+      return;
+    }
+    setSending(true);
     try {
-      await postForm("/website/contact", form);
+      await postForm("/website/contact", {
+        name: cleanLine(form.name),
+        email: form.email.trim().toLowerCase(),
+        message: cleanText(form.message),
+        website: form.website,
+        acceptedTerms: true,
+      });
       setSent(true);
-      setForm({ name: "", email: "", message: "", website: "" });
+      setForm(emptyContact);
+      setErrors({});
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
@@ -844,13 +950,7 @@ function ContactSection() {
           </p>
         </div>
         <div className="contact-grid">
-          <iframe
-            className="contact-map"
-            src={mapEmbed}
-            title="Map: WISE Futures, NM-AIST, Tengeru, Arusha"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
+          <ConsentMap />
           <div>
             <div className="contact-details">
               <div>
@@ -880,7 +980,7 @@ function ContactSection() {
                 </div>
               </div>
             </div>
-            <form className="site-form" onSubmit={submit}>
+            <form className="site-form" onSubmit={submit} noValidate ref={formRef}>
               <input
                 className="honeypot"
                 tabIndex={-1}
@@ -891,45 +991,55 @@ function ContactSection() {
                 name="website"
               />
               <div className="form-row">
-                <label>
-                  Your Name *
+                <Field label="Your Name *" error={errors.name}>
                   <input
                     required
-                    minLength={2}
                     maxLength={160}
                     value={form.name}
                     onChange={(e) => set("name")(e.target.value)}
+                    onBlur={check("name")}
                     autoComplete="name"
+                    aria-invalid={errors.name ? true : undefined}
                   />
-                </label>
-                <label>
-                  Your Email *
+                </Field>
+                <Field label="Your Email *" error={errors.email}>
                   <input
                     required
                     type="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     maxLength={255}
                     value={form.email}
                     onChange={(e) => set("email")(e.target.value)}
+                    onBlur={check("email")}
                     autoComplete="email"
+                    aria-invalid={errors.email ? true : undefined}
                   />
-                </label>
+                </Field>
               </div>
-              <label>
-                Your Message *
+              <Field label="Your Message *" error={errors.message}>
                 <textarea
                   required
-                  minLength={5}
                   maxLength={2000}
                   rows={5}
                   value={form.message}
                   onChange={(e) => set("message")(e.target.value)}
+                  onBlur={check("message")}
+                  aria-invalid={errors.message ? true : undefined}
                 />
-              </label>
+              </Field>
+              <ConsentCheck
+                checked={form.consent}
+                error={errors.consent}
+                onChange={(value) => set("consent")(value)}
+              />
               <FormStatus
                 sent={sent}
                 error={error}
                 sentText="Thank you! Your message has reached NELMA. We will get back to you soon."
               />
+              <FormNote />
               <button className="primary-button" type="submit" disabled={sending}>
                 {sending ? "Sending…" : "Send Your Message"}
               </button>
@@ -953,7 +1063,57 @@ const emptyOrder = {
   address: "",
   instructions: "",
   website: "",
+  consent: false,
 };
+type OrderField =
+  | "customerType"
+  | "name"
+  | "company"
+  | "email"
+  | "phone"
+  | "area"
+  | "product"
+  | "quantity"
+  | "address"
+  | "instructions"
+  | "consent";
+
+function orderErrors(
+  form: typeof emptyOrder,
+  product: string,
+  products: Product[],
+): Partial<Record<OrderField, string>> {
+  const found: Partial<Record<OrderField, string>> = {};
+  // Outside the usual delivery areas the team needs a written address, or the driver cannot find the customer.
+  const needsAddress = form.city === "Other" || form.area === "Other";
+  const address = cleanText(form.address);
+  const problems: [OrderField, string | null][] = [
+    [
+      "customerType",
+      form.customerType ? null : "Tell us whether you are a new or an existing customer.",
+    ],
+    ["name", validateName(form.name)],
+    ["company", validateCompany(form.company)],
+    ["email", validateEmail(form.email)],
+    ["phone", validatePhone(form.phone)],
+    ["area", form.area ? null : "Choose your area."],
+    [
+      "product",
+      products.some((item) => item.code === product) ? null : "Choose a product from the list.",
+    ],
+    ["quantity", validateQuantity(form.quantity)],
+    [
+      "address",
+      needsAddress && !address
+        ? "Tell us your address so our driver can find you."
+        : validateOptionalText(form.address, 1000, "The address"),
+    ],
+    ["instructions", validateOptionalText(form.instructions, 1000, "The instruction")],
+    ["consent", form.consent ? null : CONSENT_ERROR],
+  ];
+  for (const [field, message] of problems) if (message) found[field] = message;
+  return found;
+}
 
 function OrderSection({
   products,
@@ -967,29 +1127,52 @@ function OrderSection({
   onProductChange: (code: string) => void;
 }) {
   const [form, setForm] = useState(emptyOrder);
+  const [errors, setErrors] = useState<Partial<Record<OrderField, string>>>({});
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const set = (key: keyof typeof form) => (value: string) => {
-    setSent(false);
-    setForm((current) => ({ ...current, [key]: value }));
-  };
+  const formRef = useRef<HTMLFormElement>(null);
+  const clearError = (key: OrderField) =>
+    setErrors((current) => ({ ...current, [key]: undefined }));
+  const set =
+    <K extends keyof typeof form>(key: K) =>
+    (value: (typeof form)[K]) => {
+      setSent(false);
+      setForm((current) => ({ ...current, [key]: value }));
+      if (key in errors) clearError(key as OrderField);
+    };
+  // Checks one field when the visitor leaves it, so a mistake is shown while they are still there.
+  const check = (key: OrderField) => () =>
+    setErrors((current) => ({ ...current, [key]: orderErrors(form, product, products)[key] }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!form.customerType) {
-      setError("Tell us whether you are a new or an existing customer.");
+    const found = orderErrors(form, product, products);
+    setErrors(found);
+    setError(null);
+    if (Object.keys(found).length > 0) {
+      window.requestAnimationFrame(() => focusFirstError(formRef.current));
       return;
     }
     setSending(true);
-    setError(null);
     try {
       await postForm("/website/orders", {
-        ...form,
+        customerType: form.customerType,
+        name: cleanLine(form.name),
+        company: cleanLine(form.company) || null,
+        email: form.email.trim().toLowerCase(),
+        phone: normalizeTzPhone(form.phone),
+        city: form.city,
+        area: form.area,
         productCode: product,
         quantity: Number(form.quantity),
+        address: cleanText(form.address) || null,
+        instructions: cleanText(form.instructions) || null,
+        website: form.website,
+        acceptedTerms: true,
       });
       setSent(true);
       setForm(emptyOrder);
+      setErrors({});
       onProductChange("");
     } catch (caught) {
       setError((caught as Error).message);
@@ -1008,7 +1191,7 @@ function OrderSection({
             delivery time and payment.
           </p>
         </div>
-        <form className="site-form order-form" onSubmit={submit}>
+        <form className="site-form order-form" onSubmit={submit} noValidate ref={formRef}>
           <input
             className="honeypot"
             tabIndex={-1}
@@ -1018,14 +1201,15 @@ function OrderSection({
             onChange={(e) => set("website")(e.target.value)}
             name="website"
           />
-          <fieldset className="customer-type">
-            <legend>Customer</legend>
+          <fieldset className={errors.customerType ? "customer-type has-error" : "customer-type"}>
+            <legend>Customer *</legend>
             <label>
               <input
                 type="radio"
                 name="customerType"
                 value="new"
                 checked={form.customerType === "new"}
+                aria-invalid={errors.customerType ? true : undefined}
                 onChange={() => set("customerType")("new")}
               />{" "}
               New Customer
@@ -1036,73 +1220,86 @@ function OrderSection({
                 name="customerType"
                 value="existing"
                 checked={form.customerType === "existing"}
+                aria-invalid={errors.customerType ? true : undefined}
                 onChange={() => set("customerType")("existing")}
               />{" "}
               Existing Customer
             </label>
+            {errors.customerType ? (
+              <span className="field-error" role="alert">
+                {errors.customerType}
+              </span>
+            ) : null}
           </fieldset>
           <div className="form-row">
-            <label>
-              Name *
+            <Field label="Name *" error={errors.name}>
               <input
                 required
-                minLength={2}
                 maxLength={160}
                 value={form.name}
                 onChange={(e) => set("name")(e.target.value)}
+                onBlur={check("name")}
                 autoComplete="name"
+                aria-invalid={errors.name ? true : undefined}
               />
-            </label>
-            <label>
-              Company *
+            </Field>
+            <Field label="Company (optional)" error={errors.company}>
               <input
-                required
-                minLength={2}
                 maxLength={160}
                 value={form.company}
                 onChange={(e) => set("company")(e.target.value)}
+                onBlur={check("company")}
                 autoComplete="organization"
-                placeholder="Company name, or Home"
+                placeholder="Leave empty if it is for your home"
+                aria-invalid={errors.company ? true : undefined}
               />
-            </label>
+            </Field>
           </div>
           <div className="form-row">
-            <label>
-              Email *
+            <Field label="Email *" error={errors.email}>
               <input
                 required
                 type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 maxLength={255}
                 value={form.email}
                 onChange={(e) => set("email")(e.target.value)}
+                onBlur={check("email")}
                 autoComplete="email"
+                aria-invalid={errors.email ? true : undefined}
               />
-            </label>
-            <label>
-              Mobile *
+            </Field>
+            <Field label="Mobile *" error={errors.phone}>
               <input
                 required
                 type="tel"
-                minLength={9}
-                maxLength={32}
+                inputMode="tel"
+                maxLength={20}
                 value={form.phone}
                 onChange={(e) => set("phone")(e.target.value)}
+                onBlur={check("phone")}
                 autoComplete="tel"
                 placeholder="07XX XXX XXX"
+                aria-invalid={errors.phone ? true : undefined}
               />
-            </label>
+            </Field>
           </div>
           <div className="form-row">
-            <label>
-              City
+            <Field label="City">
               <select value={form.city} onChange={(e) => set("city")(e.target.value)}>
                 <option value="Arusha">Arusha</option>
                 <option value="Other">Other</option>
               </select>
-            </label>
-            <label>
-              Area *
-              <select required value={form.area} onChange={(e) => set("area")(e.target.value)}>
+            </Field>
+            <Field label="Area *" error={errors.area}>
+              <select
+                required
+                value={form.area}
+                onChange={(e) => set("area")(e.target.value)}
+                aria-invalid={errors.area ? true : undefined}
+              >
                 <option value="" disabled>
                   Please Select
                 </option>
@@ -1113,12 +1310,19 @@ function OrderSection({
                 ))}
                 <option value="Other">Other</option>
               </select>
-            </label>
+            </Field>
           </div>
           <div className="form-row">
-            <label>
-              Product *
-              <select required value={product} onChange={(e) => onProductChange(e.target.value)}>
+            <Field label="Product *" error={errors.product}>
+              <select
+                required
+                value={product}
+                onChange={(e) => {
+                  onProductChange(e.target.value);
+                  clearError("product");
+                }}
+                aria-invalid={errors.product ? true : undefined}
+              >
                 <option value="" disabled>
                   Please Select
                 </option>
@@ -1130,46 +1334,57 @@ function OrderSection({
                   </option>
                 ))}
               </select>
-            </label>
-            <label>
-              Add Quantity *
+            </Field>
+            <Field label="Add Quantity *" error={errors.quantity}>
               <input
                 required
-                type="number"
-                min={1}
-                max={500}
+                inputMode="numeric"
+                maxLength={3}
                 value={form.quantity}
-                onChange={(e) => set("quantity")(e.target.value)}
+                onChange={(e) => set("quantity")(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                onBlur={check("quantity")}
+                aria-invalid={errors.quantity ? true : undefined}
               />
-            </label>
+            </Field>
           </div>
           <div className="form-row">
-            <label>
-              Address
+            <Field
+              label={form.city === "Other" || form.area === "Other" ? "Address *" : "Address"}
+              error={errors.address}
+            >
               <textarea
                 rows={4}
                 maxLength={1000}
                 value={form.address}
                 onChange={(e) => set("address")(e.target.value)}
+                onBlur={check("address")}
                 placeholder="Street, building, house or room"
+                aria-invalid={errors.address ? true : undefined}
               />
-            </label>
-            <label>
-              Special Instruction
+            </Field>
+            <Field label="Special Instruction" error={errors.instructions}>
               <textarea
                 rows={4}
                 maxLength={1000}
                 value={form.instructions}
                 onChange={(e) => set("instructions")(e.target.value)}
+                onBlur={check("instructions")}
                 placeholder="Delivery time, landmark, gate code…"
+                aria-invalid={errors.instructions ? true : undefined}
               />
-            </label>
+            </Field>
           </div>
+          <ConsentCheck
+            checked={form.consent}
+            error={errors.consent}
+            onChange={(value) => set("consent")(value)}
+          />
           <FormStatus
             sent={sent}
             error={error}
             sentText="Thank you! Your order request has reached NELMA. Our team will call you shortly to confirm it."
           />
+          <FormNote />
           <button className="submit-button" type="submit" disabled={sending}>
             {sending ? "Sending…" : "Submit"}
           </button>

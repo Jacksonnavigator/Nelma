@@ -19,6 +19,7 @@ import {
 } from "@/services/api";
 import { authService } from "@/services";
 import { can, type Permission } from "@/lib/permissions";
+import { unlinkPushFromThisBrowser } from "@/lib/web-push";
 import type { DashboardUser } from "@/types";
 
 /**
@@ -122,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // Start unlinking this browser's order alerts first, while the sign-in is still valid. Not awaited: sign-out stays instant.
+    void unlinkPushFromThisBrowser();
     generation.current++;
     const request = authService.logout();
     void queryClient.cancelQueries();

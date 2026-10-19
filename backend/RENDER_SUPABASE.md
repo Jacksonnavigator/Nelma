@@ -129,6 +129,19 @@ EXPO_PUSH_ACCESS_TOKEN=
 
 The access token is optional; set it only if you enabled "enhanced push security" in your Expo account. Customers can still switch order and payment alerts off in the app.
 
+### Dashboard (browser) alerts for staff
+
+A notification on the staff member's computer or phone when an order or website request arrives, even with the dashboard closed. It needs a one-time key pair. Run this once on your computer (not on Render):
+
+```powershell
+cd backend
+python -m app.scripts.generate_vapid_keys
+```
+
+Copy the four lines it prints into the Render service's environment (`WEB_PUSH_ENABLED=true`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) and redeploy. `VAPID_PRIVATE_KEY` is a secret like the database password: Render only, never the repository, never a `VITE_` variable, and do not paste it into chat. The dashboard fetches the public key from the server by itself, so the admin app needs no setting.
+
+Then each staff member opens the dashboard over https, goes to Notifications and presses **Turn on alerts**, and presses **Send a test** to check it. Replacing the keys later switches every browser off; each person presses the button again. The three alert switches under System Settings (new orders, deliveries, payments) still decide which events send an alert.
+
 ### Business contacts, delivery fees and times
 
 These are not environment variables. After the first deploy, sign in to the dashboard as an administrator and open **System Settings** to set the support phone and email, delivery zones with their fees, the standard fee, and the delivery time windows. The mobile app reads them automatically.

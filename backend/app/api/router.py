@@ -3,6 +3,7 @@
 from app.api.routes import (
     addresses,
     admin_accounts,
+    admin_push,
     audit_logs,
     auth,
     business,
@@ -37,3 +38,4 @@ api_router.include_router(health.router)
 api_router.include_router(website.router)
 
 api_router.include_router(dashboard.router)
+api_router.include_router(admin_push.router)

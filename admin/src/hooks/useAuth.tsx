@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SESSION_EXPIRED_EVENT } from "@/services/api";
 import { authService } from "@/services";
 import { can, type Permission } from "@/lib/permissions";
+import { unlinkPushFromThisBrowser } from "@/lib/web-push";
 import type { DashboardUser } from "@/types";
 
 /**
@@ -74,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
+      // First, while still signed in: stop this browser's order alerts reaching the next person on this computer.
+      await unlinkPushFromThisBrowser();
       await authService.logout();
     } finally {
       queryClient.clear();

@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { PUSH_STATUS_KEY } from "@/hooks/usePushAlerts";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { PAGE_TITLES } from "@/lib/nav";
+import { syncPush } from "@/lib/web-push";
 import { useAuth } from "@/hooks/useAuth";
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
@@ -11,6 +14,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const queryClient = useQueryClient();
+  const userId = user?.id;
+
+  // If this browser already allowed alerts, tell the server again so they belong to whoever is signed in now.
+  useEffect(() => {
+    // Refresh the on/off display afterwards: it may have been read before the browser was linked again.
+    if (userId)
+      void syncPush().then(() => queryClient.invalidateQueries({ queryKey: PUSH_STATUS_KEY }));
+  }, [userId, queryClient]);
 
   if (!user) return null;
 

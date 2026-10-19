@@ -18,7 +18,8 @@ export function securityHeaders(requestUrl: string, nonce: string, apiBase: stri
       "font-src 'self'",
       `connect-src 'self'${apiOrigin}`,
       "manifest-src 'self'",
-      "worker-src 'none'",
+      // Only this site's own service worker (public/sw.js, which shows order alerts) may run; none from elsewhere.
+      "worker-src 'self'",
       "object-src 'none'",
       "base-uri 'none'",
       "frame-ancestors 'none'",

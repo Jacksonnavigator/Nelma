@@ -256,7 +256,7 @@ export default function RegisterScreen() {
         <PasswordInput label={t("Confirm password")} value={form.confirmPassword} onChangeText={setField("confirmPassword")} error={fieldError(errors.confirmPassword)} />
         {submitError || error ? <Text accessibilityRole="alert" style={styles.error}>{t(submitError || error || "")}</Text> : null}
         <Text style={styles.agreement}>
-          {t("By creating an account you agree to the")}{" "}
+          {t("NELMA is for people aged 18 and over, or younger with a parent or guardian's permission. By creating an account you agree to the")}{" "}
           <Link href="/legal/terms" style={styles.agreementLink}>{t("Terms & Conditions")}</Link>
           {" "}{t("and")}{" "}
           <Link href="/legal/privacy" style={styles.agreementLink}>{t("Privacy Policy")}</Link>.

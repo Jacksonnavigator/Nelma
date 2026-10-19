@@ -20,6 +20,16 @@ from app.services.audit_service import audit_service
 IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
+
+def _matches_image_signature(content_type: str, payload: bytes) -> bool:
+    if content_type == "image/jpeg":
+        return payload.startswith(b"\xff\xd8\xff")
+    if content_type == "image/png":
+        return payload.startswith(b"\x89PNG\r\n\x1a\n")
+    if content_type == "image/webp":
+        return payload[:4] == b"RIFF" and payload[8:12] == b"WEBP"
+    return False
+
 # The two products NELMA launched with. Their codes are baked into existing orders and older app builds.
 DEFAULT_PRODUCTS = (
     {
@@ -134,6 +144,10 @@ class ProductService:
             raise AppException("INVALID_IMAGE", "The image could not be read.", HTTP_422_UNPROCESSABLE_CONTENT) from exc
         if not payload or len(payload) > MAX_IMAGE_BYTES:
             raise AppException("INVALID_IMAGE", "Images must be smaller than 5 MB.", HTTP_422_UNPROCESSABLE_CONTENT)
+        # Check the file really is the declared kind of image, so nothing else (an HTML page, a script)
+        # can be published to the public bucket under an image name.
+        if not _matches_image_signature(content_type, payload):
+            raise AppException("INVALID_IMAGE", "Upload a JPG, PNG or WebP image.", HTTP_422_UNPROCESSABLE_CONTENT)
 
         base = settings.supabase_url.rstrip("/")
         bucket = settings.product_image_bucket

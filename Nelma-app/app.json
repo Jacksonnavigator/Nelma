@@ -38,7 +38,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0B76C8",
+          "defaultChannel": "orders"
+        }
+      ],
       [
         "expo-navigation-bar",
         {

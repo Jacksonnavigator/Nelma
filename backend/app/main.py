@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.router import api_router
@@ -24,14 +25,51 @@ async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+# The interactive API docs map every endpoint for an attacker, so production does not serve them.
+_show_docs = settings.app_env != "production"
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
     debug=settings.debug,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if _show_docs else None,
+    redoc_url="/redoc" if _show_docs else None,
+    openapi_url="/openapi.json" if _show_docs else None,
     lifespan=lifespan,
 )
+
+# Largest JSON body the API accepts. A product photo (5 MB as base64, about 7 MB) is the biggest legitimate one.
+MAX_BODY_BYTES = 8 * 1024 * 1024
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    length = request.headers.get("content-length")
+    if length is not None and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
+        return JSONResponse(
+            status_code=413,
+            content={"detail": {"code": "PAYLOAD_TOO_LARGE", "message": "The request is too large."}},
+        )
+    response = await call_next(request)
+    # API docs need their own scripts and styles; everything else is JSON and gets the strict policy.
+    is_docs = request.url.path in {"/docs", "/redoc", "/docs/oauth2-redirect"}
+    for header, value in SECURITY_HEADERS.items():
+        if is_docs and header == "Content-Security-Policy":
+            continue
+        response.headers.setdefault(header, value)
+    if settings.app_env == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.url.path.startswith(settings.api_v1_prefix):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
 
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)

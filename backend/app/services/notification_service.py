@@ -10,6 +10,7 @@ from app.core.permissions import Permission, authorize
 from app.core.roles import Role
 from app.models.app_setting import AppSetting
 from app.models.notification import Notification
+from app.models.order import Order
 from app.models.user import User
 from app.repositories.notifications import NotificationRepository
 from app.schemas.common import Page
@@ -82,9 +83,11 @@ class NotificationService:
             setting = db.get(AppSetting, "DASHBOARD_SETTINGS")
             preferences = json.loads(setting.value).get("notifications", {}) if setting else {}
             if preferences.get(alert_key, True):
+                staff_ids: list[str] = []
                 for staff in db.scalars(
                     select(User).where(User.role.in_([Role.SALES_MANAGER, Role.SYSTEM_ADMIN]), User.is_active.is_(True))
                 ):
+                    staff_ids.append(staff.id)
                     repo.add(
                         db,
                         Notification(
@@ -95,7 +98,26 @@ class NotificationService:
                             related_order_id=order_id,
                         ),
                     )
+                self._queue_staff_web_push(db, staff_ids, event_type=event_type, order_id=order_id, title=title, body=f"{title}. Open the order for details.")
         return notification
+
+    @staticmethod
+    def _queue_staff_web_push(db: Session, staff_ids: list[str], *, event_type: str, order_id: str | None, title: str, body: str) -> None:
+        """The same alert as a browser notification, so staff hear about it with the dashboard closed."""
+        if not staff_ids:
+            return
+        if event_type == "order_received" and order_id:
+            order = db.get(Order, order_id)
+            if order is not None:
+                quantity = sum(item.quantity for item in order.items)
+                customer = order.user.full_name if order.user else "A customer"
+                title = "New water order"
+                body = f"{customer} ordered {quantity} item{'' if quantity == 1 else 's'} · {order.currency} {order.total:,}. Order {order.order_number}."
+        if event_type.startswith("staff_website"):
+            url = "/website-requests"
+        else:
+            url = f"/orders/{order_id}" if order_id else "/notifications"
+        push_service.queue_web_push(db, user_ids=staff_ids, title=title, body=body, url=url, tag=f"{event_type}:{order_id or ''}")
 
     @staticmethod
     def _wants_push(db: Session, user_id: str, event_type: str) -> bool:
@@ -110,8 +132,11 @@ class NotificationService:
 
     def notify_staff(self, db: Session, *, event_type: str, order_id: str | None = None) -> None:
         title, body = EVENT_COPY[event_type]
+        staff_ids: list[str] = []
         for staff in db.scalars(select(User).where(User.role.in_([Role.SALES_MANAGER, Role.SYSTEM_ADMIN]), User.is_active.is_(True))):
+            staff_ids.append(staff.id)
             repo.add(db, Notification(user_id=staff.id, type=event_type, title=title, message=body, related_order_id=order_id))
+        self._queue_staff_web_push(db, staff_ids, event_type=event_type, order_id=order_id, title=title, body=body)
 
     def list(self, db: Session, user: User, *, page: int = 1, page_size: int = 20) -> Page[NotificationRead]:
         authorize(user, Permission.NOTIFICATION_VIEW_SELF)

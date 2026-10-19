@@ -12,6 +12,7 @@ from app.models.payment import Payment
 from app.models.product import Product
 from app.models.refresh_session import RefreshSession
 from app.models.user import User
+from app.models.web_push_subscription import WebPushSubscription
 from app.models.website_request import WebsiteRequest
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "Product",
     "RefreshSession",
     "User",
+    "WebPushSubscription",
     "WebsiteRequest",
 ]

@@ -1,9 +1,17 @@
 import { LegalDocument, type LegalSection } from "../../components/legal/LegalDocument";
+import { TERMS_UPDATED } from "../../constants/terms";
 import { useOrders } from "../../store/order-context";
 
 export default function TermsScreen() {
   const { supportInfo } = useOrders();
   const sections: LegalSection[] = [
+    {
+      heading: "Who can use NELMA",
+      paragraphs: [
+        "The NELMA app is for people aged 18 and over. If you are under 18, you may use it only with the permission of a parent or guardian, who is responsible for your orders.",
+        "If we learn that someone under 18 has an account without that permission, we may close it."
+      ]
+    },
     {
       heading: "Your account",
       paragraphs: [
@@ -64,8 +72,8 @@ export default function TermsScreen() {
   return (
     <LegalDocument
       title="Terms & Conditions"
-      updated="28 September 2026"
-      intro="These terms apply when you use the NELMA app to order drinking water. By creating an account you agree to them."
+      updated={TERMS_UPDATED}
+      intro="These terms apply when you use the NELMA app to order drinking water. By agreeing when you open the app, or by creating an account, you accept them."
       sections={sections}
     />
   );
