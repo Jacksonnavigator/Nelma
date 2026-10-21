@@ -1,9 +1,12 @@
 // Every photo on the site. Each one is looked for in public/images/<name> first.
-// Until `npm run fetch-images` has copied them in, the copy on the current
-// realtzdiscovery.co.tz site is used instead (see components/Photo.tsx).
+// Until `npm run fetch-images` has copied them in, the copy on the previous
+// site is used instead (see components/Photo.tsx).
 // scripts/fetch-images.mjs reads this same list.
 
 export const REMOTE_BASE = "https://realtzdiscovery.co.tz/assets/";
+// The previous site is also published here, and stays reachable after the
+// domain points to the new site.
+export const REMOTE_BASES = [REMOTE_BASE, "https://realtzdiscovery.lovable.app/assets/"];
 
 export const photos = {
   safariHero: { file: "safari-hero.jpg", remote: "safari-new-1-CNbIkFO0.jpg", alt: "Safari vehicle and guests on a game drive in Tanzania" },

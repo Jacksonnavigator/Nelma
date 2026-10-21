@@ -1,0 +1,8 @@
+# Private: website content, messages, backups and the admin login live here.
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

@@ -1,8 +1,8 @@
 import { Mountain, Palmtree, Trees, Users } from "lucide-react";
 import { Photo } from "./Photo";
-import type { CategoryKey, Destination } from "../data/destinations";
+import type { DestinationT as Destination } from "../content/defaults";
 
-const art: Record<CategoryKey, { bg: string; Icon: typeof Trees }> = {
+const art: Record<string, { bg: string; Icon: typeof Trees }> = {
   "national-parks": { bg: "from-[#c98a2e] via-[#8a4a1f] to-[#2b1d12]", Icon: Trees },
   mountains: { bg: "from-[#9fb0b8] via-[#5d5a52] to-[#2b1d12]", Icon: Mountain },
   islands: { bg: "from-[#5fc2c0] via-[#2f7f86] to-[#183b45]", Icon: Palmtree },
@@ -11,7 +11,7 @@ const art: Record<CategoryKey, { bg: string; Icon: typeof Trees }> = {
 
 /** Illustrated panel used until a real photo of the place is added. */
 export function PlaceArt({ dest, big = false }: { dest: Destination; big?: boolean }) {
-  const { bg, Icon } = art[dest.category];
+  const { bg, Icon } = art[dest.category] ?? art["national-parks"];
   return (
     <div className={`relative h-full w-full overflow-hidden bg-gradient-to-br ${bg}`}>
       <svg className="absolute inset-0 h-full w-full opacity-[0.16]" preserveAspectRatio="none" viewBox="0 0 400 300" aria-hidden="true">
@@ -29,7 +29,7 @@ export function PlaceImage({ dest, className = "", imgClassName = "", eager = fa
   return (
     <Photo
       key={dest.slug}
-      photo={dest.photo}
+      photo={dest.photo || undefined}
       try={[`/images/destinations/${dest.slug}.jpg`]}
       fallback={<PlaceArt dest={dest} big={big} />}
       alt={dest.name}

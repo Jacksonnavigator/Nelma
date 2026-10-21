@@ -4,34 +4,29 @@ import { CtaBand, MoreJourneys, PageHero, useMeta } from "../components/Layout";
 import { Pills, Split } from "../components/Split";
 import { Photo } from "../components/Photo";
 import { Reveal, SectionHeading } from "../components/ui";
-import { experiences } from "../data/content";
-import type { PhotoKey } from "../data/images";
-import { byCategory } from "../data/destinations";
+import { Paras, Rich } from "../content/rich";
+import { useContent, useDestinations, usePage } from "../content/store";
 import { DestinationCard } from "./Destinations";
 
 export function ExperiencesOverview() {
-  useMeta("Experiences", "Safari, trekking, culture and beach: the four faces of Tanzania, combined into one private journey.");
+  const p = usePage("experiences");
+  const experiences = useContent().experiences;
+  useMeta(p.meta.title, p.meta.description);
   return (
     <>
-      <PageHero
-        photo="giraffes"
-        eyebrow="Enchanting and diverse"
-        title={<>Four ways to fall in love with <em className="text-gold">Tanzania</em>.</>}
-        intro="Mix them freely. Most of our guests combine two or three into one journey."
-        crumbs={[{ label: "Experiences" }]}
-      />
+      <PageHero photo={p.hero.image} eyebrow={p.hero.eyebrow} title={p.hero.title} intro={p.hero.intro} crumbs={[{ label: p.meta.title }]} />
       <section className="py-24 md:py-32">
         <div className="container-x space-y-10">
           {experiences.map((e, i) => (
-            <Reveal key={e.slug}>
+            <Reveal key={i}>
               <Link to={e.to} className="group grid overflow-hidden rounded-[2rem] border border-line bg-paper transition-shadow hover:shadow-2xl hover:shadow-earth/10 md:grid-cols-2">
                 <Photo photo={e.photo} className={`aspect-[16/11] md:aspect-auto md:min-h-[26rem] ${i % 2 ? "md:order-2" : ""}`} imgClassName="transition-transform duration-[1.2s] group-hover:scale-105" />
                 <div className="flex flex-col justify-center p-8 md:p-14">
-                  <span className="font-display text-6xl text-sand-deep">0{i + 1}</span>
+                  <span className="font-display text-6xl text-sand-deep">{String(i + 1).padStart(2, "0")}</span>
                   <h2 className="display-md mt-2">{e.title}</h2>
                   <p className="mt-4 text-lg leading-relaxed text-muted">{e.line}</p>
                   <span className="mt-8 inline-flex items-center gap-2 font-semibold text-terracotta">
-                    Discover {e.title.toLowerCase()} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                    {p.discoverPrefix} {e.title.toLowerCase()} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </div>
               </Link>
@@ -44,11 +39,11 @@ export function ExperiencesOverview() {
   );
 }
 
-function Gallery({ photos }: { photos: PhotoKey[] }) {
+function Gallery({ photos }: { photos: string[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
       {photos.map((p, i) => (
-        <Reveal key={p} delay={i * 100} className={i === 0 ? "col-span-2 row-span-2 md:col-span-2" : ""}>
+        <Reveal key={i} delay={i * 100} className={i === 0 ? "col-span-2 row-span-2 md:col-span-2" : ""}>
           <Photo photo={p} className={`h-full rounded-[1.5rem] ${i === 0 ? "aspect-[4/3] md:aspect-auto md:min-h-full" : "aspect-square"}`} />
         </Reveal>
       ))}
@@ -56,49 +51,57 @@ function Gallery({ photos }: { photos: PhotoKey[] }) {
   );
 }
 
-const parks = [
-  { slug: "serengeti", name: "Serengeti", note: "Endless plains and the Great Migration", photo: "serengeti" as PhotoKey },
-  { slug: "ngorongoro", name: "Ngorongoro Crater", note: "The world's largest intact caldera, home to the Big Five", photo: "ngorongoro" as PhotoKey },
-  { slug: "tarangire", name: "Tarangire", note: "Huge elephant herds beneath ancient baobabs", photo: "tarangire" as PhotoKey },
-  { slug: "lake-manyara", name: "Lake Manyara", note: "Tree-climbing lions and flamingo shores", photo: "manyara" as PhotoKey },
-];
-
-export function Safari() {
-  useMeta("Safari", "Private safaris across Tanzania's national parks, from the Serengeti and Ngorongoro to the wild, uncrowded south.");
+/** Pills linking to destination pages by slug, using each place's current name. */
+function DestinationLinks({ slugs, light = false }: { slugs: string[]; light?: boolean }) {
+  const d = useDestinations();
   return (
     <>
-      <PageHero
-        photo="elephantZebras"
-        eyebrow="Safari? Absolutely!"
-        title={<>The national <em className="text-gold">parks</em>.</>}
-        intro="Untouched wilderness, extraordinary wildlife, and journeys crafted just for you: private, at your pace, in comfort."
-        crumbs={[{ label: "Experiences", to: "/experiences" }, { label: "Safari" }]}
-      >
-        <Link to="/plan-trip" className="btn btn-sun">Plan my safari</Link>
+      {slugs.map((slug) => {
+        const x = d.find(slug);
+        if (!x) return null;
+        return (
+          <Link
+            key={slug}
+            to={`/destinations/${x.category}/${x.slug}`}
+            className={light ? "rounded-full border border-white/20 px-4 py-2 text-sm text-cream transition-colors hover:border-gold hover:text-gold" : "rounded-full border border-line bg-cream px-4 py-2 text-sm text-earth transition-colors hover:border-earth"}
+          >
+            {x.name.replace(/ (National Park|Conservation Area|Mountains National Park|Stream National Park)$/, "")}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
+export function Safari() {
+  const p = usePage("safari");
+  const crumb = usePage("experiences").meta.title;
+  useMeta(p.meta.title, p.meta.description);
+  return (
+    <>
+      <PageHero photo={p.hero.image} eyebrow={p.hero.eyebrow} title={p.hero.title} intro={p.hero.intro} crumbs={[{ label: crumb, to: "/experiences" }, { label: p.meta.title }]}>
+        <Link to="/plan-trip" className="btn btn-sun">{p.hero.button}</Link>
       </PageHero>
 
       <section className="py-24 md:py-32">
         <div className="container-x">
-          <Split photo="zebrasRiver" eyebrow="Even for us Tanzanians" title="Always something unique." tall>
-            <p>Even for us, a safari is always something special. It's fascinating how close you get to animals you'd otherwise only see in zoos. A little bumpy and dusty, perhaps, but worth every bit of the effort.</p>
-            <p>Tanzania proudly has 22 national parks, and choosing the right ones matters. Each has its own character and appeal. Tell us what you'd love to see, and we'll find the parks that will captivate you most.</p>
-          </Split>
+          <Split photo={p.intro.image} eyebrow={p.intro.eyebrow} title={p.intro.title} text={p.intro.text} tall />
         </div>
       </section>
 
       <section className="bg-paper py-24 md:py-32">
         <div className="container-x">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <SectionHeading eyebrow="The northern circuit" title="The world-famous classics." />
-            <Link to="/destinations/national-parks" className="btn btn-ghost">All national parks</Link>
+            <SectionHeading eyebrow={p.classics.eyebrow} title={p.classics.title} />
+            <Link to="/destinations/national-parks" className="btn btn-ghost">{p.classics.button}</Link>
           </div>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {parks.map((p, i) => (
-              <Reveal key={p.name} delay={i * 100}>
-                <Link to={`/destinations/national-parks/${p.slug}`} className="group block">
-                  <Photo photo={p.photo} className="aspect-[3/4] rounded-[1.5rem]" imgClassName="transition-transform duration-700 group-hover:scale-105" />
-                  <h3 className="mt-4 text-2xl transition-colors group-hover:text-terracotta">{p.name}</h3>
-                  <p className="mt-1 text-sm text-muted">{p.note}</p>
+            {p.classics.parks.map((x, i) => (
+              <Reveal key={i} delay={i * 100}>
+                <Link to={`/destinations/national-parks/${x.slug}`} className="group block">
+                  <Photo photo={x.image} className="aspect-[3/4] rounded-[1.5rem]" imgClassName="transition-transform duration-700 group-hover:scale-105" />
+                  <h3 className="mt-4 text-2xl transition-colors group-hover:text-terracotta">{x.name}</h3>
+                  <p className="mt-1 text-sm text-muted">{x.note}</p>
                 </Link>
               </Reveal>
             ))}
@@ -107,194 +110,161 @@ export function Safari() {
       </section>
 
       <section className="relative overflow-hidden bg-night py-24 text-cream md:py-32">
-        <Photo photo="cheetah" className="absolute inset-0 opacity-30" />
+        <Photo photo={p.south.image} className="absolute inset-0 opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-r from-night via-night/90 to-night/50" />
         <div className="container-x relative grid gap-12 lg:grid-cols-2">
           <div>
             <Binoculars className="size-10 text-gold" />
-            <p className="eyebrow eyebrow-light mt-6">A great trio in the south</p>
-            <h2 className="display-lg mt-4">Off the beaten path, far from the crowds.</h2>
+            <p className="eyebrow eyebrow-light mt-6">{p.south.eyebrow}</p>
+            <h2 className="display-lg mt-4"><Rich text={p.south.title} /></h2>
           </div>
-          <div className="space-y-5 text-lg leading-relaxed text-cream/80">
-            <p>Combine <strong className="text-cream">Mikumi</strong>, with elephants, lions, zebras and giraffes on the open Mkata Plains; <strong className="text-cream">Nyerere</strong>, one of Africa's largest protected areas, home to buffalo, hippos and the rare African wild dog; and the rainforest and waterfalls of <strong className="text-cream">Udzungwa</strong>, one of the richest biodiversity areas on earth.</p>
-            <p>Or go further: <strong className="text-cream">Mkomazi</strong> with its black rhino project, <strong className="text-cream">Ruaha</strong> and its predators, remote <strong className="text-cream">Katavi</strong>, and the chimpanzees of <strong className="text-cream">Mahale</strong> and <strong className="text-cream">Gombe</strong> on Lake Tanganyika.</p>
-            <div className="flex flex-wrap gap-2">
-              {[["Mikumi", "mikumi"], ["Nyerere", "nyerere"], ["Udzungwa", "udzungwa"], ["Mkomazi", "mkomazi"], ["Ruaha", "ruaha"], ["Katavi", "katavi"], ["Mahale", "mahale"], ["Gombe", "gombe"]].map(([n, slug]) => (
-                <Link key={slug} to={`/destinations/national-parks/${slug}`} className="rounded-full border border-white/20 px-4 py-2 text-sm text-cream transition-colors hover:border-gold hover:text-gold">{n}</Link>
-              ))}
-            </div>
+          <div className="space-y-5 text-lg leading-relaxed text-cream/80 [&_strong]:text-cream">
+            <Paras text={p.south.text} accent="text-gold" />
+            <div className="flex flex-wrap gap-2"><DestinationLinks slugs={p.south.links} light /></div>
           </div>
         </div>
       </section>
 
-      <MoreJourneys title="Safari journeys" />
-      <CtaBand title="Which parks are right for you?" text="Every safari is private and personalised. Tell us your dates and wishes and we'll suggest the perfect combination." />
+      <MoreJourneys title={p.journeysTitle} />
+      <CtaBand title={p.cta.title} text={p.cta.text} />
     </>
   );
 }
 
+const levelIcons = [Footprints, Mountain, Mountain];
+
 export function Trekking() {
-  useMeta("Trekking", "Kilimanjaro, Mount Meru, the Usambara Mountains and gentle cultural walks: trekking in Tanzania with experienced local guides.");
-  const levels = [
-    { icon: Footprints, title: "Easy walks", text: "Cultural walks with local guides who happily explain how their life, culture and community work. They sharpen your perspective, open the world beyond your horizon, and they're fun too." },
-    { icon: Mountain, title: "Multi-day treks", text: "A step up: one or more days in the Udzungwa Mountains with their forests, waterfalls and birdlife, or the Usambara Mountains with fantastic views and plenty of village culture. Very few tourists either way." },
-    { icon: Mountain, title: "High peaks", text: "Kilimanjaro at 5,895 m, or the far quieter Mount Meru at 4,562 m. From Meru's summit, reached in 3 days, you watch the sun rise behind Kilimanjaro's silhouette. Unforgettable." },
-  ];
+  const p = usePage("trekking");
+  const crumb = usePage("experiences").meta.title;
+  useMeta(p.meta.title, p.meta.description);
   return (
     <>
-      <PageHero
-        photo="kiliClouds"
-        eyebrow="Get intimately close to Tanzania"
-        title={<>The roof of <em className="text-gold">Africa</em> awaits.</>}
-        intro="Two hours, a full day or several days; leisurely or ambitious. In Tanzania there is a trail for everyone."
-        crumbs={[{ label: "Experiences", to: "/experiences" }, { label: "Trekking" }]}
-      >
-        <Link to="/journal/kilimanjaro-routes-compared" className="btn btn-ghost-light">Compare Kilimanjaro routes</Link>
+      <PageHero photo={p.hero.image} eyebrow={p.hero.eyebrow} title={p.hero.title} intro={p.hero.intro} crumbs={[{ label: crumb, to: "/experiences" }, { label: p.meta.title }]}>
+        {p.hero.button && <Link to={p.hero.buttonLink || "/plan-trip"} className="btn btn-ghost-light">{p.hero.button}</Link>}
       </PageHero>
 
       <section className="py-24 md:py-32">
         <div className="container-x">
-          <SectionHeading align="center" eyebrow="Choose your pace" title="From village paths to Uhuru Peak." />
+          <SectionHeading align="center" eyebrow={p.levels.eyebrow} title={p.levels.title} />
           <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {levels.map((l, i) => (
-              <Reveal key={l.title} delay={i * 120} className="rounded-[1.75rem] border border-line bg-paper p-8">
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Level {i + 1}</span>
-                <l.icon className="mt-4 size-9 text-terracotta" />
-                <h3 className="mt-4 text-2xl">{l.title}</h3>
-                <p className="mt-3 leading-relaxed text-muted">{l.text}</p>
-              </Reveal>
-            ))}
+            {p.levels.items.map((l, i) => {
+              const Icon = levelIcons[i % levelIcons.length];
+              return (
+                <Reveal key={i} delay={i * 120} className="rounded-[1.75rem] border border-line bg-paper p-8">
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">{p.levels.levelLabel} {i + 1}</span>
+                  <Icon className="mt-4 size-9 text-terracotta" />
+                  <h3 className="mt-4 text-2xl">{l.title}</h3>
+                  <p className="mt-3 leading-relaxed text-muted"><Rich text={l.text} accent="text-terracotta" /></p>
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
 
       <section className="bg-paper py-24 md:py-32">
         <div className="container-x grid gap-14 lg:grid-cols-[1fr_1.2fr] lg:items-center">
-          <SectionHeading
-            eyebrow="Your trekking tour"
-            title="Perfectly prepared, safely guided."
-            intro="We'll advise you on the right tour, and for the one you choose you'll receive a tailored packing list. Our experienced guides take you safely to the summit and back."
-          />
-          <Gallery photos={["kiliSummit", "kiliGroup", "kiliGate"]} />
+          <SectionHeading eyebrow={p.tour.eyebrow} title={p.tour.title} intro={p.tour.intro} />
+          <Gallery photos={p.tour.images} />
         </div>
         <div className="container-x mt-16 flex flex-wrap items-center gap-3">
-          <span className="mr-2 text-sm font-semibold text-earth">Mountain guides:</span>
-          {[["Kilimanjaro", "kilimanjaro"], ["Mount Meru", "mount-meru"], ["Ol Doinyo Lengai", "ol-doinyo-lengai"], ["Usambara", "usambara"], ["Uluguru", "uluguru"], ["Mount Hanang", "mount-hanang"], ["Udzungwa", "udzungwa"]].map(([n, slug]) => (
-            <Link key={slug} to={slug === "udzungwa" ? "/destinations/national-parks/udzungwa" : `/destinations/mountains/${slug}`} className="rounded-full border border-line bg-cream px-4 py-2 text-sm text-earth transition-colors hover:border-earth">{n}</Link>
-          ))}
+          <span className="mr-2 text-sm font-semibold text-earth">{p.tour.guidesLabel}</span>
+          <DestinationLinks slugs={p.tour.guides} />
         </div>
       </section>
 
-      <CtaBand title="Ready to climb?" text="Kilimanjaro, Meru or a gentle village trail: tell us your fitness and your dream, and we'll plan the rest." />
+      <CtaBand title={p.cta.title} text={p.cta.text} />
     </>
   );
 }
 
 export function Culture() {
-  useMeta("Culture", "Authentic encounters with Tanzania's more than 120 peoples: food, farming, crafts and everyday village life.");
+  const p = usePage("culture");
+  const crumb = usePage("experiences").meta.title;
+  const d = useDestinations();
+  useMeta(p.meta.title, p.meta.description);
+  const cultures = d.byCategory("cultures");
+  const peoples = cultures.filter((x) => x.circuit !== "Heritage sites");
+  const heritage = [...cultures.filter((x) => x.circuit === "Heritage sites"), ...p.peoples.extraHeritage.map(d.find).filter((x): x is NonNullable<typeof x> => Boolean(x))];
   return (
     <>
-      <PageHero
-        photo="sameWomen"
-        eyebrow="The heart of every trip"
-        title={<>Different people, <em className="text-gold">open hearts</em>.</>}
-        intro="Over 120 peoples live peacefully together in Tanzania and always welcome strangers. Experience the warmth that makes our country unique."
-        crumbs={[{ label: "Experiences", to: "/experiences" }, { label: "Culture" }]}
-      />
+      <PageHero photo={p.hero.image} eyebrow={p.hero.eyebrow} title={p.hero.title} intro={p.hero.intro} crumbs={[{ label: crumb, to: "/experiences" }, { label: p.meta.title }]} />
 
       <section className="py-24 md:py-32">
         <div className="container-x space-y-28">
-          <Split photo="culturalBuffet" eyebrow="A brief word on history" title="Not staged, but truly lived.">
-            <p>Tanzania is home to more than 120 peoples, each adding to the country's rich diversity and traditions. This vibrant mix shapes a way of life that goes far beyond what tourism usually shows.</p>
-            <p>We give you the chance to experience genuine local life: connecting with communities, traditions and everyday moments that are not staged, but truly lived.</p>
-          </Split>
-          <Split photo="sameCooking" eyebrow="Food" title="The way to the heart is through the stomach." flip>
-            <p>Including the love for Tanzania! Try ugali (a cornmeal dish similar to polenta) or chapati flatbread with various sauces, naturally eaten by hand. Taste fresh mangos, cashews or coconuts at the market.</p>
-            <p>For souvenirs, two art forms are uniquely Tanzanian: carvings of grenadilla wood ("mpingo" or blackwood), found in the south, and the vibrantly colourful Tingatinga paintings.</p>
-          </Split>
-          <Split photo="sameFarming" eyebrow="Local life experience" title="Farm, cook and laugh with the community.">
-            <p>Take part in daily life: farming, cattle keeping, traditional food preparation. Walk alongside local farmers, learn traditional ways of living and feel the warmth of the community.</p>
-            <p>Whether you'd like a simple encounter or a deeper stay with families, every journey is personalised to your interests and comfort.</p>
-          </Split>
+          {p.stories.map((s, i) => (
+            <Split key={i} photo={s.image} eyebrow={s.eyebrow} title={s.title} text={s.text} flip={i % 2 === 1} />
+          ))}
         </div>
       </section>
 
       <section className="bg-paper py-24 md:py-32">
         <div className="container-x">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <SectionHeading eyebrow="More than 120 peoples" title="Meet Tanzania's peoples." intro="From Maasai herders and Hadzabe hunter-gatherers to Chagga coffee farmers, Makonde carvers and the Swahili of the coast. These are the communities we visit most often; ask us about any other." />
-            <Link to="/destinations/cultures" className="btn btn-ghost">All peoples & heritage sites</Link>
+            <SectionHeading eyebrow={p.peoples.eyebrow} title={p.peoples.title} intro={p.peoples.intro} />
+            <Link to="/destinations/cultures" className="btn btn-ghost">{p.peoples.button}</Link>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {byCategory("cultures").filter((d) => d.circuit === "Peoples").map((d, i) => (
-              <Reveal key={d.slug} delay={(i % 4) * 60}><DestinationCard dest={d} compact /></Reveal>
+            {peoples.map((x, i) => (
+              <Reveal key={x.slug} delay={(i % 4) * 60}><DestinationCard dest={x} compact /></Reveal>
             ))}
           </div>
-          <div className="mt-16 rounded-[2rem] bg-cream p-8 md:p-10">
-            <p className="eyebrow">Cultural heritage sites</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {byCategory("cultures").filter((d) => d.circuit === "Heritage sites").concat(byCategory("islands").filter((d) => ["zanzibar", "kilwa", "bagamoyo"].includes(d.slug))).map((d) => (
-                <Link key={d.slug} to={`/destinations/${d.category}/${d.slug}`} className="rounded-full border border-line bg-paper px-4 py-2.5 text-sm font-medium text-earth transition-colors hover:border-earth">
-                  {d.slug === "zanzibar" ? "Stone Town, Zanzibar" : d.slug === "kilwa" ? "Kilwa Kisiwani ruins" : d.name}
-                </Link>
-              ))}
+          {heritage.length > 0 && (
+            <div className="mt-16 rounded-[2rem] bg-cream p-8 md:p-10">
+              <p className="eyebrow">{p.peoples.heritageTitle}</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {heritage.map((x) => (
+                  <Link key={x.slug} to={`/destinations/${x.category}/${x.slug}`} className="rounded-full border border-line bg-paper px-4 py-2.5 text-sm font-medium text-earth transition-colors hover:border-earth">
+                    {x.name}
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
       <section className="bg-earth py-20 text-cream">
         <div className="container-x flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
           <div>
-            <p className="eyebrow eyebrow-light">Travel that gives back</p>
-            <h2 className="display-md mt-3 max-w-2xl">Meet the women's groups who welcome our guests.</h2>
+            <p className="eyebrow eyebrow-light">{p.community.eyebrow}</p>
+            <h2 className="display-md mt-3 max-w-2xl"><Rich text={p.community.title} /></h2>
           </div>
-          <Link to="/community" className="btn btn-sun">Our community partners <ArrowRight className="size-4" /></Link>
+          <Link to="/community" className="btn btn-sun">{p.community.button} <ArrowRight className="size-4" /></Link>
         </div>
       </section>
 
-      <MoreJourneys title="Journeys rich in culture" />
+      <MoreJourneys title={p.journeysTitle} />
       <CtaBand />
     </>
   );
 }
 
-const coasts = [
-  { slug: "zanzibar", name: "Zanzibar", photo: "zanzibarDhows" as PhotoKey, text: "Stunning white sand and turquoise water, but its true uniqueness is its heritage. From historic Stone Town to luxurious beach resorts, history, culture and tropical beauty in one." },
-  { slug: "mafia", name: "Mafia Island", photo: "mafia" as PhotoKey, text: "For true privacy and untouched beauty. Quiet beaches, crystal-clear water and rich marine life, including whale sharks and vibrant coral reefs." },
-  { slug: "kilwa", name: "Kilwa", photo: "kilwa" as PhotoKey, text: "Beach relaxation meets deep history. A calm, uncrowded coast beside the ancient ruins of a once-thriving Swahili trading port." },
-  { slug: "pangani", name: "Pangani (Tanga)", photo: "pangani" as PhotoKey, text: "Long, quiet beaches lined with coconut palms. No crowds, just nature, gentle breezes and a relaxed coastal lifestyle." },
-  { slug: "bagamoyo", name: "Bagamoyo", photo: "bagamoyo" as PhotoKey, text: "A peaceful coastal town infused with history and art. Once an important trading port, now a calm place to unwind." },
-];
-
 export function BeachSea() {
-  useMeta("Beach & Sea", "Zanzibar, Mafia Island, Kilwa, Pangani and Bagamoyo: the perfect ending to your Tanzania journey.");
+  const p = usePage("beach");
+  const labels = usePage("shared").labels;
+  const crumb = usePage("experiences").meta.title;
+  useMeta(p.meta.title, p.meta.description);
   return (
     <>
-      <PageHero
-        photo="zanzibarBeach"
-        eyebrow="Relaxing · Refreshing · Essential"
-        title={<>Let your soul <em className="text-gold">unwind</em>.</>}
-        intro="Sea breeze, warm water and a hammock under a palm tree. Or a dhow, a reef and a spice tour. The perfect ending to an eventful journey."
-        crumbs={[{ label: "Experiences", to: "/experiences" }, { label: "Beach & Sea" }]}
-      />
+      <PageHero photo={p.hero.image} eyebrow={p.hero.eyebrow} title={p.hero.title} intro={p.hero.intro} crumbs={[{ label: crumb, to: "/experiences" }, { label: p.meta.title }]} />
 
       <section className="py-24 md:py-32">
         <div className="container-x grid gap-14 lg:grid-cols-[1fr_1.1fr] lg:items-center">
           <div>
-            <SectionHeading eyebrow="Beach holiday too boring?" title="An almost Caribbean feeling, in the middle of Africa." />
-            <Reveal delay={120} className="prose-travel mt-6">
-              <p>Don't miss the white coral beaches anyway. There's plenty to keep you active: sail on a traditional dhow, snorkel or dive off Zanzibar or, more exclusively, Mafia Island. Try kitesurfing or a sea kayak, or treat your senses to a spice tour and an evening at the Forodhani Gardens food market.</p>
-            </Reveal>
-            <Reveal delay={200} className="mt-8"><Pills items={["Dhow sailing", "Snorkelling & diving", "Kitesurfing", "Sea kayaking", "Spice tours", "Forodhani Gardens"]} /></Reveal>
+            <SectionHeading eyebrow={p.intro.eyebrow} title={p.intro.title} />
+            <Reveal delay={120} className="prose-travel mt-6"><Paras text={p.intro.text} /></Reveal>
+            <Reveal delay={200} className="mt-8"><Pills items={p.intro.activities} /></Reveal>
           </div>
           <Reveal delay={100} className="relative">
-            <Photo photo="zanzibarWomen" className="aspect-[4/5] rounded-[2rem]" />
-            <div className="absolute -bottom-6 -left-6 hidden rounded-2xl bg-paper p-5 shadow-xl md:block">
-              <Waves className="size-7 text-terracotta" />
-              <p className="mt-2 font-display text-2xl">26–29°C</p>
-              <p className="text-xs uppercase tracking-[0.18em] text-muted">Indian Ocean water</p>
-            </div>
+            <Photo photo={p.intro.image} className="aspect-[4/5] rounded-[2rem]" />
+            {p.intro.badgeValue && (
+              <div className="absolute -bottom-6 -left-6 hidden rounded-2xl bg-paper p-5 shadow-xl md:block">
+                <Waves className="size-7 text-terracotta" />
+                <p className="mt-2 font-display text-2xl">{p.intro.badgeValue}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted">{p.intro.badgeLabel}</p>
+              </div>
+            )}
           </Reveal>
         </div>
       </section>
@@ -302,18 +272,18 @@ export function BeachSea() {
       <section className="bg-paper py-24 md:py-32">
         <div className="container-x">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <SectionHeading eyebrow="Quality by the sea" title="Five coasts, five characters." />
-            <Link to="/destinations/islands" className="btn btn-ghost">All islands & coast</Link>
+            <SectionHeading eyebrow={p.coasts.eyebrow} title={p.coasts.title} />
+            <Link to="/destinations/islands" className="btn btn-ghost">{p.coasts.button}</Link>
           </div>
           <div className="mt-14 space-y-6">
-            {coasts.map((c, i) => (
-              <Reveal key={c.name} className="grid overflow-hidden rounded-[1.75rem] bg-cream md:grid-cols-[1.1fr_1fr]">
-                <Photo photo={c.photo} className={`aspect-[16/10] md:aspect-auto md:min-h-[20rem] ${i % 2 ? "md:order-2" : ""}`} />
+            {p.coasts.items.map((c, i) => (
+              <Reveal key={i} className="grid overflow-hidden rounded-[1.75rem] bg-cream md:grid-cols-[1.1fr_1fr]">
+                <Photo photo={c.image} className={`aspect-[16/10] md:aspect-auto md:min-h-[20rem] ${i % 2 ? "md:order-2" : ""}`} />
                 <div className="flex flex-col justify-center p-8 md:p-12">
-                  <span className="font-display text-sm text-terracotta">0{i + 1}</span>
+                  <span className="font-display text-sm text-terracotta">{String(i + 1).padStart(2, "0")}</span>
                   <h3 className="mt-1 text-3xl md:text-4xl">{c.name}</h3>
-                  <p className="mt-4 leading-relaxed text-muted">{c.text}</p>
-                  <Link to={`/destinations/islands/${c.slug}`} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-terracotta">Read the full guide <ArrowRight className="size-4" /></Link>
+                  <p className="mt-4 leading-relaxed text-muted"><Rich text={c.text} accent="text-terracotta" /></p>
+                  {c.slug && <Link to={`/destinations/islands/${c.slug}`} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-terracotta">{labels.readGuide} <ArrowRight className="size-4" /></Link>}
                 </div>
               </Reveal>
             ))}
@@ -323,11 +293,11 @@ export function BeachSea() {
 
       <section className="py-24">
         <div className="container-x max-w-4xl text-center">
-          <SectionHeading align="center" eyebrow="Why you shouldn't skip the beaches" title="Shaped by centuries of ocean trade." intro="Tanzanian culture was shaped by influences that arrived by sea: Arab, Persian, Indian and Portuguese. We'll help you choose the places you'll love most, and book excursions on site so you can simply enjoy." />
+          <SectionHeading align="center" eyebrow={p.why.eyebrow} title={p.why.title} intro={p.why.intro} />
         </div>
       </section>
 
-      <MoreJourneys title="Journeys that end by the sea" />
+      <MoreJourneys title={p.journeysTitle} />
       <CtaBand />
     </>
   );

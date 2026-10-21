@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type ElementType } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Plus } from "lucide-react";
+import { Rich } from "../content/rich";
 
 export function Reveal({
   children,
@@ -53,8 +54,8 @@ export function SectionHeading({
   return (
     <Reveal className={align === "center" ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}>
       <p className={`eyebrow ${light ? "eyebrow-light" : ""}`}>{eyebrow}</p>
-      <h2 className={`display-lg mt-4 ${light ? "text-cream" : "text-ink"}`}>{title}</h2>
-      {intro && <p className={`mt-5 text-lg leading-relaxed ${light ? "text-cream/75" : "text-muted"}`}>{intro}</p>}
+      <h2 className={`display-lg mt-4 ${light ? "text-cream" : "text-ink"}`}>{typeof title === "string" ? <Rich text={title} accent={light ? "text-gold" : "text-terracotta"} /> : title}</h2>
+      {intro && <p className={`mt-5 text-lg leading-relaxed ${light ? "text-cream/75" : "text-muted"}`}>{typeof intro === "string" ? <Rich text={intro} accent={light ? "text-gold" : "text-terracotta"} /> : intro}</p>}
     </Reveal>
   );
 }
@@ -74,13 +75,13 @@ export function TextLink({ to, children, light = false }: { to: string; children
 export function Faq({ items }: { items: { q: string; a: string }[] }) {
   return (
     <div className="divide-y divide-line border-y border-line">
-      {items.map((item) => (
-        <details key={item.q} className="group py-5">
+      {items.map((item, i) => (
+        <details key={i} className="group py-5">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-6 font-display text-xl text-ink [&::-webkit-details-marker]:hidden">
             {item.q}
             <Plus className="size-5 shrink-0 text-terracotta transition-transform duration-300 group-open:rotate-45" />
           </summary>
-          <p className="mt-3 max-w-3xl leading-relaxed text-muted">{item.a}</p>
+          <p className="mt-3 max-w-3xl leading-relaxed text-muted"><Rich text={item.a} accent="text-terracotta" /></p>
         </details>
       ))}
     </div>

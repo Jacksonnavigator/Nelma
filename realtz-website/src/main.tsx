@@ -1,8 +1,9 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider, useParams } from "react-router-dom";
 import "./styles.css";
 import { Layout } from "./components/Layout";
+import { ContentProvider } from "./content/store";
 import Home from "./pages/Home";
 import Tanzania from "./pages/Tanzania";
 import { DestinationCategory, DestinationDetail, DestinationsOverview } from "./pages/Destinations";
@@ -20,9 +21,23 @@ const OldItinerary = () => <Navigate to={`/journeys/${useParams().slug ?? ""}`} 
 const OldBlogPost = () => <Navigate to={`/journal/${useParams().slug ?? ""}`} replace />;
 const go = (to: string) => <Navigate to={to} replace />;
 
+const AdminApp = lazy(() => import("./admin/AdminApp"));
+
 const router = createBrowserRouter([
   {
-    element: <Layout />,
+    path: "/admin/*",
+    element: (
+      <Suspense fallback={<div className="grid min-h-screen place-items-center bg-cream text-earth">Loading dashboard…</div>}>
+        <AdminApp />
+      </Suspense>
+    ),
+  },
+  {
+    element: (
+      <ContentProvider>
+        <Layout />
+      </ContentProvider>
+    ),
     children: [
       { path: "/", element: <Home /> },
       { path: "/tanzania", element: <Tanzania /> },

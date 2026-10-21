@@ -1,21 +1,23 @@
 import type { ReactNode } from "react";
 import { Photo } from "./Photo";
 import { Reveal } from "./ui";
-import type { PhotoKey } from "../data/images";
+import { Paras, Rich } from "../content/rich";
 
 /** A photo beside a block of text; `flip` puts the photo on the right. */
 export function Split({
   photo,
   eyebrow,
   title,
+  text,
   children,
   flip = false,
   tall = false,
 }: {
-  photo: PhotoKey;
+  photo: string;
   eyebrow?: string;
-  title: ReactNode;
-  children: ReactNode;
+  title: string;
+  text?: string;
+  children?: ReactNode;
   flip?: boolean;
   tall?: boolean;
 }) {
@@ -26,8 +28,11 @@ export function Split({
       </Reveal>
       <Reveal delay={120}>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h2 className="display-md mt-3">{title}</h2>
-        <div className="prose-travel mt-6">{children}</div>
+        <h2 className="display-md mt-3"><Rich text={title} accent="text-terracotta" /></h2>
+        <div className="prose-travel mt-6">
+          <Paras text={text} />
+          {children}
+        </div>
       </Reveal>
     </div>
   );
@@ -36,8 +41,8 @@ export function Split({
 export function Pills({ items }: { items: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {items.map((t) => (
-        <span key={t} className="rounded-full border border-line bg-paper px-4 py-2 text-sm text-earth">{t}</span>
+      {items.map((t, i) => (
+        <span key={i} className="rounded-full border border-line bg-paper px-4 py-2 text-sm text-earth">{t}</span>
       ))}
     </div>
   );

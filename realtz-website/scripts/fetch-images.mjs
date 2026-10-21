@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const source = await readFile(join(root, "src/data/images.ts"), "utf8");
-const base = source.match(/REMOTE_BASE = "([^"]+)"/)[1];
+const bases = [source.match(/REMOTE_BASE = "([^"]+)"/)[1], "https://realtzdiscovery.lovable.app/assets/"];
 const entries = [...source.matchAll(/file: "([^"]+)", remote: "([^"]+)"/g)];
 const outDir = join(root, "public/images");
 await mkdir(outDir, { recursive: true });
@@ -22,14 +22,24 @@ for (const [, file, remote] of entries) {
     ok++;
     continue;
   } catch {}
-  try {
-    const res = await fetch(base + remote);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    await writeFile(target, Buffer.from(await res.arrayBuffer()));
-    console.log(`saved ${file}`);
-    ok++;
-  } catch (err) {
-    console.error(`FAIL  ${file}: ${err.message}`);
+  let saved = false;
+  let lastError = "";
+  for (const base of bases) {
+    try {
+      const res = await fetch(base + remote);
+      const type = res.headers.get("content-type") ?? "";
+      if (!res.ok || !type.startsWith("image/")) throw new Error(`HTTP ${res.status} ${type}`);
+      await writeFile(target, Buffer.from(await res.arrayBuffer()));
+      console.log(`saved ${file}`);
+      saved = true;
+      break;
+    } catch (err) {
+      lastError = err.message;
+    }
+  }
+  if (saved) ok++;
+  else {
+    console.error(`FAIL  ${file}: ${lastError}`);
     failed++;
   }
 }

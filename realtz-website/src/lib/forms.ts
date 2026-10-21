@@ -1,10 +1,7 @@
-import { site, whatsappHref } from "../data/site";
-
-const endpoint = import.meta.env.VITE_FORM_ENDPOINT as string | undefined;
+import { API } from "../content/store";
 
 export type Fields = Record<string, string>;
-
-export const formsConnected = Boolean(endpoint);
+export type FormKind = "trip" | "contact" | "newsletter";
 
 export function toText(subject: string, fields: Fields) {
   const lines = Object.entries(fields)
@@ -14,25 +11,28 @@ export function toText(subject: string, fields: Fields) {
 }
 
 /**
- * Sends a form to VITE_FORM_ENDPOINT (Formspree or any service that accepts JSON).
- * Returns "sent" when delivered, or "fallback" when no endpoint is set so the
- * caller can offer WhatsApp or email instead.
+ * Sends a form to the website's own server (/api/submit.php), which stores it in
+ * the admin inbox and emails the team. Returns "fallback" if the server can't be
+ * reached, so the page can offer WhatsApp or email instead.
  */
-export async function sendForm(subject: string, fields: Fields): Promise<"sent" | "fallback"> {
-  if (!endpoint) return "fallback";
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ _subject: subject, ...fields }),
-  });
-  if (!res.ok) throw new Error(`Form service answered ${res.status}`);
-  return "sent";
+export async function sendForm(kind: FormKind, subject: string, fields: Fields): Promise<"sent" | "fallback"> {
+  try {
+    const res = await fetch(`${API}/submit.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, subject, fields, website: "" }),
+    });
+    const json = await res.json().catch(() => null);
+    return res.ok && json?.ok ? "sent" : "fallback";
+  } catch {
+    return "fallback";
+  }
 }
 
-export const fallbackLinks = (subject: string, fields: Fields) => {
+export const fallbackLinks = (subject: string, fields: Fields, settings: { whatsapp: string; email: string }) => {
   const text = toText(subject, fields);
   return {
-    whatsapp: whatsappHref(text),
-    email: `mailto:${site.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`,
+    whatsapp: `https://wa.me/${settings.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`,
+    email: `mailto:${settings.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`,
   };
 };

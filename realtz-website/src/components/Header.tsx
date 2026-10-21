@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { ChevronDown, Menu, Phone, X } from "lucide-react";
-import { nav, site, telHref } from "../data/site";
+import { telHref, useContent } from "../content/store";
 
 // Pages without a dark photo hero at the top need a solid header from the start.
 const lightTopPages = ["/plan-trip", "/terms", "/privacy", "/imprint"];
@@ -13,6 +13,8 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const { settings: site, nav, pages } = useContent();
+  const planLabel = pages.shared.labels.planYourTrip;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -54,17 +56,17 @@ export function Header() {
               solid ? "size-14 shadow-none" : "size-16 shadow-[0_10px_28px_-12px_rgba(0,0,0,0.6)] xl:size-[4.5rem]"
             }`}
           >
-            <img src="/brand/logo-mark.png" alt="" width={658} height={524} className="h-auto w-full max-w-none" />
+            <img src={site.logoMark || "/brand/logo-mark.png"} alt="" width={658} height={524} className="h-auto w-full max-w-none" />
           </span>
           <span className={`hidden leading-none max-xl:block min-[1400px]:block ${solid ? "text-earth" : "text-white"}`}>
-            <span className={`block text-[0.62rem] font-bold uppercase tracking-[0.32em] ${solid ? "text-terracotta" : "text-gold"}`}>Real Tanzania</span>
-            <span className="mt-1.5 block font-display text-lg tracking-tight sm:text-xl">Discovery Adventures</span>
+            <span className={`block text-[0.62rem] font-bold uppercase tracking-[0.32em] ${solid ? "text-terracotta" : "text-gold"}`}>{site.logoTop}</span>
+            <span className="mt-1.5 block font-display text-lg tracking-tight sm:text-xl">{site.logoBottom}</span>
           </span>
         </Link>
 
         <nav className="hidden items-center gap-0.5 whitespace-nowrap xl:flex" aria-label="Main">
           {nav.map((item) =>
-            item.children ? (
+            item.children.length ? (
               <div key={item.to} className="group relative">
                 <NavLink to={item.to} className={`flex items-center gap-1 rounded-full px-3 py-2 text-[0.92rem] font-medium 2xl:px-3.5 transition-colors ${linkTone}`}>
                   {item.label}
@@ -97,13 +99,13 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           <a
-            href={telHref(site.phones[0])}
+            href={telHref(site.phone)}
             className={`hidden items-center gap-2 whitespace-nowrap text-sm font-medium min-[1700px]:flex ${solid ? "text-earth" : "text-white/90"}`}
           >
-            <Phone className="size-4" /> {site.phones[0]}
+            <Phone className="size-4" /> {site.phone}
           </a>
           <Link to="/plan-trip" className="btn btn-sun hidden !px-5 !py-3 sm:inline-flex">
-            Plan your trip
+            {planLabel}
           </Link>
           <button
             type="button"
@@ -133,7 +135,7 @@ export function Header() {
               <Link to={item.to} className="font-display text-3xl text-ink">
                 {item.label}
               </Link>
-              {item.children && (
+              {item.children.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {item.children.map((c) => (
                     <Link key={c.to} to={c.to} className="rounded-2xl bg-sand/50 px-4 py-3 text-sm font-medium text-earth">
@@ -145,10 +147,10 @@ export function Header() {
             </div>
           ))}
           <Link to="/plan-trip" className="btn btn-sun mt-8">
-            Plan your trip
+            {planLabel}
           </Link>
-          <a href={telHref(site.phones[0])} className="btn btn-ghost mt-3">
-            <Phone className="size-4" /> {site.phones[0]}
+          <a href={telHref(site.phone)} className="btn btn-ghost mt-3">
+            <Phone className="size-4" /> {site.phone}
           </a>
         </nav>
       </div>

@@ -4,11 +4,12 @@ import { ArrowRight, CalendarDays, Check, Compass, Languages, MapPin, Navigation
 import { CtaBand, PageHero, useMeta } from "../components/Layout";
 import { PlaceImage } from "../components/PlaceImage";
 import { Reveal, SectionHeading } from "../components/ui";
-import { byCategory, categories, findDestination, isCategory, type CategoryKey, type Destination } from "../data/destinations";
-
-const order: CategoryKey[] = ["national-parks", "mountains", "islands", "cultures"];
+import { Paras, Rich } from "../content/rich";
+import { fill, useDestinations, usePage } from "../content/store";
+import type { DestinationT as Destination } from "../content/defaults";
 
 export function DestinationCard({ dest, compact = false }: { dest: Destination; compact?: boolean }) {
+  const discover = usePage("shared").labels.discover;
   return (
     <Link to={`/destinations/${dest.category}/${dest.slug}`} className="group flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-line bg-paper transition-shadow hover:shadow-2xl hover:shadow-earth/10">
       <div className="relative">
@@ -21,7 +22,7 @@ export function DestinationCard({ dest, compact = false }: { dest: Destination; 
         <p className="mt-2 font-display italic text-terracotta">{dest.tagline}</p>
         {!compact && <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted">{dest.summary}</p>}
         <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-semibold text-terracotta">
-          Discover <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+          {discover} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
         </span>
       </div>
     </Link>
@@ -29,33 +30,30 @@ export function DestinationCard({ dest, compact = false }: { dest: Destination; 
 }
 
 export function DestinationsOverview() {
-  useMeta("Destinations", "Tanzania's national parks, mountains and islands: Serengeti, Ngorongoro, Ruaha, Nyerere, Katavi, Mahale, Kilimanjaro, Meru, Zanzibar, Mafia and more.");
+  const p = usePage("destinations");
+  const d = useDestinations();
+  useMeta(p.meta.title, p.meta.description);
   return (
     <>
-      <PageHero
-        photo="safariPlains"
-        eyebrow="Destinations"
-        title={<>Where will Tanzania <em className="text-gold">take you</em>?</>}
-        intro="From the famous northern circuit to remote parks in the south and west, from Africa's highest summit to spice islands, coral atolls and the many peoples who call Tanzania home. Explore our destination guide."
-        crumbs={[{ label: "Destinations" }]}
-      >
-        {order.map((c) => (
-          <a key={c} href={`#${c}`} className="btn btn-ghost-light">{categories[c].short}</a>
+      <PageHero photo={p.hero.image} eyebrow={p.hero.eyebrow} title={p.hero.title} intro={p.hero.intro} crumbs={[{ label: p.meta.title }]}>
+        {d.order.map((c) => (
+          <a key={c} href={`#${c}`} className="btn btn-ghost-light">{d.categories[c].short}</a>
         ))}
       </PageHero>
 
-      {order.map((c, i) => {
-        const list = byCategory(c);
+      {d.order.map((c, i) => {
+        const list = d.byCategory(c);
+        const cat = d.categories[c];
         return (
           <section key={c} id={c} className={`scroll-mt-24 py-24 md:py-28 ${i % 2 ? "bg-paper" : ""}`}>
             <div className="container-x">
               <div className="flex flex-wrap items-end justify-between gap-6">
-                <SectionHeading eyebrow={categories[c].eyebrow} title={categories[c].title} intro={categories[c].intro} />
-                <Link to={`/destinations/${c}`} className="btn btn-ghost">All {list.length} {categories[c].short.toLowerCase()}</Link>
+                <SectionHeading eyebrow={cat.eyebrow} title={cat.title} intro={cat.intro} />
+                <Link to={`/destinations/${c}`} className="btn btn-ghost">{p.allPrefix} {list.length} {cat.short.toLowerCase()}</Link>
               </div>
               <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {list.slice(0, 4).map((d, k) => (
-                  <Reveal key={d.slug} delay={k * 80}><DestinationCard dest={d} compact /></Reveal>
+                {list.slice(0, 4).map((x, k) => (
+                  <Reveal key={x.slug} delay={k * 80}><DestinationCard dest={x} compact /></Reveal>
                 ))}
               </div>
             </div>
@@ -67,14 +65,12 @@ export function DestinationsOverview() {
         <div className="container-x grid gap-10 md:grid-cols-[auto_1fr] md:items-center">
           <Compass className="size-14 text-gold" />
           <div>
-            <h2 className="display-md">Beyond the familiar routes</h2>
-            <p className="mt-4 max-w-3xl text-lg leading-relaxed text-cream/75">
-              Some of Africa's most remarkable experiences begin where the usual itinerary ends. We don't promise that every remote place is easy to reach or right for every traveller. We bring honest advice, realistic planning and a willingness to explore the right options for your journey.
-            </p>
+            <h2 className="display-md"><Rich text={p.beyond.title} /></h2>
+            <p className="mt-4 max-w-3xl text-lg leading-relaxed text-cream/75"><Rich text={p.beyond.text} /></p>
           </div>
         </div>
       </section>
-      <CtaBand title="Not sure where to start?" text="Tell us what you'd love to see and experience, and we'll suggest the destinations, route and season that fit you best." />
+      <CtaBand title={p.cta.title} text={p.cta.text} />
     </>
   );
 }
@@ -85,38 +81,39 @@ export function DestinationCategory() {
 }
 
 function CategoryList({ category }: { category: string }) {
-  const valid = isCategory(category);
-  const list = useMemo(() => (valid ? byCategory(category) : []), [category, valid]);
-  const regions = useMemo(() => (category === "national-parks" || category === "cultures" ? ["All", ...Array.from(new Set(list.map((d) => d.circuit ?? "Other")))] : []), [list, category]);
-  const [region, setRegion] = useState("All");
-  const cat = valid ? categories[category] : undefined;
-  useMeta(cat?.title ?? "Destinations", cat?.intro);
-  if (!valid || !cat) return <Navigate to="/destinations" replace />;
+  const p = usePage("destinations");
+  const d = useDestinations();
+  const cat = d.categories[category];
+  const list = useMemo(() => d.byCategory(category), [d, category]);
+  const groups = useMemo(() => Array.from(new Set(list.map((x) => x.circuit).filter(Boolean))), [list]);
+  const [group, setGroup] = useState("");
+  useMeta(cat?.title ?? p.meta.title, cat?.intro);
+  if (!cat) return <Navigate to="/destinations" replace />;
 
-  const shown = region === "All" ? list : list.filter((d) => (d.circuit ?? "Other") === region);
+  const shown = group ? list.filter((x) => x.circuit === group) : list;
 
   return (
     <>
-      <PageHero photo={cat.photo} eyebrow={cat.eyebrow} title={cat.title} intro={cat.intro} crumbs={[{ label: "Destinations", to: "/destinations" }, { label: cat.short }]} />
+      <PageHero photo={cat.photo} eyebrow={cat.eyebrow} title={cat.title} intro={cat.intro} crumbs={[{ label: p.meta.title, to: "/destinations" }, { label: cat.short }]} />
       <section className="py-20 md:py-28">
         <div className="container-x">
-          {regions.length > 2 && (
+          {groups.length > 1 && (
             <div className="scrollbar-none -mx-5 mb-12 flex gap-2 overflow-x-auto px-5 md:mx-0 md:px-0">
-              {regions.map((r) => (
-                <button key={r} type="button" onClick={() => setRegion(r)} aria-pressed={region === r} className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${region === r ? "bg-earth text-cream" : "border border-line bg-paper text-earth hover:border-earth"}`}>
-                  {r}
+              {["", ...groups].map((r) => (
+                <button key={r || "all"} type="button" onClick={() => setGroup(r)} aria-pressed={group === r} className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${group === r ? "bg-earth text-cream" : "border border-line bg-paper text-earth hover:border-earth"}`}>
+                  {r || p.filterAll}
                 </button>
               ))}
             </div>
           )}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {shown.map((d, i) => (
-              <Reveal key={d.slug} delay={(i % 3) * 80}><DestinationCard dest={d} /></Reveal>
+            {shown.map((x, i) => (
+              <Reveal key={x.slug} delay={(i % 3) * 80}><DestinationCard dest={x} /></Reveal>
             ))}
           </div>
           <div className="mt-20 flex flex-wrap gap-3">
-            {order.filter((c) => c !== category).map((c) => (
-              <Link key={c} to={`/destinations/${c}`} className="btn btn-ghost">Explore {categories[c].short.toLowerCase()} <ArrowRight className="size-4" /></Link>
+            {d.order.filter((c) => c !== category).map((c) => (
+              <Link key={c} to={`/destinations/${c}`} className="btn btn-ghost">{p.explorePrefix} {d.categories[c].short.toLowerCase()} <ArrowRight className="size-4" /></Link>
             ))}
           </div>
         </div>
@@ -128,19 +125,23 @@ function CategoryList({ category }: { category: string }) {
 
 export function DestinationDetail() {
   const { category = "", slug = "" } = useParams();
-  const dest = findDestination(slug);
-  useMeta(dest ? `${dest.name}` : "Destination", dest?.summary);
-  if (!dest) return <Navigate to={isCategory(category) ? `/destinations/${category}` : "/destinations"} replace />;
+  const p = usePage("destinations");
+  const labels = usePage("shared").labels;
+  const d = useDestinations();
+  const dest = d.find(slug);
+  useMeta(dest ? dest.name : p.meta.title, dest?.summary);
+  if (!dest) return <Navigate to={d.categories[category] ? `/destinations/${category}` : "/destinations"} replace />;
   if (dest.category !== category) return <Navigate to={`/destinations/${dest.category}/${dest.slug}`} replace />;
-  const cat = categories[dest.category];
-  const combine = dest.combineWith.map(findDestination).filter((d): d is Destination => Boolean(d));
+  const cat = d.categories[dest.category] ?? { short: dest.category };
+  const t = p.detail;
+  const combine = dest.combineWith.map(d.find).filter((x): x is Destination => Boolean(x));
 
   const facts = [
-    { icon: MapPin, label: "Region", value: dest.region },
-    { icon: Compass, label: "Type", value: dest.type },
-    ...(dest.size ? [{ icon: dest.category === "cultures" ? Languages : Ruler, label: dest.category === "mountains" ? "Height" : dest.category === "cultures" ? "Language" : "Size", value: dest.size }] : []),
-    { icon: CalendarDays, label: "Best time", value: dest.bestTime.split(".")[0] },
-  ];
+    { icon: MapPin, label: t.regionLabel, value: dest.region },
+    { icon: Compass, label: t.typeLabel, value: dest.type },
+    ...(dest.size ? [{ icon: dest.category === "cultures" ? Languages : Ruler, label: dest.category === "mountains" ? t.heightLabel : dest.category === "cultures" ? t.languageLabel : t.sizeLabel, value: dest.size }] : []),
+    { icon: CalendarDays, label: t.bestTimeLabel, value: dest.bestTime.split(".")[0] },
+  ].filter((f) => f.value);
 
   return (
     <>
@@ -149,9 +150,9 @@ export function DestinationDetail() {
         eyebrow={cat.short}
         title={dest.name}
         intro={dest.tagline}
-        crumbs={[{ label: "Destinations", to: "/destinations" }, { label: cat.short, to: `/destinations/${dest.category}` }, { label: dest.name }]}
+        crumbs={[{ label: p.meta.title, to: "/destinations" }, { label: cat.short, to: `/destinations/${dest.category}` }, { label: dest.name }]}
       >
-        <Link to={`/plan-trip?destination=${dest.slug}`} className="btn btn-sun">Plan a trip here</Link>
+        <Link to={`/plan-trip?destination=${dest.slug}`} className="btn btn-sun">{labels.planTripHere}</Link>
       </PageHero>
 
       <section className="border-b border-line bg-paper">
@@ -172,37 +173,41 @@ export function DestinationDetail() {
         <div className="container-x grid gap-16 lg:grid-cols-[1fr_22rem]">
           <div>
             <Reveal>
-              <p className="font-display text-2xl leading-relaxed text-earth md:text-[1.7rem]">{dest.summary}</p>
+              <p className="font-display text-2xl leading-relaxed text-earth md:text-[1.7rem]"><Rich text={dest.summary} accent="text-terracotta" /></p>
             </Reveal>
             <Reveal delay={100} className="prose-travel mt-10">
-              {dest.body.map((p) => <p key={p.slice(0, 24)}>{p}</p>)}
+              <Paras text={dest.body} />
             </Reveal>
 
             <Reveal delay={100} className="mt-14 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-[1.5rem] border border-line bg-paper p-7">
-                <h2 className="text-2xl">Highlights</h2>
-                <ul className="mt-4 space-y-2.5">
-                  {dest.highlights.map((h) => <li key={h} className="flex gap-3 text-muted"><Check className="mt-0.5 size-4 shrink-0 text-terracotta" />{h}</li>)}
-                </ul>
-              </div>
-              <div className="rounded-[1.5rem] border border-line bg-paper p-7">
-                <h2 className="text-2xl">Things to do</h2>
-                <ul className="mt-4 space-y-2.5">
-                  {dest.activities.map((h) => <li key={h} className="flex gap-3 text-muted"><Check className="mt-0.5 size-4 shrink-0 text-terracotta" />{h}</li>)}
-                </ul>
-              </div>
+              {[{ title: t.highlightsTitle, items: dest.highlights }, { title: t.activitiesTitle, items: dest.activities }].filter((b) => b.items.length).map((b) => (
+                <div key={b.title} className="rounded-[1.5rem] border border-line bg-paper p-7">
+                  <h2 className="text-2xl">{b.title}</h2>
+                  <ul className="mt-4 space-y-2.5">
+                    {b.items.map((h, i) => <li key={i} className="flex gap-3 text-muted"><Check className="mt-0.5 size-4 shrink-0 text-terracotta" />{h}</li>)}
+                  </ul>
+                </div>
+              ))}
             </Reveal>
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-[1.75rem] bg-earth p-7 text-cream">
-              <p className="flex items-center gap-2 eyebrow eyebrow-light"><CalendarDays className="size-4" /> Best time to visit</p>
-              <p className="mt-3 leading-relaxed text-cream/85">{dest.bestTime}</p>
-              <p className="mt-6 flex items-center gap-2 eyebrow eyebrow-light"><Navigation className="size-4" /> Getting there</p>
-              <p className="mt-3 leading-relaxed text-cream/85">{dest.gettingThere}</p>
-              <Link to={`/plan-trip?destination=${dest.slug}`} className="btn btn-sun mt-7 w-full">Plan a trip here</Link>
+              {dest.bestTime && (
+                <>
+                  <p className="flex items-center gap-2 eyebrow eyebrow-light"><CalendarDays className="size-4" /> {t.bestTimeTitle}</p>
+                  <p className="mb-6 mt-3 leading-relaxed text-cream/85">{dest.bestTime}</p>
+                </>
+              )}
+              {dest.gettingThere && (
+                <>
+                  <p className="flex items-center gap-2 eyebrow eyebrow-light"><Navigation className="size-4" /> {t.gettingThereTitle}</p>
+                  <p className="mt-3 leading-relaxed text-cream/85">{dest.gettingThere}</p>
+                </>
+              )}
+              <Link to={`/plan-trip?destination=${dest.slug}`} className="btn btn-sun mt-7 w-full">{labels.planTripHere}</Link>
             </div>
-            <p className="px-2 text-xs leading-relaxed text-muted">Conditions, access and seasons can change. We always give you honest, up-to-date advice when planning.</p>
+            <p className="px-2 text-xs leading-relaxed text-muted">{t.disclaimer}</p>
           </aside>
         </div>
       </section>
@@ -210,15 +215,15 @@ export function DestinationDetail() {
       {combine.length > 0 && (
         <section className="bg-paper py-20 md:py-24">
           <div className="container-x">
-            <p className="eyebrow">Combine it with</p>
-            <h2 className="display-md mt-3">Pairs perfectly with</h2>
+            <p className="eyebrow">{t.combineEyebrow}</p>
+            <h2 className="display-md mt-3">{t.combineTitle}</h2>
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {combine.map((d) => <DestinationCard key={d.slug} dest={d} compact />)}
+              {combine.map((x) => <DestinationCard key={x.slug} dest={x} compact />)}
             </div>
           </div>
         </section>
       )}
-      <CtaBand title={`Dreaming of ${dest.name.split(" (")[0]}?`} text="Tell us when you'd like to travel and what matters to you. We'll build a route that makes sense, with honest advice on logistics and seasons." />
+      <CtaBand title={fill(t.ctaTitle, { name: dest.name.split(" (")[0] })} text={t.ctaText} />
     </>
   );
 }
