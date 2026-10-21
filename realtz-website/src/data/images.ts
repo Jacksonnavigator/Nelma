@@ -46,8 +46,6 @@ export const photos = {
   bagamoyo: { file: "bagamoyo.jpg", remote: "bagamoyo-coast-DK5rvkZw.jpg", alt: "Bagamoyo coast from above" },
   aboutSunset: { file: "about-sunset.jpg", remote: "about-hero-sunset-DOED_bh6.jpg", alt: "Our team with guests at sunset" },
   aboutTradeShow: { file: "about-trade-show.jpg", remote: "about-quote-night-BCgEL2q1.jpg", alt: "Real Tanzania Discovery Adventures at a travel trade show" },
-  beatrice: { file: "beatrice.jpg", remote: "beatrice-portrait-IGViOu7X.jpg", alt: "Beatrice, Operations Director" },
-  nathan: { file: "nathan.jpg", remote: "nathan-portrait-DdKEoxIH.jpg", alt: "Nathan, Head of Sales" },
   realAfricaLogo: { file: "real-africa-logo.png", remote: "real-africa-logo-CQfFEN8m.png", alt: "Real Africa logo" },
 } as const;
 

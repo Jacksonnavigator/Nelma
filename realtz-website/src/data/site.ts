@@ -3,9 +3,15 @@ export const site = {
   shortName: "RealTZ Discovery",
   legalName: "Real Tanzania Discovery Adventures Limited",
   tagline: "Individual · Authentic · Competent",
+  // Main contact (Reservations). Used for the header phone, WhatsApp button and form fallbacks.
   email: "info@realtzdiscovery.co.tz",
-  phones: ["+255 679 535 158", "+255 782 212 008"],
-  whatsapp: "255679535158",
+  phones: ["+255 758 239 283"],
+  whatsapp: "255758239283",
+  departments: [
+    { name: "Reservations", note: "New trips, bookings and general questions", email: "info@realtzdiscovery.co.tz", phones: ["+255 758 239 283"] },
+    { name: "Operations", note: "Guests already travelling and on-the-ground arrangements", email: "operations@realtzdiscovery.co.tz", phones: ["+255 782 212 008"] },
+    { name: "Sales", note: "Travel agents, tour operators and quotations", email: "sales@realtzdiscovery.co.tz", phones: ["+255 627 619 124", "+255 682 997 428"] },
+  ],
   address: "Boma Ng'ombe, Kilimanjaro, Tanzania",
   hours: [
     { days: "Monday to Friday", time: "8:00 AM to 6:00 PM" },
@@ -38,6 +44,15 @@ export type NavItem = { label: string; to: string; children?: { label: string; t
 export const nav: NavItem[] = [
   { label: "Tanzania", to: "/tanzania" },
   {
+    label: "Destinations",
+    to: "/destinations",
+    children: [
+      { label: "National parks", to: "/destinations/national-parks", note: "Serengeti, Ngorongoro, Ruaha, Katavi…" },
+      { label: "Mountains", to: "/destinations/mountains", note: "Kilimanjaro, Meru, Ol Doinyo Lengai…" },
+      { label: "Islands & coast", to: "/destinations/islands", note: "Zanzibar, Pemba, Mafia, Kilwa…" },
+    ],
+  },
+  {
     label: "Experiences",
     to: "/experiences",
     children: [
@@ -50,6 +65,5 @@ export const nav: NavItem[] = [
   { label: "Journeys", to: "/journeys" },
   { label: "Community", to: "/community" },
   { label: "About Us", to: "/about-us" },
-  { label: "Journal", to: "/journal" },
   { label: "Contact", to: "/contact" },
 ];

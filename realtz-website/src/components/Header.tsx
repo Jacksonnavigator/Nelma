@@ -5,7 +5,7 @@ import { nav, site, telHref } from "../data/site";
 
 // Pages without a dark photo hero at the top need a solid header from the start.
 const lightTopPages = ["/plan-trip", "/terms", "/privacy", "/imprint"];
-const knownPrefixes = ["/", "/tanzania", "/experiences", "/safari", "/trekking", "/culture", "/beach-and-sea", "/journeys", "/community", "/about-us", "/journal", "/contact", "/travel-info"];
+const knownPrefixes = ["/", "/tanzania", "/destinations", "/experiences", "/safari", "/trekking", "/culture", "/beach-and-sea", "/journeys", "/community", "/about-us", "/journal", "/contact", "/travel-info"];
 const hasDarkHero = (path: string) =>
   !lightTopPages.includes(path) && knownPrefixes.some((p) => path === p || (p !== "/" && path.startsWith(p + "/")));
 

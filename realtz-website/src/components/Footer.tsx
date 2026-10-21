@@ -11,10 +11,11 @@ const columns = [
     title: "Explore",
     links: [
       { label: "Why Tanzania", to: "/tanzania" },
+      { label: "National parks", to: "/destinations/national-parks" },
+      { label: "Mountains", to: "/destinations/mountains" },
+      { label: "Islands & coast", to: "/destinations/islands" },
       { label: "Safari", to: "/safari" },
-      { label: "Trekking", to: "/trekking" },
       { label: "Culture", to: "/culture" },
-      { label: "Beach & Sea", to: "/beach-and-sea" },
     ],
   },
   {
@@ -23,6 +24,7 @@ const columns = [
       { label: "About us", to: "/about-us" },
       { label: "Sample journeys", to: "/journeys" },
       { label: "Community we support", to: "/community" },
+      { label: "Travel trade partners", to: "/about-us#travel-trade" },
       { label: "Journal", to: "/journal" },
       { label: "Travel info & FAQ", to: "/travel-info" },
     ],
@@ -131,13 +133,21 @@ export function Footer() {
 
         <div className="md:col-span-4">
           <p className="eyebrow eyebrow-light">Contact</p>
-          <ul className="mt-5 space-y-3 text-cream/75">
-            <li><a href={`mailto:${site.email}`} className="flex items-center gap-3 hover:text-cream"><Mail className="size-4 text-gold" />{site.email}</a></li>
-            {site.phones.map((p) => (
-              <li key={p}><a href={telHref(p)} className="flex items-center gap-3 hover:text-cream"><Phone className="size-4 text-gold" />{p}</a></li>
+          <div className="mt-5 space-y-5 text-sm text-cream/75">
+            {site.departments.map((d) => (
+              <div key={d.name}>
+                <p className="font-display text-lg text-cream">{d.name}</p>
+                <a href={`mailto:${d.email}`} className="mt-1 flex items-center gap-2.5 hover:text-cream"><Mail className="size-3.5 text-gold" />{d.email}</a>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <Phone className="size-3.5 text-gold" />
+                  {d.phones.map((p, i) => (
+                    <span key={p}>{i > 0 && <span className="mr-2.5 text-cream/30">/</span>}<a href={telHref(p)} className="hover:text-cream">{p}</a></span>
+                  ))}
+                </p>
+              </div>
             ))}
-            <li className="flex items-center gap-3"><MapPin className="size-4 text-gold" />{site.address}</li>
-          </ul>
+            <p className="flex items-center gap-2.5"><MapPin className="size-3.5 text-gold" />{site.address}</p>
+          </div>
           <a href={site.sister.url} target="_blank" rel="noreferrer" className="mt-8 flex items-center gap-4 rounded-2xl border border-white/10 p-4 hover:border-gold/60">
             <Photo photo="realAfricaLogo" className="size-14 shrink-0 rounded-full !bg-cream" imgClassName="!object-contain p-1.5" />
             <span>

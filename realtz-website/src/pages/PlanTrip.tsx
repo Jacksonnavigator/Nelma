@@ -6,6 +6,7 @@ import { Photo } from "../components/Photo";
 import { WhatsApp } from "../components/BrandIcons";
 import { fallbackLinks, sendForm, type Fields } from "../lib/forms";
 import { findJourney, journeys } from "../data/journeys";
+import { findDestination } from "../data/destinations";
 import { site } from "../data/site";
 import type { PhotoKey } from "../data/images";
 
@@ -42,6 +43,7 @@ export default function PlanTrip() {
   useMeta("Plan your trip", "Tell us about your dream trip to Tanzania. Free and without obligation, a Tanzanian travel expert will design a private itinerary for you.");
   const [params] = useSearchParams();
   const preset = findJourney(params.get("journey") ?? "");
+  const place = findDestination(params.get("destination") ?? "");
   const [step, setStep] = useState(0);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "fallback" | "error">("idle");
   const [fallback, setFallback] = useState<{ whatsapp: string; email: string } | null>(null);
@@ -59,7 +61,7 @@ export default function PlanTrip() {
     email: "",
     phone: "",
     country: "",
-    message: "",
+    message: place ? `I'd love to include ${place.name} in my trip.` : "",
   });
 
   const set = <K extends keyof State>(k: K, v: State[K]) => setS((x) => ({ ...x, [k]: v }));
@@ -136,7 +138,7 @@ export default function PlanTrip() {
             {status === "sent" ? (
               <>
                 <h2 className="display-md mt-6">Asante, {s.name.split(" ")[0]}!</h2>
-                <p className="mt-4 text-lg text-muted">Your wishes are on their way to Beatrice and Nathan. You'll hear from us within 24 hours, usually much sooner.</p>
+                <p className="mt-4 text-lg text-muted">Your wishes are on their way to our reservations team. You'll hear from us within 24 hours, usually much sooner.</p>
               </>
             ) : (
               <>

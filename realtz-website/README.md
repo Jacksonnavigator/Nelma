@@ -22,11 +22,14 @@ npm run dev            # http://localhost:5173
 | --- | --- |
 | `/` | Home: photo slideshow, intro, experiences, sample journeys, how we plan, community, reviews |
 | `/tanzania` | Why Tanzania, best travel time, accommodation |
+| `/destinations` | Destination guide overview |
+| `/destinations/national-parks`, `/mountains`, `/islands` | 16 parks & reserves, 6 mountains, 10 islands & coastal places |
+| `/destinations/<group>/<name>` | One page per place: facts, story, highlights, things to do, best time, getting there, what to combine it with |
 | `/experiences` | Overview of the four experiences |
 | `/safari`, `/trekking`, `/culture`, `/beach-and-sea` | One page per experience |
 | `/journeys`, `/journeys/<name>` | Six sample itineraries with day-by-day plans |
 | `/community` | The three women-led partner groups |
-| `/about-us` | Values, story, team (Beatrice and Nathan) |
+| `/about-us` | Who we are, personal & flexible service, beyond the familiar routes, travel trade partners, what we organise, our promise |
 | `/journal`, `/journal/<name>` | Travel guides |
 | `/plan-trip` | Three-step trip planner |
 | `/contact` | Contact details, office hours, message form, map |
@@ -39,7 +42,8 @@ The addresses of the old site (`/itinerary/...`, `/blog/...`, `/info/contact` an
 
 All text lives in `src/data/`, so most changes need no design work:
 
-- `site.ts`: phone numbers, email, WhatsApp number, address, office hours, Instagram/Facebook links (empty links are hidden), Tripadvisor.
+- `site.ts`: the Reservations, Operations and Sales contacts, the WhatsApp number (currently the Reservations number), address, office hours, Instagram/Facebook links (empty links are hidden), Tripadvisor.
+- `destinations.ts`: every national park, mountain and island page.
 - `journeys.ts`: the sample itineraries. Copy one block to add a new journey.
 - `content.ts`: experiences, values, steps, community partners, reviews, team, FAQ.
 - `journal.ts`: journal articles.
@@ -50,6 +54,8 @@ All text lives in `src/data/`, so most changes need no design work:
 Each photo is looked for in `public/images/` first. If it isn't there, the site shows the copy from the current realtzdiscovery.co.tz site, and if that is missing too, a warm sunset gradient.
 
 Before the old site is switched off, run `npm run fetch-images` once and commit the `public/images` folder. After that the new site doesn't depend on the old one. To replace a photo, save a new file under the same name in `public/images/`.
+
+Destinations without a photo show an illustrated panel. To give a place a real photo, save it as `public/images/destinations/<name>.jpg` using the name from its web address (for example `ruaha.jpg`, `mount-meru.jpg`, `pemba.jpg`); the site picks it up automatically.
 
 The logo and icons in `public/brand/` and `public/icon-*.png` were made from the full-colour logo. The logo's dark-brown animals vanish on dark backgrounds, so it is always placed on a cream badge.
 

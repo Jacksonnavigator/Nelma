@@ -5,6 +5,7 @@ import "./styles.css";
 import { Layout } from "./components/Layout";
 import Home from "./pages/Home";
 import Tanzania from "./pages/Tanzania";
+import { DestinationCategory, DestinationDetail, DestinationsOverview } from "./pages/Destinations";
 import { BeachSea, Culture, ExperiencesOverview, Safari, Trekking } from "./pages/Experiences";
 import { JourneyDetail, JourneysPage } from "./pages/Journeys";
 import Community from "./pages/Community";
@@ -25,6 +26,9 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <Home /> },
       { path: "/tanzania", element: <Tanzania /> },
+      { path: "/destinations", element: <DestinationsOverview /> },
+      { path: "/destinations/:category", element: <DestinationCategory /> },
+      { path: "/destinations/:category/:slug", element: <DestinationDetail /> },
       { path: "/experiences", element: <ExperiencesOverview /> },
       { path: "/safari", element: <Safari /> },
       { path: "/trekking", element: <Trekking /> },
@@ -43,7 +47,6 @@ const router = createBrowserRouter([
       { path: "/privacy", element: <Privacy /> },
       { path: "/imprint", element: <Imprint /> },
 
-      { path: "/destinations", element: go("/experiences") },
       { path: "/tailor-itinerary", element: go("/plan-trip") },
       { path: "/itinerary", element: go("/journeys/15-days-east-tanzania") },
       { path: "/itinerary/:slug", element: <OldItinerary /> },

@@ -7,6 +7,7 @@ import { CtaBand, JourneyCard, useMeta } from "../components/Layout";
 import { experiences, partners, reviews, stats, steps, values } from "../data/content";
 import { journeys } from "../data/journeys";
 import { site } from "../data/site";
+import { byCategory, categories, type CategoryKey } from "../data/destinations";
 import type { PhotoKey } from "../data/images";
 
 const slides: { photo: PhotoKey; label: string }[] = [
@@ -173,10 +174,50 @@ function Experiences() {
   );
 }
 
+function DestinationsTeaser() {
+  const keys: CategoryKey[] = ["national-parks", "mountains", "islands"];
+  return (
+    <section className="py-24 md:py-32">
+      <div className="container-x">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <SectionHeading eyebrow="Destination guide" title="Parks, peaks and islands." intro="Over thirty places we know first-hand, from the Serengeti to Katavi, Kilimanjaro to Ol Doinyo Lengai, Zanzibar to Mafia." />
+          <Link to="/destinations" className="btn btn-ghost">Explore all destinations</Link>
+        </div>
+        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+          {keys.map((k, i) => {
+            const list = byCategory(k);
+            return (
+              <Reveal key={k} delay={i * 120}>
+                <div className="group relative overflow-hidden rounded-[2rem]">
+                  <Link to={`/destinations/${k}`} className="block">
+                    <Photo photo={categories[k].photo} className="aspect-[4/5]" imgClassName="transition-transform duration-[1.2s] group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-night via-night/40 to-transparent" />
+                  </Link>
+                  <div className="absolute inset-x-0 bottom-0 p-7 text-white">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{list.length} places</p>
+                    <Link to={`/destinations/${k}`} className="mt-2 block font-display text-3xl">{categories[k].title}</Link>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {list.slice(0, 4).map((d) => (
+                        <Link key={d.slug} to={`/destinations/${k}/${d.slug}`} className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur transition-colors hover:bg-white hover:text-night">
+                          {d.name.replace(/ (National Park|Conservation Area|Island National Park|Mountains National Park|Stream National Park)$/, "")}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FeaturedJourneys() {
   const [first, ...rest] = [journeys[4], journeys[1], journeys[3]];
   return (
-    <section className="py-24 md:py-32">
+    <section className="bg-paper py-24 md:py-32">
       <div className="container-x">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <SectionHeading eyebrow="Sample journeys" title="Ideas to start dreaming." intro="Every trip we plan is unique. These favourites show what's possible; we'll reshape any of them around you." />
@@ -324,6 +365,7 @@ export default function Home() {
       <Hero />
       <Intro />
       <Experiences />
+      <DestinationsTeaser />
       <FeaturedJourneys />
       <HowItWorks />
       <Community />

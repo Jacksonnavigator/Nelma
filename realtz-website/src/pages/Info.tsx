@@ -39,7 +39,11 @@ export function Imprint() {
       <h2>Company</h2>
       <p>{site.legalName}<br />{site.address}</p>
       <h2>Contact</h2>
-      <p>Phone: {site.phones.join(", ")}<br />Email: <a className="underline" href={`mailto:${site.email}`}>{site.email}</a></p>
+      {site.departments.map((d) => (
+        <p key={d.name}>
+          <strong>{d.name}</strong>: <a className="underline" href={`mailto:${d.email}`}>{d.email}</a>, {d.phones.join(" / ")}
+        </p>
+      ))}
       <h2>Sister company</h2>
       <p>Real Africa, Germany: <a className="underline" href={site.sister.url} target="_blank" rel="noreferrer">real-africa.de</a></p>
     </LegalShell>

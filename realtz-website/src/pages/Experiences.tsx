@@ -55,10 +55,10 @@ function Gallery({ photos }: { photos: PhotoKey[] }) {
 }
 
 const parks = [
-  { name: "Serengeti", note: "Endless plains and the Great Migration", photo: "serengeti" as PhotoKey },
-  { name: "Ngorongoro Crater", note: "The world's largest intact caldera, home to the Big Five", photo: "ngorongoro" as PhotoKey },
-  { name: "Tarangire", note: "Huge elephant herds beneath ancient baobabs", photo: "tarangire" as PhotoKey },
-  { name: "Lake Manyara", note: "Tree-climbing lions and flamingo shores", photo: "manyara" as PhotoKey },
+  { slug: "serengeti", name: "Serengeti", note: "Endless plains and the Great Migration", photo: "serengeti" as PhotoKey },
+  { slug: "ngorongoro", name: "Ngorongoro Crater", note: "The world's largest intact caldera, home to the Big Five", photo: "ngorongoro" as PhotoKey },
+  { slug: "tarangire", name: "Tarangire", note: "Huge elephant herds beneath ancient baobabs", photo: "tarangire" as PhotoKey },
+  { slug: "lake-manyara", name: "Lake Manyara", note: "Tree-climbing lions and flamingo shores", photo: "manyara" as PhotoKey },
 ];
 
 export function Safari() {
@@ -86,13 +86,18 @@ export function Safari() {
 
       <section className="bg-paper py-24 md:py-32">
         <div className="container-x">
-          <SectionHeading eyebrow="The northern circuit" title="The world-famous classics." />
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <SectionHeading eyebrow="The northern circuit" title="The world-famous classics." />
+            <Link to="/destinations/national-parks" className="btn btn-ghost">All national parks</Link>
+          </div>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {parks.map((p, i) => (
-              <Reveal key={p.name} delay={i * 100} className="group">
-                <Photo photo={p.photo} className="aspect-[3/4] rounded-[1.5rem]" imgClassName="transition-transform duration-700 group-hover:scale-105" />
-                <h3 className="mt-4 text-2xl">{p.name}</h3>
-                <p className="mt-1 text-sm text-muted">{p.note}</p>
+              <Reveal key={p.name} delay={i * 100}>
+                <Link to={`/destinations/national-parks/${p.slug}`} className="group block">
+                  <Photo photo={p.photo} className="aspect-[3/4] rounded-[1.5rem]" imgClassName="transition-transform duration-700 group-hover:scale-105" />
+                  <h3 className="mt-4 text-2xl transition-colors group-hover:text-terracotta">{p.name}</h3>
+                  <p className="mt-1 text-sm text-muted">{p.note}</p>
+                </Link>
               </Reveal>
             ))}
           </div>
@@ -111,7 +116,11 @@ export function Safari() {
           <div className="space-y-5 text-lg leading-relaxed text-cream/80">
             <p>Combine <strong className="text-cream">Mikumi</strong>, with elephants, lions, zebras and giraffes on the open Mkata Plains; <strong className="text-cream">Nyerere</strong>, one of Africa's largest protected areas, home to buffalo, hippos and the rare African wild dog; and the rainforest and waterfalls of <strong className="text-cream">Udzungwa</strong>, one of the richest biodiversity areas on earth.</p>
             <p>Or go further: <strong className="text-cream">Mkomazi</strong> with its black rhino project, <strong className="text-cream">Ruaha</strong> and its predators, remote <strong className="text-cream">Katavi</strong>, and the chimpanzees of <strong className="text-cream">Mahale</strong> and <strong className="text-cream">Gombe</strong> on Lake Tanganyika.</p>
-            <Pills items={["Mikumi", "Nyerere", "Udzungwa", "Mkomazi", "Ruaha", "Katavi", "Mahale", "Gombe"]} />
+            <div className="flex flex-wrap gap-2">
+              {[["Mikumi", "mikumi"], ["Nyerere", "nyerere"], ["Udzungwa", "udzungwa"], ["Mkomazi", "mkomazi"], ["Ruaha", "ruaha"], ["Katavi", "katavi"], ["Mahale", "mahale"], ["Gombe", "gombe"]].map(([n, slug]) => (
+                <Link key={slug} to={`/destinations/national-parks/${slug}`} className="rounded-full border border-white/20 px-4 py-2 text-sm text-cream transition-colors hover:border-gold hover:text-gold">{n}</Link>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -166,6 +175,12 @@ export function Trekking() {
           />
           <Gallery photos={["kiliSummit", "kiliGroup", "kiliGate"]} />
         </div>
+        <div className="container-x mt-16 flex flex-wrap items-center gap-3">
+          <span className="mr-2 text-sm font-semibold text-earth">Mountain guides:</span>
+          {[["Kilimanjaro", "kilimanjaro"], ["Mount Meru", "mount-meru"], ["Ol Doinyo Lengai", "ol-doinyo-lengai"], ["Usambara", "usambara"], ["Uluguru", "uluguru"], ["Mount Hanang", "mount-hanang"], ["Udzungwa", "udzungwa"]].map(([n, slug]) => (
+            <Link key={slug} to={slug === "udzungwa" ? "/destinations/national-parks/udzungwa" : `/destinations/mountains/${slug}`} className="rounded-full border border-line bg-cream px-4 py-2 text-sm text-earth transition-colors hover:border-earth">{n}</Link>
+          ))}
+        </div>
       </section>
 
       <CtaBand title="Ready to climb?" text="Kilimanjaro, Meru or a gentle village trail: tell us your fitness and your dream, and we'll plan the rest." />
@@ -219,11 +234,11 @@ export function Culture() {
 }
 
 const coasts = [
-  { name: "Zanzibar", photo: "zanzibarDhows" as PhotoKey, text: "Stunning white sand and turquoise water, but its true uniqueness is its heritage. From historic Stone Town to luxurious beach resorts, history, culture and tropical beauty in one." },
-  { name: "Mafia Island", photo: "mafia" as PhotoKey, text: "For true privacy and untouched beauty. Quiet beaches, crystal-clear water and rich marine life, including whale sharks and vibrant coral reefs." },
-  { name: "Kilwa", photo: "kilwa" as PhotoKey, text: "Beach relaxation meets deep history. A calm, uncrowded coast beside the ancient ruins of a once-thriving Swahili trading port." },
-  { name: "Pangani (Tanga)", photo: "pangani" as PhotoKey, text: "Long, quiet beaches lined with coconut palms. No crowds, just nature, gentle breezes and a relaxed coastal lifestyle." },
-  { name: "Bagamoyo", photo: "bagamoyo" as PhotoKey, text: "A peaceful coastal town infused with history and art. Once an important trading port, now a calm place to unwind." },
+  { slug: "zanzibar", name: "Zanzibar", photo: "zanzibarDhows" as PhotoKey, text: "Stunning white sand and turquoise water, but its true uniqueness is its heritage. From historic Stone Town to luxurious beach resorts, history, culture and tropical beauty in one." },
+  { slug: "mafia", name: "Mafia Island", photo: "mafia" as PhotoKey, text: "For true privacy and untouched beauty. Quiet beaches, crystal-clear water and rich marine life, including whale sharks and vibrant coral reefs." },
+  { slug: "kilwa", name: "Kilwa", photo: "kilwa" as PhotoKey, text: "Beach relaxation meets deep history. A calm, uncrowded coast beside the ancient ruins of a once-thriving Swahili trading port." },
+  { slug: "pangani", name: "Pangani (Tanga)", photo: "pangani" as PhotoKey, text: "Long, quiet beaches lined with coconut palms. No crowds, just nature, gentle breezes and a relaxed coastal lifestyle." },
+  { slug: "bagamoyo", name: "Bagamoyo", photo: "bagamoyo" as PhotoKey, text: "A peaceful coastal town infused with history and art. Once an important trading port, now a calm place to unwind." },
 ];
 
 export function BeachSea() {
@@ -260,7 +275,10 @@ export function BeachSea() {
 
       <section className="bg-paper py-24 md:py-32">
         <div className="container-x">
-          <SectionHeading eyebrow="Quality by the sea" title="Five coasts, five characters." />
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <SectionHeading eyebrow="Quality by the sea" title="Five coasts, five characters." />
+            <Link to="/destinations/islands" className="btn btn-ghost">All islands & coast</Link>
+          </div>
           <div className="mt-14 space-y-6">
             {coasts.map((c, i) => (
               <Reveal key={c.name} className="grid overflow-hidden rounded-[1.75rem] bg-cream md:grid-cols-[1.1fr_1fr]">
@@ -269,6 +287,7 @@ export function BeachSea() {
                   <span className="font-display text-sm text-terracotta">0{i + 1}</span>
                   <h3 className="mt-1 text-3xl md:text-4xl">{c.name}</h3>
                   <p className="mt-4 leading-relaxed text-muted">{c.text}</p>
+                  <Link to={`/destinations/islands/${c.slug}`} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-terracotta">Read the full guide <ArrowRight className="size-4" /></Link>
                 </div>
               </Reveal>
             ))}

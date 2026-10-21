@@ -30,7 +30,7 @@ export const stats = [
 
 export const steps = [
   { n: "01", title: "Tell us your dream", text: "Share what moves you: wildlife, mountains, people, the sea. Two minutes with our trip planner or a message on WhatsApp is enough." },
-  { n: "02", title: "We craft your route", text: "Beatrice and Nathan design an itinerary around your pace, budget and interests, then refine it with you by phone, video call or email." },
+  { n: "02", title: "We craft your route", text: "We design an itinerary around your pace, budget and interests, then refine it with you by phone, video call or email." },
   { n: "03", title: "Travel, cared for", text: "Your own driver-guide, our team on call on the ground, and every detail handled. All that's left for you is to be amazed." },
 ];
 
@@ -82,21 +82,6 @@ export const reviews = [
   { quote: "Incredible! I never would have thought the trip would excite all of us so much. Beyond the great attractions, it was the local insights that will stay with us most. Cooking and eating together as a family in a Tanzanian home was the best.", name: "Annegret H.", from: "Stuttgart" },
   { quote: "We were thrilled by the individuality of our trip. From our first ideas, they tailored a two and a half week round trip just for us. A fantastic journey that we gladly recommend.", name: "Claudia F.", from: "Heilbronn" },
   { quote: "I think I've never been so close to a foreign culture in my life! The hospitality of the people was simply overwhelming. And even though there were only two of us, our services were never mixed with other groups.", name: "Markus C.", from: "Ludwigsburg" },
-];
-
-export const team = [
-  {
-    name: "Beatrice",
-    role: "Operations Director",
-    photo: "beatrice" as PhotoKey,
-    text: "Your reliable and welcoming contact on the ground. Beatrice makes sure your journey runs smoothly from arrival to departure, is always reachable and handles any change quickly. With international experience from England and Norway and frequent visits to Germany, she understands travellers from all over the world.",
-  },
-  {
-    name: "Nathan",
-    role: "Head of Sales",
-    photo: "nathan" as PhotoKey,
-    text: "With deep knowledge of Tanzania's travel offerings and a passion for connecting people with unforgettable experiences, Nathan makes sure every enquiry is handled with care. He works closely with Beatrice to craft the perfect itinerary for each guest.",
-  },
 ];
 
 export const travelFaq = [

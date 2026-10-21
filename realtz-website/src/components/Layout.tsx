@@ -10,8 +10,14 @@ import type { PhotoKey } from "../data/images";
 import { journeys, type Journey } from "../data/journeys";
 
 export function Layout() {
-  const { pathname } = useLocation();
-  useEffect(() => window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }), [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" }), 80);
+      return () => clearTimeout(t);
+    }
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [pathname, hash]);
 
   return (
     <>
@@ -45,13 +51,16 @@ export function useMeta(title: string, description?: string) {
 
 export function PageHero({
   photo,
+  background,
   eyebrow,
   title,
   intro,
   crumbs = [],
   children,
 }: {
-  photo: PhotoKey;
+  photo?: PhotoKey;
+  /** Replaces the photo, e.g. a destination image with its own fallback. */
+  background?: ReactNode;
   eyebrow: string;
   title: ReactNode;
   intro?: ReactNode;
@@ -60,7 +69,7 @@ export function PageHero({
 }) {
   return (
     <section className="grain relative flex min-h-[78vh] items-end overflow-hidden bg-night text-white md:min-h-[82vh]">
-      <Photo photo={photo} eager className="absolute inset-0" imgClassName="animate-kenburns" />
+      {background ?? <Photo photo={photo} eager className="absolute inset-0" imgClassName="animate-kenburns" />}
       <div className="absolute inset-0 bg-gradient-to-t from-night via-night/45 to-night/20" />
       <div className="absolute inset-0 bg-gradient-to-r from-night/60 to-transparent" />
       <div className="container-x relative pb-16 pt-40 md:pb-24">

@@ -36,40 +36,29 @@ export default function Contact() {
     }
   }
 
-  const channels = [
-    { icon: WhatsApp, label: "WhatsApp", value: site.phones[0], href: whatsappHref() },
-    { icon: Phone, label: "Phone", value: site.phones.join(" · "), href: telHref(site.phones[0]) },
-    { icon: Mail, label: "Email", value: site.email, href: `mailto:${site.email}` },
-    { icon: MapPin, label: "Office", value: site.address },
-  ];
-
   return (
     <>
       <PageHero photo="kiliGroup" eyebrow="Contact" title={<>Karibu! Let's <em className="text-gold">talk</em>.</>} intro="By phone, WhatsApp, video call or at our office at the foot of Kilimanjaro. We look forward to hearing from you." crumbs={[{ label: "Contact" }]} />
       <section className="py-24 md:py-28">
         <div className="container-x grid gap-14 lg:grid-cols-[1fr_1.2fr]">
           <div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              {channels.map((c, i) => {
-                const inner = (
-                  <>
-                    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-sand/70 text-terracotta"><c.icon className="size-5" /></span>
-                    <span>
-                      <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted">{c.label}</span>
-                      <span className="mt-1 block font-display text-xl text-ink">{c.value}</span>
-                    </span>
-                  </>
-                );
-                return (
-                  <Reveal key={c.label} delay={i * 80}>
-                    {c.href ? (
-                      <a href={c.href} target={c.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="flex items-center gap-4 rounded-[1.5rem] border border-line bg-paper p-5 transition-colors hover:border-terracotta">{inner}</a>
-                    ) : (
-                      <div className="flex items-center gap-4 rounded-[1.5rem] border border-line bg-paper p-5">{inner}</div>
-                    )}
-                  </Reveal>
-                );
-              })}
+            <div className="space-y-4">
+              {site.departments.map((d, i) => (
+                <Reveal key={d.name} delay={i * 80} className="rounded-[1.5rem] border border-line bg-paper p-6">
+                  <p className="font-display text-2xl text-ink">{d.name}</p>
+                  <p className="mt-1 text-sm text-muted">{d.note}</p>
+                  <div className="mt-4 space-y-2">
+                    <a href={`mailto:${d.email}`} className="flex items-center gap-3 text-earth hover:text-terracotta"><Mail className="size-4 text-terracotta" />{d.email}</a>
+                    {d.phones.map((ph) => (
+                      <a key={ph} href={telHref(ph)} className="flex items-center gap-3 text-earth hover:text-terracotta"><Phone className="size-4 text-terracotta" />{ph}</a>
+                    ))}
+                  </div>
+                </Reveal>
+              ))}
+              <Reveal delay={260} className="grid gap-4 sm:grid-cols-2">
+                <a href={whatsappHref()} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-[1.5rem] bg-[#25d366] p-5 font-semibold text-white"><WhatsApp className="size-6" /> WhatsApp us</a>
+                <div className="flex items-center gap-3 rounded-[1.5rem] border border-line bg-paper p-5 text-sm text-earth"><MapPin className="size-5 shrink-0 text-terracotta" />{site.address}</div>
+              </Reveal>
             </div>
             <Reveal delay={200} className="mt-8 rounded-[1.5rem] bg-earth p-7 text-cream">
               <p className="flex items-center gap-3 font-display text-2xl"><Clock className="size-5 text-gold" /> Office hours</p>
