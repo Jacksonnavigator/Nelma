@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { ArrowRight, CalendarDays, Check, Compass, MapPin, Navigation, Ruler } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Compass, Languages, MapPin, Navigation, Ruler } from "lucide-react";
 import { CtaBand, PageHero, useMeta } from "../components/Layout";
 import { PlaceImage } from "../components/PlaceImage";
 import { Reveal, SectionHeading } from "../components/ui";
 import { byCategory, categories, findDestination, isCategory, type CategoryKey, type Destination } from "../data/destinations";
 
-const order: CategoryKey[] = ["national-parks", "mountains", "islands"];
+const order: CategoryKey[] = ["national-parks", "mountains", "islands", "cultures"];
 
 export function DestinationCard({ dest, compact = false }: { dest: Destination; compact?: boolean }) {
   return (
@@ -36,7 +36,7 @@ export function DestinationsOverview() {
         photo="safariPlains"
         eyebrow="Destinations"
         title={<>Where will Tanzania <em className="text-gold">take you</em>?</>}
-        intro="From the famous northern circuit to remote parks in the south and west, from Africa's highest summit to spice islands and coral atolls. Explore our destination guide."
+        intro="From the famous northern circuit to remote parks in the south and west, from Africa's highest summit to spice islands, coral atolls and the many peoples who call Tanzania home. Explore our destination guide."
         crumbs={[{ label: "Destinations" }]}
       >
         {order.map((c) => (
@@ -87,7 +87,7 @@ export function DestinationCategory() {
 function CategoryList({ category }: { category: string }) {
   const valid = isCategory(category);
   const list = useMemo(() => (valid ? byCategory(category) : []), [category, valid]);
-  const regions = useMemo(() => (category === "national-parks" ? ["All", ...Array.from(new Set(list.map((d) => d.circuit ?? "Other")))] : []), [list, category]);
+  const regions = useMemo(() => (category === "national-parks" || category === "cultures" ? ["All", ...Array.from(new Set(list.map((d) => d.circuit ?? "Other")))] : []), [list, category]);
   const [region, setRegion] = useState("All");
   const cat = valid ? categories[category] : undefined;
   useMeta(cat?.title ?? "Destinations", cat?.intro);
@@ -138,7 +138,7 @@ export function DestinationDetail() {
   const facts = [
     { icon: MapPin, label: "Region", value: dest.region },
     { icon: Compass, label: "Type", value: dest.type },
-    ...(dest.size ? [{ icon: Ruler, label: dest.category === "mountains" ? "Height" : "Size", value: dest.size }] : []),
+    ...(dest.size ? [{ icon: dest.category === "cultures" ? Languages : Ruler, label: dest.category === "mountains" ? "Height" : dest.category === "cultures" ? "Language" : "Size", value: dest.size }] : []),
     { icon: CalendarDays, label: "Best time", value: dest.bestTime.split(".")[0] },
   ];
 

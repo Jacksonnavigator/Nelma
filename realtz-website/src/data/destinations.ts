@@ -1,10 +1,11 @@
 import type { PhotoKey } from "./images";
+import { cultures } from "./cultures";
 
 // Destination guide: national parks, mountains, islands & coast.
 // To add a photo to a place without one, save it as
 // public/images/destinations/<slug>.jpg and it is picked up automatically.
 
-export type CategoryKey = "national-parks" | "mountains" | "islands";
+export type CategoryKey = "national-parks" | "mountains" | "islands" | "cultures";
 
 export const categories: Record<CategoryKey, { title: string; short: string; eyebrow: string; intro: string; photo: PhotoKey }> = {
   "national-parks": {
@@ -31,6 +32,14 @@ export const categories: Record<CategoryKey, { title: string; short: string; eye
       "Spice islands, marine parks, coral atolls and Swahili ruins along more than 1,400 km of coastline, plus a wild island in Lake Victoria.",
     photo: "zanzibarBeach",
   },
+  cultures: {
+    title: "Peoples & cultural heritage",
+    short: "Cultures",
+    eyebrow: "More than 120 peoples, one Tanzania",
+    intro:
+      "Tanzania is home to more than 120 ethnic groups, each with its own language, history and traditions, living together in peace. Here are the peoples and heritage sites we most often visit with guests. Ask us about any other community you'd like to meet.",
+    photo: "sameWomen",
+  },
 };
 
 export type Destination = {
@@ -52,7 +61,7 @@ export type Destination = {
   photo?: PhotoKey;
 };
 
-export const destinations: Destination[] = [
+const places: Destination[] = [
   // ───────────── National parks & reserves ─────────────
   {
     slug: "serengeti",
@@ -703,6 +712,8 @@ export const destinations: Destination[] = [
     photo: "pangani",
   },
 ];
+
+export const destinations: Destination[] = [...places, ...cultures];
 
 export const byCategory = (c: CategoryKey) => destinations.filter((d) => d.category === c);
 export const findDestination = (slug: string) => destinations.find((d) => d.slug === slug);

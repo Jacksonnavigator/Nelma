@@ -175,15 +175,15 @@ function Experiences() {
 }
 
 function DestinationsTeaser() {
-  const keys: CategoryKey[] = ["national-parks", "mountains", "islands"];
+  const keys: CategoryKey[] = ["national-parks", "mountains", "islands", "cultures"];
   return (
     <section className="py-24 md:py-32">
       <div className="container-x">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <SectionHeading eyebrow="Destination guide" title="Parks, peaks and islands." intro="Over thirty places we know first-hand, from the Serengeti to Katavi, Kilimanjaro to Ol Doinyo Lengai, Zanzibar to Mafia." />
+          <SectionHeading eyebrow="Destination guide" title="Parks, peaks, islands and peoples." intro="More than fifty places and communities we know first-hand, from the Serengeti to Katavi, Kilimanjaro to Ol Doinyo Lengai, Zanzibar to Mafia, and the Maasai to the Hadzabe." />
           <Link to="/destinations" className="btn btn-ghost">Explore all destinations</Link>
         </div>
-        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {keys.map((k, i) => {
             const list = byCategory(k);
             return (
@@ -194,12 +194,12 @@ function DestinationsTeaser() {
                     <div className="absolute inset-0 bg-gradient-to-t from-night via-night/40 to-transparent" />
                   </Link>
                   <div className="absolute inset-x-0 bottom-0 p-7 text-white">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{list.length} places</p>
-                    <Link to={`/destinations/${k}`} className="mt-2 block font-display text-3xl">{categories[k].title}</Link>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{list.length} {k === "cultures" ? "peoples & sites" : "places"}</p>
+                    <Link to={`/destinations/${k}`} className="mt-2 block font-display text-2xl xl:text-3xl">{categories[k].title}</Link>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {list.slice(0, 4).map((d) => (
                         <Link key={d.slug} to={`/destinations/${k}/${d.slug}`} className="rounded-full bg-white/15 px-3 py-1.5 text-xs backdrop-blur transition-colors hover:bg-white hover:text-night">
-                          {d.name.replace(/ (National Park|Conservation Area|Island National Park|Mountains National Park|Stream National Park)$/, "")}
+                          {d.name.replace(/ (National Park|Conservation Area|Island National Park|Mountains National Park|Stream National Park)$/, "").replace(/^The /, "")}
                         </Link>
                       ))}
                     </div>

@@ -14,6 +14,7 @@ const columns = [
       { label: "National parks", to: "/destinations/national-parks" },
       { label: "Mountains", to: "/destinations/mountains" },
       { label: "Islands & coast", to: "/destinations/islands" },
+      { label: "Peoples & culture", to: "/destinations/cultures" },
       { label: "Safari", to: "/safari" },
       { label: "Culture", to: "/culture" },
     ],

@@ -50,6 +50,7 @@ export const nav: NavItem[] = [
       { label: "National parks", to: "/destinations/national-parks", note: "Serengeti, Ngorongoro, Ruaha, Katavi…" },
       { label: "Mountains", to: "/destinations/mountains", note: "Kilimanjaro, Meru, Ol Doinyo Lengai…" },
       { label: "Islands & coast", to: "/destinations/islands", note: "Zanzibar, Pemba, Mafia, Kilwa…" },
+      { label: "Peoples & culture", to: "/destinations/cultures", note: "Maasai, Hadzabe, Chagga, Swahili…" },
     ],
   },
   {

@@ -6,6 +6,8 @@ import { Photo } from "../components/Photo";
 import { Reveal, SectionHeading } from "../components/ui";
 import { experiences } from "../data/content";
 import type { PhotoKey } from "../data/images";
+import { byCategory } from "../data/destinations";
+import { DestinationCard } from "./Destinations";
 
 export function ExperiencesOverview() {
   useMeta("Experiences", "Safari, trekking, culture and beach: the four faces of Tanzania, combined into one private journey.");
@@ -214,6 +216,30 @@ export function Culture() {
             <p>Take part in daily life: farming, cattle keeping, traditional food preparation. Walk alongside local farmers, learn traditional ways of living and feel the warmth of the community.</p>
             <p>Whether you'd like a simple encounter or a deeper stay with families, every journey is personalised to your interests and comfort.</p>
           </Split>
+        </div>
+      </section>
+
+      <section className="bg-paper py-24 md:py-32">
+        <div className="container-x">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <SectionHeading eyebrow="More than 120 peoples" title="Meet Tanzania's peoples." intro="From Maasai herders and Hadzabe hunter-gatherers to Chagga coffee farmers, Makonde carvers and the Swahili of the coast. These are the communities we visit most often; ask us about any other." />
+            <Link to="/destinations/cultures" className="btn btn-ghost">All peoples & heritage sites</Link>
+          </div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {byCategory("cultures").filter((d) => d.circuit === "Peoples").map((d, i) => (
+              <Reveal key={d.slug} delay={(i % 4) * 60}><DestinationCard dest={d} compact /></Reveal>
+            ))}
+          </div>
+          <div className="mt-16 rounded-[2rem] bg-cream p-8 md:p-10">
+            <p className="eyebrow">Cultural heritage sites</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {byCategory("cultures").filter((d) => d.circuit === "Heritage sites").concat(byCategory("islands").filter((d) => ["zanzibar", "kilwa", "bagamoyo"].includes(d.slug))).map((d) => (
+                <Link key={d.slug} to={`/destinations/${d.category}/${d.slug}`} className="rounded-full border border-line bg-paper px-4 py-2.5 text-sm font-medium text-earth transition-colors hover:border-earth">
+                  {d.slug === "zanzibar" ? "Stone Town, Zanzibar" : d.slug === "kilwa" ? "Kilwa Kisiwani ruins" : d.name}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

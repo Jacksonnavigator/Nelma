@@ -1,4 +1,4 @@
-import { Mountain, Palmtree, Trees } from "lucide-react";
+import { Mountain, Palmtree, Trees, Users } from "lucide-react";
 import { Photo } from "./Photo";
 import type { CategoryKey, Destination } from "../data/destinations";
 
@@ -6,6 +6,7 @@ const art: Record<CategoryKey, { bg: string; Icon: typeof Trees }> = {
   "national-parks": { bg: "from-[#c98a2e] via-[#8a4a1f] to-[#2b1d12]", Icon: Trees },
   mountains: { bg: "from-[#9fb0b8] via-[#5d5a52] to-[#2b1d12]", Icon: Mountain },
   islands: { bg: "from-[#5fc2c0] via-[#2f7f86] to-[#183b45]", Icon: Palmtree },
+  cultures: { bg: "from-[#e2662a] via-[#a94b25] to-[#3a1d10]", Icon: Users },
 };
 
 /** Illustrated panel used until a real photo of the place is added. */

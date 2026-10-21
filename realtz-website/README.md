@@ -23,7 +23,7 @@ npm run dev            # http://localhost:5173
 | `/` | Home: photo slideshow, intro, experiences, sample journeys, how we plan, community, reviews |
 | `/tanzania` | Why Tanzania, best travel time, accommodation |
 | `/destinations` | Destination guide overview |
-| `/destinations/national-parks`, `/mountains`, `/islands` | 16 parks & reserves, 6 mountains, 10 islands & coastal places |
+| `/destinations/national-parks`, `/mountains`, `/islands`, `/cultures` | 16 parks & reserves, 6 mountains, 10 islands & coastal places, 17 peoples and 6 cultural heritage sites |
 | `/destinations/<group>/<name>` | One page per place: facts, story, highlights, things to do, best time, getting there, what to combine it with |
 | `/experiences` | Overview of the four experiences |
 | `/safari`, `/trekking`, `/culture`, `/beach-and-sea` | One page per experience |
@@ -44,6 +44,7 @@ All text lives in `src/data/`, so most changes need no design work:
 
 - `site.ts`: the Reservations, Operations and Sales contacts, the WhatsApp number (currently the Reservations number), address, office hours, Instagram/Facebook links (empty links are hidden), Tripadvisor.
 - `destinations.ts`: every national park, mountain and island page.
+- `cultures.ts`: the peoples and cultural heritage sites.
 - `journeys.ts`: the sample itineraries. Copy one block to add a new journey.
 - `content.ts`: experiences, values, steps, community partners, reviews, FAQ.
 - `journal.ts`: journal articles.
