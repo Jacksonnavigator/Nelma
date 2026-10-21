@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { @apply bg-paper text-ink font-sans antialiased; }
+  h1, h2, h3, h4 { @apply font-display; font-optical-sizing: auto; }
+  :focus-visible { outline: 3px solid #F7931E; outline-offset: 3px; border-radius: 6px; }
+  ::selection { background: #FFAE4D; color: #071E24; }
+}
+
+@layer components {
+  .container-site { @apply mx-auto w-full max-w-site px-4 sm:px-6 lg:px-8; }
+  .section { @apply py-20 md:py-28; }
+  .kicker { @apply inline-flex items-center gap-2 text-sm font-semibold text-teal-600; }
+  .kicker::before { content: ""; @apply h-px w-8 bg-solar; }
+  .h-section { @apply text-4xl md:text-5xl font-semibold tracking-tight text-ink leading-[1.08]; }
+  .lead { @apply text-lg md:text-xl text-slate-600 leading-relaxed; }
+  .btn { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold transition-colors duration-200; }
+  .btn-solar { @apply btn bg-solar text-ink hover:bg-solar-400; }
+  .btn-ghost-light { @apply btn border border-white/40 text-white hover:bg-white hover:text-ink; }
+  .btn-teal { @apply btn bg-teal-600 text-white hover:bg-teal-500; }
+  .btn-outline { @apply btn border border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

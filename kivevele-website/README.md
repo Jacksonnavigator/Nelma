@@ -1,36 +1,46 @@
 # Prof. Thomas Kivevele website
 
-Static personal website built from Prof. Kivevele's CV (October 2026). No build step.
+React website for Prof. Thomas T. Kivevele, built from his CV (October 2026). Layout follows the reference site
+(salumawadh.com): photo slider hero, about with key figures, journey, a grid of innovations, "creating impact" cards,
+latest updates and a contact section, with its own teal and solar-orange brand.
 
-| File | What it is |
-| --- | --- |
-| `index.html` | Home page: career path, research, projects, patents, service, teaching, awards, contact |
-| `publications.html` | Searchable list of all publications |
-| `assets/publications.js` | Publication data (edit this to add new papers) |
-| `assets/styles.css`, `assets/main.js` | Styles and behaviour |
+Stack: Vite, React 18, TypeScript, Tailwind CSS, React Router.
 
-## Preview locally
+## Run it
 
 ```bash
-python3 -m http.server 8000 --directory kivevele-website
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # production files in dist/
+npm run preview    # serve dist/ locally
 ```
 
-Then open http://localhost:8000.
+## Pages
+
+| Route | Content |
+| --- | --- |
+| `/` | Hero slider, about and figures, journey, innovations, impact, recognition, latest publications, contact |
+| `/about` | Biography, education, career, national service, keynotes, awards |
+| `/projects` | All 18 funded projects with Running now and Completed filters |
+| `/publications` | All 133 publications with search, year and type filters |
+| `/contact` | Contact details and message form |
+
+## Editing content
+
+- Text, projects, awards and contact details: `src/data/site.ts`
+- Publications: `src/data/publications.json`
+- Photos: `src/data/images.ts`. They currently use free Unsplash photos. To use real photos, put files in
+  `public/images/` and change the entry to a local path, as `portrait` does.
 
 ## Publish
 
-Upload the folder as-is to any static host (Netlify drop, Vercel, GitHub Pages, Cloudflare Pages or cPanel hosting).
-
-## Adding a publication
-
-Add an entry at the top of `assets/publications.js`:
-
-```js
-{ "type": "Journal article", "year": 2026, "text": "AUTHORS. 2026. Title, Journal, volume, pages.", "doi": "10.xxxx/xxxxx" }
-```
+Upload `dist/` to Netlify, Vercel or any static host. `public/_redirects` (Netlify) and `vercel.json` (Vercel) make page
+links like `/about` work on refresh. On cPanel or Apache hosting, add a rewrite of all paths to `index.html`.
 
 ## Before launch
 
-- Replace `assets/portrait.jpg` with a high-resolution photo (the CV photo is only 199 × 268 px).
-- Confirm with Prof. Kivevele which phone numbers and emails should be public.
+- Replace `public/images/portrait.jpg` with a high-resolution photo (the CV photo is only 199 × 268 px).
+- Swap the stock photos for real ones of his lab, dryers, students and events where possible.
+- Confirm which phone numbers and emails he wants public.
+- The contact form opens the visitor's email app. Connect a form service (for example Formspree) to send directly.
 - Personal details from the CV (date of birth, passport number, marital status, referees) are deliberately left out.
