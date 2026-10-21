@@ -39,22 +39,27 @@ export function Header() {
         solid ? "bg-cream/92 shadow-[0_8px_30px_-18px_rgba(43,29,18,0.45)] backdrop-blur-md" : "bg-gradient-to-b from-night/55 to-transparent"
       }`}
     >
-      <div className="container-x flex h-20 items-center justify-between gap-6 lg:h-24">
-        <Link
-          to="/"
-          aria-label={`${site.name}, home`}
-          className={`relative z-10 -mb-6 self-start rounded-b-2xl bg-cream px-3 pb-2 pt-3 shadow-[0_12px_30px_-14px_rgba(43,29,18,0.55)] transition-all duration-500 ${
-            solid ? "mb-0 scale-[0.82] origin-top-left shadow-none" : ""
-          }`}
-        >
-          <img src="/brand/logo-full.png" alt={site.name} width={802} height={652} className="h-[72px] w-auto lg:h-[92px]" />
+      <div className="mx-auto flex h-20 w-full max-w-[1440px] items-center justify-between gap-6 px-5 md:px-8 xl:h-24">
+        <Link to="/" aria-label={`${site.name}, home`} className="flex shrink-0 items-center gap-3">
+          {/* The illustrated mark sits on cream: its dark-brown animals disappear on dark photos. */}
+          <span
+            className={`grid shrink-0 place-items-center rounded-2xl bg-cream p-1.5 transition-all duration-500 ${
+              solid ? "size-14 shadow-none" : "size-16 shadow-[0_10px_28px_-12px_rgba(0,0,0,0.6)] xl:size-[4.5rem]"
+            }`}
+          >
+            <img src="/brand/logo-mark.png" alt="" width={658} height={524} className="h-auto w-full max-w-none" />
+          </span>
+          <span className={`hidden leading-none max-xl:block min-[1400px]:block ${solid ? "text-earth" : "text-white"}`}>
+            <span className={`block text-[0.62rem] font-bold uppercase tracking-[0.32em] ${solid ? "text-terracotta" : "text-gold"}`}>Real Tanzania</span>
+            <span className="mt-1.5 block font-display text-lg tracking-tight sm:text-xl">Discovery Adventures</span>
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-0.5 whitespace-nowrap lg:flex" aria-label="Main">
+        <nav className="hidden items-center gap-0.5 whitespace-nowrap xl:flex" aria-label="Main">
           {nav.map((item) =>
             item.children ? (
               <div key={item.to} className="group relative">
-                <NavLink to={item.to} className={`flex items-center gap-1 rounded-full px-3 py-2 text-[0.92rem] font-medium xl:px-3.5 transition-colors ${linkTone}`}>
+                <NavLink to={item.to} className={`flex items-center gap-1 rounded-full px-3 py-2 text-[0.92rem] font-medium 2xl:px-3.5 transition-colors ${linkTone}`}>
                   {item.label}
                   <ChevronDown className="size-4 transition-transform group-hover:rotate-180" />
                 </NavLink>
@@ -74,7 +79,7 @@ export function Header() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `rounded-full px-3 py-2 text-[0.92rem] font-medium xl:px-3.5 transition-colors ${linkTone} ${isActive ? (solid ? "text-terracotta" : "text-gold") : ""}`
+                  `rounded-full px-3 py-2 text-[0.92rem] font-medium 2xl:px-3.5 transition-colors ${linkTone} ${isActive ? (solid ? "text-terracotta" : "text-gold") : ""}`
                 }
               >
                 {item.label}
@@ -86,7 +91,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <a
             href={telHref(site.phones[0])}
-            className={`hidden items-center gap-2 whitespace-nowrap text-sm font-medium 2xl:flex ${solid ? "text-earth" : "text-white/90"}`}
+            className={`hidden items-center gap-2 whitespace-nowrap text-sm font-medium min-[1700px]:flex ${solid ? "text-earth" : "text-white/90"}`}
           >
             <Phone className="size-4" /> {site.phones[0]}
           </a>
@@ -98,7 +103,7 @@ export function Header() {
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-label={open ? "Close menu" : "Open menu"}
-            className={`grid size-11 place-items-center rounded-full lg:hidden ${solid ? "bg-earth text-cream" : "bg-white/15 text-white backdrop-blur"}`}
+            className={`grid size-11 place-items-center rounded-full xl:hidden ${solid ? "bg-earth text-cream" : "bg-white/15 text-white backdrop-blur"}`}
           >
             {open ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -107,7 +112,7 @@ export function Header() {
 
       {/* Mobile menu */}
       <div
-        className={`fixed inset-x-0 bottom-0 top-20 overflow-y-auto bg-cream transition-all duration-500 lg:hidden ${
+        className={`fixed inset-x-0 bottom-0 top-20 overflow-y-auto bg-cream transition-all duration-500 xl:hidden ${
           open ? "visible opacity-100" : "invisible -translate-y-4 opacity-0"
         }`}
       >

@@ -25,7 +25,7 @@ function Hero() {
   }, []);
 
   return (
-    <section className="grain relative h-[100svh] min-h-[640px] overflow-hidden bg-night text-white">
+    <section className="grain relative flex min-h-[100svh] flex-col overflow-hidden bg-night text-white">
       {slides.map((s, i) => (
         <div key={s.photo} className={`absolute inset-0 transition-opacity duration-[1800ms] ${i === index ? "opacity-100" : "opacity-0"}`}>
           <Photo photo={s.photo} eager={i === 0} className="absolute inset-0" imgClassName={i === index ? "animate-kenburns" : ""} />
@@ -34,7 +34,7 @@ function Hero() {
       <div className="absolute inset-0 bg-gradient-to-t from-night via-night/35 to-night/30" />
       <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_80%_10%,rgba(233,169,58,0.28),transparent_70%)]" />
 
-      <div className="container-x relative flex h-full flex-col justify-end pb-12 md:pb-16">
+      <div className="container-x relative flex flex-1 flex-col justify-end pb-12 pt-32 md:pb-16 lg:pt-40">
         <p className="eyebrow eyebrow-light rise">Fascination Tanzania · Since our childhood</p>
         <h1 className="display-xl rise mt-6 max-w-5xl" style={{ animationDelay: "120ms" }}>
           Our heart beats for <em className="font-light text-gold">your</em> dream trip.
