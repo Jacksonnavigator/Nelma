@@ -45,7 +45,7 @@ All text lives in `src/data/`, so most changes need no design work:
 - `site.ts`: the Reservations, Operations and Sales contacts, the WhatsApp number (currently the Reservations number), address, office hours, Instagram/Facebook links (empty links are hidden), Tripadvisor.
 - `destinations.ts`: every national park, mountain and island page.
 - `journeys.ts`: the sample itineraries. Copy one block to add a new journey.
-- `content.ts`: experiences, values, steps, community partners, reviews, team, FAQ.
+- `content.ts`: experiences, values, steps, community partners, reviews, FAQ.
 - `journal.ts`: journal articles.
 - `images.ts`: the list of photos.
 
