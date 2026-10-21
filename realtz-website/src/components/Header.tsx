@@ -24,6 +24,12 @@ export function Header() {
   useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
@@ -34,6 +40,7 @@ export function Header() {
   const linkTone = solid ? "text-ink hover:text-terracotta" : "text-white/90 hover:text-white";
 
   return (
+    <>
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
         solid ? "bg-cream/92 shadow-[0_8px_30px_-18px_rgba(43,29,18,0.45)] backdrop-blur-md" : "bg-gradient-to-b from-night/55 to-transparent"
@@ -102,6 +109,7 @@ export function Header() {
             type="button"
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
+            aria-controls="mobile-menu"
             aria-label={open ? "Close menu" : "Open menu"}
             className={`grid size-11 place-items-center rounded-full xl:hidden ${solid ? "bg-earth text-cream" : "bg-white/15 text-white backdrop-blur"}`}
           >
@@ -109,10 +117,13 @@ export function Header() {
           </button>
         </div>
       </div>
+    </header>
 
-      {/* Mobile menu */}
+      {/* Mobile menu. It lives outside <header>: the header's backdrop blur would
+          otherwise turn it into the containing block and squash this panel to 0px. */}
       <div
-        className={`fixed inset-x-0 bottom-0 top-20 overflow-y-auto bg-cream transition-all duration-500 xl:hidden ${
+        id="mobile-menu"
+        className={`fixed inset-x-0 bottom-0 top-20 z-[45] overflow-y-auto bg-cream transition-all duration-500 xl:hidden ${
           open ? "visible opacity-100" : "invisible -translate-y-4 opacity-0"
         }`}
       >
@@ -141,6 +152,6 @@ export function Header() {
           </a>
         </nav>
       </div>
-    </header>
+    </>
   );
 }

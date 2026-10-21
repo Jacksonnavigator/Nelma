@@ -116,7 +116,7 @@ export default function PlanTrip() {
           <div className="absolute inset-0 bg-gradient-to-t from-night via-night/40 to-night/10" />
           <div className="absolute inset-x-0 bottom-0 p-12 text-cream">
             <p className="eyebrow eyebrow-light">Free & without obligation</p>
-            <h1 className="display-lg mt-4">Let's plan your dream trip.</h1>
+            <p aria-hidden="true" className="display-lg mt-4 font-display">Let's plan your dream trip.</p>
             <ul className="mt-8 space-y-3 text-cream/80">
               {["A Tanzanian expert replies within 24 hours", "A personal itinerary, never a template", "Adjust everything until it's perfect"].map((t) => (
                 <li key={t} className="flex items-center gap-3"><Check className="size-5 text-gold" />{t}</li>
@@ -127,9 +127,10 @@ export default function PlanTrip() {
       </aside>
 
       <div className="container-x max-w-3xl py-10 lg:py-36">
+        <h1 className="sr-only">Plan your trip to Tanzania</h1>
         <div className="lg:hidden">
           <p className="eyebrow">Free & without obligation</p>
-          <h1 className="display-lg mt-3">Let's plan your dream trip.</h1>
+          <p aria-hidden="true" className="display-lg mt-3 font-display">Let's plan your dream trip.</p>
         </div>
 
         {done ? (
