@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://realtzdiscovery.co.tz/sitemap.xml
